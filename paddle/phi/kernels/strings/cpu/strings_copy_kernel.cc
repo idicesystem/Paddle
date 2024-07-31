@@ -18,7 +18,8 @@ limitations under the License. */
 #include "paddle/phi/common/pstring.h"
 #include "paddle/phi/core/kernel_registry.h"
 
-namespace phi::strings {
+namespace phi {
+namespace strings {
 
 template <typename Context>
 void Copy(const Context& dev_ctx,
@@ -49,7 +50,8 @@ void Copy(const Context& dev_ctx,
   }
 }
 
-}  // namespace phi::strings
+}  // namespace strings
+}  // namespace phi
 
 PD_REGISTER_KERNEL_FOR_ALL_DTYPE(strings_copy,
                                  CPU,

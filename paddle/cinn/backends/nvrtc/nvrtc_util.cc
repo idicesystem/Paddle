@@ -29,41 +29,14 @@
 #include "paddle/cinn/common/common.h"
 #include "paddle/cinn/runtime/flags.h"
 #include "paddle/cinn/utils/string.h"
-#include "paddle/common/enforce.h"
+
 PD_DECLARE_string(cinn_nvcc_cmd_path);
-PD_DECLARE_string(nvidia_package_dir);
 PD_DECLARE_bool(nvrtc_compile_to_cubin);
 PD_DECLARE_bool(cinn_nvrtc_cubin_with_fmad);
 
 namespace cinn {
 namespace backends {
 namespace nvrtc {
-
-static bool TryLocatePath(const std::string& path) {
-  struct stat st;
-  return stat(path.c_str(), &st) == 0;
-}
-
-static std::vector<std::string> GetNvidiaAllIncludePath(
-    const std::string& nvidia_package_dir) {
-  std::vector<std::string> include_paths;
-  const std::string delimiter = "/";
-  // Expand this list if necessary.
-  const std::vector<std::string> sub_modules = {"cublas",
-                                                "cudnn",
-                                                "cufft",
-                                                "cusparse",
-                                                "cusolver",
-                                                "cuda_nvrtc",
-                                                "curand",
-                                                "cuda_runtime"};
-  for (auto& sub_module : sub_modules) {
-    std::string path =
-        nvidia_package_dir + delimiter + sub_module + delimiter + "include";
-    include_paths.push_back(path);
-  }
-  return include_paths;
-}
 
 std::string Compiler::operator()(const std::string& code,
                                  bool include_headers) {
@@ -92,30 +65,20 @@ std::vector<std::string> Compiler::FindCUDAIncludePaths() {
   if (cuda_path_env != nullptr) {
     cuda_include_path += cuda_path_env;
     cuda_include_path += delimiter + "include";
-    VLOG(4) << "FindCUDAIncludePaths from CUDA_PATH: " << cuda_include_path;
     return {cuda_include_path};
   }
 
 #if defined(__linux__)
-  if (!FLAGS_nvidia_package_dir.empty() &&
-      TryLocatePath(FLAGS_nvidia_package_dir)) {
-    VLOG(4) << "FindCUDAIncludePaths from nvidia_package_dir: "
-            << FLAGS_nvidia_package_dir;
-    return GetNvidiaAllIncludePath(FLAGS_nvidia_package_dir);
-  }
-
+  struct stat st;
   cuda_include_path = "/usr/local/cuda/include";
-  if (TryLocatePath(cuda_include_path)) {
-    VLOG(4) << "FindCUDAIncludePaths from " << cuda_include_path;
+  if (stat(cuda_include_path.c_str(), &st) == 0) {
     return {cuda_include_path};
   }
 #endif
-  std::stringstream ss;
-  ss << "Cannot find cuda include path."
-     << "CUDA_PATH is not set or CUDA is not installed in the default "
-        "installation path."
-     << "In other than linux, it is necessary to set CUDA_PATH.";
-  PADDLE_THROW(::common::errors::Fatal(ss.str()));
+  LOG(FATAL) << "Cannot find cuda include path."
+             << "CUDA_PATH is not set or CUDA is not installed in the default "
+                "installation path."
+             << "In other than linux, it is necessary to set CUDA_PATH.";
   return {cuda_include_path};
 }
 
@@ -158,7 +121,6 @@ std::string Compiler::CompileCudaSource(const std::string& code,
     auto cinn_headers = FindCINNRuntimeIncludePaths();
     std::vector<std::string> include_paths;
     for (auto& header : cuda_headers) {
-      VLOG(5) << "add include-path: " << header;
       include_paths.push_back("--include-path=" + header);
     }
     for (auto& header : cinn_headers) {
@@ -187,9 +149,7 @@ std::string Compiler::CompileCudaSource(const std::string& code,
     std::string log;
     log.resize(log_size);
     NVRTC_CALL(nvrtcGetProgramLog(prog, &log[0]));
-    PADDLE_ENFORCE_EQ(compile_res,
-                      NVRTC_SUCCESS,
-                      ::common::errors::Fatal("NVRTC compilation failed"));
+    CHECK_EQ(compile_res, NVRTC_SUCCESS) << log;
   }
 
   size_t size;
@@ -212,25 +172,15 @@ std::string Compiler::CompileWithNvcc(const std::string& cuda_c) {
   // read dir source
   std::string dir = "./source";
   if (access(dir.c_str(), 0) == -1) {
-    PADDLE_ENFORCE_NE(
-        mkdir(dir.c_str(), 7),
-        -1,
-        phi::errors::PermissionDenied(
-            "Failed to create directory %s. Please check the permissions.",
-            dir.c_str()));
+    CHECK(mkdir(dir.c_str(), 7) != -1) << "Fail to mkdir " << dir;
   }
 
-  // get unique prefix name
+  // get unqiue prefix name
   prefix_name_ = dir + "/" + cinn::common::UniqName("rtc_tmp");
 
   auto cuda_c_file = prefix_name_ + ".cu";
   std::ofstream ofs(cuda_c_file, std::ios::out);
-  PADDLE_ENFORCE_EQ(ofs.is_open(),
-                    true,
-                    phi::errors::Unavailable(
-                        "Failed to open file %s. Please check if the file path "
-                        "is correct and the file is accessible.",
-                        cuda_c_file.c_str()));
+  CHECK(ofs.is_open()) << "Fail to open file " << cuda_c_file;
   ofs << cuda_c;
   ofs.close();
 
@@ -262,12 +212,7 @@ void Compiler::CompileToPtx() {
   options += " " + prefix_name_ + ".cu";
 
   VLOG(2) << "Nvcc Compile Options : " << options;
-  PADDLE_ENFORCE_EQ(
-      system(options.c_str()),
-      0,
-      phi::errors::InvalidArgument("Failed to execute command: %s. Please "
-                                   "check the command and try again.",
-                                   options.c_str()));
+  CHECK(system(options.c_str()) == 0) << options;
 }
 
 void Compiler::CompileToCubin() {
@@ -278,12 +223,7 @@ void Compiler::CompileToCubin() {
   options += " " + prefix_name_ + ".ptx";
 
   VLOG(2) << "Nvcc Compile Options : " << options;
-  PADDLE_ENFORCE_EQ(
-      system(options.c_str()),
-      0,
-      phi::errors::InvalidArgument("Failed to execute command: %s. Please "
-                                   "check the command and try again.",
-                                   options.c_str()));
+  CHECK(system(options.c_str()) == 0) << options;
 }
 
 std::string Compiler::GetDeviceArch() {
@@ -304,12 +244,7 @@ std::string Compiler::ReadFile(const std::string& file_name,
                                std::ios_base::openmode mode) {
   // open cubin file
   std::ifstream ifs(file_name, mode);
-  PADDLE_ENFORCE_EQ(ifs.is_open(),
-                    true,
-                    phi::errors::Unavailable(
-                        "Failed to open file %s. Please check if the file path "
-                        "is correct and the file is accessible.",
-                        file_name.c_str()));
+  CHECK(ifs.is_open()) << "Fail to open file " << file_name;
   ifs.seekg(std::ios::end);
   auto len = ifs.tellg();
   ifs.seekg(0);

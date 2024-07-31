@@ -17,7 +17,8 @@ limitations under the License. */
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 template <typename T, typename Context>
 void FusedAttentionCsrGradKernel(const Context& dev_ctx,
@@ -33,4 +34,5 @@ void FusedAttentionCsrGradKernel(const Context& dev_ctx,
       "Not support CPU kernel of 'sparse.nn.functional.fused_attention' now");
 }
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi

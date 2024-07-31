@@ -15,7 +15,9 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 #include "paddle/fluid/inference/tensorrt/plugin/roi_align_op_plugin.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * Roi Align Op
@@ -63,10 +65,12 @@ class RoiAlignOpConverter : public OpConverter {
     layer = roi_align_layer;
 
     std::vector<std::string> output_names{output_name};
-    ReplenishLayerAndOutput(layer, "roi_align", output_names, test_mode);
+    RreplenishLayerAndOutput(layer, "roi_align", output_names, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(roi_align, RoiAlignOpConverter);

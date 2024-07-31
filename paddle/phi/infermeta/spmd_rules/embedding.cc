@@ -23,14 +23,15 @@ limitations under the License. */
 #include "paddle/phi/infermeta/spmd_rules/reshape.h"
 #include "paddle/phi/infermeta/spmd_rules/utils.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 
 using phi::distributed::auto_parallel::str_join;
 
-SpmdInfo EmbeddingInferSpmdUnsupportVocabParallel(const DistMetaTensor& x,
-                                                  const DistMetaTensor& weight,
-                                                  int padding_idx,
-                                                  bool sparse) {
+SpmdInfo EmbeddingInferSpmdUnspportVocabParallel(const DistMetaTensor& x,
+                                                 const DistMetaTensor& weight,
+                                                 int padding_idx,
+                                                 bool sparse) {
   DistMetaTensor w(weight.dims(), weight.dist_attr());
   if (weight.dist_attr().dims_mapping()[0] >= 0) {
     auto w_dims_mapping = weight.dist_attr().dims_mapping();
@@ -122,7 +123,7 @@ SpmdInfo EmbeddingInferSpmd(const DistMetaTensor& x,
   std::string weight_axes = "jk";
   std::string out_axes = x_axes + "k";
 
-  // Step2: Sharding Propagation
+  // Step2: Sharding Propogation
   // Step2.1: merge input shardings
   auto axis_to_dim_map = ShardingMergeForTensors(
       {{x_axes, x_dims_mapping}, {weight_axes, weight_dims_mapping}}, false);
@@ -195,7 +196,7 @@ SpmdInfo EmbeddingInferSpmdReverse(const DistMetaTensor& x,
   std::string weight_axes = "jk";
   std::string out_axes = x_axes + "k";
 
-  // step2: Sharding Propagation
+  // step2: Sharding Propogation
   // should not use input dims mapping for backward sharding merge
   auto axis_to_dim_map =
       ShardingMergeForTensors({{out_axes, out_dims_mapping}}, false);
@@ -279,7 +280,7 @@ SpmdInfo EmbeddingGradInferSpmd(const DistMetaTensor& x,
   std::string out_grad_dst_axes = t0_axes.substr(0, t0_axes.length() - 1) + "k";
   std::string w_grad_axes = t0_axes.substr(t0_axes.length() - 1, 1) + "k";
 
-  // Step2.2: Sharding Propagation
+  // Step2.2: Sharding Propogation
   // Step2.2.1: merge input shardings
   auto axis_to_dim_map = ShardingMergeForTensors(
       {{t0_axes, t0.dist_attr().dims_mapping()},
@@ -296,8 +297,7 @@ SpmdInfo EmbeddingGradInferSpmd(const DistMetaTensor& x,
   // update input dims mapping with merged shardings.
   t0_dist_attr.set_dims_mapping(
       GetDimsMappingForAxes(t0_axes, axis_to_dim_map));
-  auto out_grad_dst_dist_attr =
-      CopyTensorDistAttrForOutput(out_grad_dst.dist_attr());
+  auto out_grad_dst_dist_attr = out_grad_dst.dist_attr();
   out_grad_dst_dist_attr.set_dims_mapping(
       GetDimsMappingForAxes(out_grad_dst_axes, axis_to_dim_map));
 
@@ -307,7 +307,7 @@ SpmdInfo EmbeddingGradInferSpmd(const DistMetaTensor& x,
   w_grad_dist_attr.set_partial_status(partial_on_dims);
 
   // Step2.3: Update inputs info.
-  // NOTE: Reshard happened on intermediate operators must be ensure propagated
+  // NOTE: Reshard happend on intemediate operators must be ensure propagated
   // back to first inputs.
   t0 = DistMetaTensor(t0.dims(), t0_dist_attr);
   const auto& t0_dims = t0.dist_attr().dims_mapping();
@@ -344,4 +344,5 @@ SpmdInfo EmbeddingGradInferSpmd(const DistMetaTensor& x,
   return {{x_dst.dist_attr(), w_dst.dist_attr(), out_grad_dst.dist_attr()},
           {w_grad.dist_attr()}};
 }
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

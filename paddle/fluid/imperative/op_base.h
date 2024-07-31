@@ -25,7 +25,7 @@
 #include "paddle/fluid/imperative/saved_variable_wrapper_list.h"
 #include "paddle/fluid/imperative/type_defs.h"
 #include "paddle/fluid/imperative/variable_wrapper.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace imperative {
@@ -58,16 +58,16 @@ class OpBase {
   }
 
   const framework::OpInfo& Info() const {
-    PADDLE_ENFORCE_NOT_NULL(
-        op_,
-        phi::errors::PreconditionNotMet("OpBase::Info() should be called after "
-                                        "OpBase::SetType() is called"));
+    PADDLE_ENFORCE_NOT_NULL(op_,
+                            platform::errors::PreconditionNotMet(
+                                "OpBase::Info() should be called after "
+                                "OpBase::SetType() is called"));
     return op_->Info();
   }
 
   const framework::OperatorBase& InnerOp() const {
     PADDLE_ENFORCE_NOT_NULL(op_,
-                            phi::errors::PreconditionNotMet(
+                            platform::errors::PreconditionNotMet(
                                 "OpBase::InnerOp() should be called after "
                                 "OpBase::SetType() is called"));
     return *op_;
@@ -120,7 +120,7 @@ class OpBase {
 
   void SetBlockAttr(const std::string& name UNUSED,
                     framework::BlockDesc* block UNUSED) {
-    PADDLE_THROW(phi::errors::PermissionDenied(
+    PADDLE_THROW(platform::errors::PermissionDenied(
         "SetBlockAttr is not support in dygraph OpBase"));
   }
 
@@ -148,7 +148,7 @@ class OpBase {
       PADDLE_ENFORCE_NE(
           it_default,
           default_attrs_->end(),
-          phi::errors::NotFound("can not find attribute [%s]", name));
+          platform::errors::NotFound("can not find attribute [%s]", name));
       return it_default->second;
     }
   }
@@ -162,15 +162,15 @@ class OpBase {
 
   void SetId(size_t id) { id_ = id; }
 
-  const phi::Place& place() const { return place_; }
+  const platform::Place& place() const { return place_; }
 
-  void SetPlace(const phi::Place& place) { place_ = place; }
+  void SetPlace(const platform::Place& place) { place_ = place; }
 
   void EnforceHasInOut() const {
     PADDLE_ENFORCE_NE(
         ins_.empty() && outs_.empty(),
         true,
-        phi::errors::NotFound(
+        platform::errors::NotFound(
             "Inputs and outputs of %s do not exist. This may be because:\n"
             "1. You use some output variables of the previous batch as the "
             "inputs of the current batch. Please try to call \"stop_gradient "
@@ -191,20 +191,20 @@ class OpBase {
                   const NameVarMap<VarBase>& outs,
                   const framework::AttributeMap& attrs,
                   const framework::AttributeMap& default_attrs,
-                  const phi::Place& place);
+                  const platform::Place& place);
 
   static void Run(const framework::OperatorBase& op,
                   const NameVarMap<VariableWrapper>& ins,
                   const NameVarMap<VariableWrapper>& outs,
                   const framework::AttributeMap& attrs,
                   const framework::AttributeMap& default_attrs,
-                  const phi::Place& place);
+                  const platform::Place& place);
   static void Run(const framework::OperatorBase& op,
                   const NameVarMap<egr::EagerVariable>& ins,
                   const NameVarMap<egr::EagerVariable>& outs,
                   const framework::AttributeMap& attrs,
                   const framework::AttributeMap& default_attrs,
-                  const phi::Place& place);
+                  const platform::Place& place);
 
   bool HasVoidFunctionPostHook() const {
     return !void_function_post_hooks_.empty();
@@ -231,7 +231,7 @@ class OpBase {
   framework::AttributeMap attrs_;
   const framework::AttributeMap* default_attrs_ = nullptr;
   std::unique_ptr<framework::OperatorBase> op_;
-  phi::Place place_;
+  platform::Place place_;
   size_t id_{-1UL};
   // In order to reduce the compatibility phase
   // performance overhead, temporarily cache KernelContext

@@ -50,11 +50,7 @@ void TestCopyTensor() {
   auto t1_cpu_cp = t1.copy_to(phi::CPUPlace(), /*blocking=*/false);
   CHECK((phi::CPUPlace() == t1_cpu_cp.place()));
   for (int64_t i = 0; i < t1.size(); i++) {
-    PADDLE_ENFORCE_EQ(
-        t1_cpu_cp.template data<T>()[i],
-        T(5),
-        phi::errors::InvalidArgument(
-            "t1_cpu_cp.template data<T>()[%d] should be equal to T(5) ", i));
+    CHECK_EQ(t1_cpu_cp.template data<T>()[i], T(5));
   }
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
   VLOG(2) << "Do GPU copy test";
@@ -66,12 +62,7 @@ void TestCopyTensor() {
       t1_gpu_cp_cp.copy_to(phi::CPUPlace(), /*blocking=*/false);
   CHECK((phi::CPUPlace() == t1_gpu_cp_cp_cpu.place()));
   for (int64_t i = 0; i < t1.size(); i++) {
-    PADDLE_ENFORCE_EQ(
-        t1_gpu_cp_cp_cpu.template data<T>()[i],
-        T(5),
-        phi::errors::InvalidArgument(
-            "t1_gpu_cp_cp_cpu.template data<T>()[%d] should be equal to T(5) ",
-            i));
+    CHECK_EQ(t1_gpu_cp_cp_cpu.template data<T>()[i], T(5));
   }
 #endif
 }
@@ -91,10 +82,7 @@ void TestAPIPlace() {
 void TestAPISizeAndShape() {
   std::vector<int64_t> tensor_shape = {5, 5};
   auto t1 = paddle::experimental::empty(tensor_shape);
-  PADDLE_ENFORCE_EQ(
-      t1.size(),
-      25,
-      phi::errors::InvalidArgument("t1.size should be equal to 25 "));
+  CHECK_EQ(t1.size(), 25);
   CHECK(t1.shape() == tensor_shape);
 }
 
@@ -129,12 +117,7 @@ void TestAPISlice() {
   }
   auto* t_data_ptr = t.data<float>();
   for (int64_t i = 0; i < t_sliced.size(); i++) {
-    PADDLE_ENFORCE_EQ(
-        t_data_ptr[i],
-        static_cast<float>(10),
-        phi::errors::InvalidArgument("Required t_data_ptr[%d] should be equal "
-                                     "to static_cast<float>(10) ",
-                                     i));
+    CHECK_EQ(t_data_ptr[i], static_cast<float>(10));
   }
 }
 
@@ -220,7 +203,7 @@ void GroupTestDtype() {
   CHECK(TestDtype<paddle::complex128>() == paddle::DataType::COMPLEX128);
 }
 
-void TestInitialized() {
+void TestInitilized() {
   auto test_tensor = paddle::experimental::empty({1, 1});
   CHECK(test_tensor.is_initialized() == true);
   float* tensor_data = test_tensor.data<float>();
@@ -273,8 +256,8 @@ TEST(PhiTensor, All) {
   TestAPISlice();
   VLOG(2) << "TestCast";
   GroupTestCast();
-  VLOG(2) << "TestInitialized";
-  TestInitialized();
+  VLOG(2) << "TestInitilized";
+  TestInitilized();
   VLOG(2) << "TestDataInterface";
   TestDataInterface();
   VLOG(2) << "TestJudgeTensorType";

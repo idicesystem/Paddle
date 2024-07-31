@@ -17,7 +17,9 @@ limitations under the License. */
 #include <iostream>
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class BitwiseNotConverter : public OpConverter {
  public:
@@ -40,7 +42,7 @@ class BitwiseNotConverter : public OpConverter {
       nvinfer1::Dims input_dims = input_tensor->getDimensions();
 
       // set up a elementwise -1 tensor, can not get the dims info for
-      // dynamic_shape so just let it broadcast
+      // dynamic_shape so just let it broadcaste
       nvinfer1::Dims neg_one_tensor_dims;
       neg_one_tensor_dims.nbDims = input_dims.nbDims;
       for (int i = 0; i < input_dims.nbDims; ++i) {
@@ -67,10 +69,12 @@ class BitwiseNotConverter : public OpConverter {
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "bitwise_not", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "bitwise_not", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(bitwise_not, BitwiseNotConverter);

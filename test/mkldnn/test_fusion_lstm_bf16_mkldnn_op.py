@@ -32,10 +32,7 @@ class TestFusionLSTMBF16ONEDNNOp(OpTest):
         for use_seq in {True, False}:
             self.attrs['use_seq'] = use_seq
             self.check_output(
-                check_dygraph=False,
-                no_check_set=["Cell"],
-                atol=2e-2,
-                check_pir_onednn=True,
+                check_dygraph=False, no_check_set=["Cell"], atol=2e-2
             )
 
     def setUp(self):
@@ -60,7 +57,7 @@ class TestFusionLSTMBF16ONEDNNOp(OpTest):
         bs = len(self.lod[0])
 
         # fp32 X input for reference implementation and
-        # corresponding bf16 data as input to LSTM oneDNN bf16 kernel
+        # corressponding bf16 data as input to LSTM oneDNN bf16 kernel
         x = np.random.normal(size=(T, self.M)).astype('float32')
 
         x_bf16 = convert_float_to_uint16(x)

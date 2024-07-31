@@ -69,7 +69,9 @@ class TestSGDOpWithLargeInput(unittest.TestCase):
         label = paddle.tensor.fill_constant(
             shape=[1, 150], value=0.5, dtype='float32'
         )
-        emb = paddle.nn.Embedding(num_embeddings=10000, embedding_dim=150)(data)
+        emb = paddle.static.nn.embedding(
+            input=data, size=(10000, 150), dtype='float32'
+        )
         out = paddle.nn.functional.normalize(x=emb, axis=-1)
 
         cost = paddle.nn.functional.square_error_cost(input=out, label=label)
@@ -107,7 +109,7 @@ class TestSparseSGDOp(unittest.TestCase):
         param_array = np.full((height, self.row_numel), 5.0).astype("float32")
         param.set(param_array, place)
 
-        # create and initialize LearningRate Variable
+        # create and initialize LeraningRate Variable
         lr = scope.var('LearningRate').get_tensor()
         lr_array = np.full((1), 2.0).astype("float32")
         lr.set(lr_array, place)

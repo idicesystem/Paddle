@@ -94,16 +94,14 @@ struct DoMatch</*is_leaf*/ true, ExprT> final {
                                source_pattern_type>::value) {
       return true;
     }
-    return std::visit(
-        [](auto&& impl) {
-          if constexpr (std::is_same<std::decay_t<decltype(impl)>,
-                                     source_pattern_type>::value) {
-            return true;
-          } else {
-            return false;
-          }
-        },
-        pattern_expr.variant());
+    return pattern_expr.Visit([](auto&& impl) {
+      if constexpr (std::is_same<std::decay_t<decltype(impl)>,
+                                 source_pattern_type>::value) {
+        return true;
+      } else {
+        return false;
+      }
+    });
   }
 };
 
@@ -153,12 +151,10 @@ template <typename ExprT>
 struct DoMatch</*is_leaf*/ false, ExprT> final {
   template <typename source_pattern_type>
   static bool Call(const ExprT& pattern_expr) {
-    return std::visit(
-        [](const auto& impl) {
-          return MatchTraitWrapper<ExprT, source_pattern_type>::
-              template MatchChildren<Match>(impl);
-        },
-        pattern_expr.variant());
+    return pattern_expr.Visit([](const auto& impl) {
+      return MatchTraitWrapper<ExprT, source_pattern_type>::
+          template MatchChildren<Match>(impl);
+    });
   }
 };
 

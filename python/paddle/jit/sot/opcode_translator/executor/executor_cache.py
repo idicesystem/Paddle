@@ -15,13 +15,14 @@
 from __future__ import annotations
 
 import gc
+import sys
 import traceback
-from typing import TYPE_CHECKING, List, Tuple
+import types
+from typing import List, Tuple
 
 from ...profiler import EventGuard, event_register
 from ...psdb import NO_FALLBACK_CODES
 from ...utils import (
-    ENV_SOT_ALLOW_DYNAMIC_SHAPE,
     BreakGraphError,
     FallbackError,
     InnerError,
@@ -34,9 +35,6 @@ from ..custom_code import CustomCode
 from .guard import Guard
 from .opcode_executor import OpcodeExecutor, OpcodeExecutorBase
 
-if TYPE_CHECKING:
-    import types
-
 GuardedFunction = Tuple[CustomCode, Guard]
 GuardedFunctions = List[GuardedFunction]
 
@@ -45,7 +43,8 @@ dummy_guard.expr = "lambda frame: True"
 dummy_guard.lambda_expr = "lambda frame: True"
 
 
-class OpcodeExecutorCache(metaclass=Singleton):
+@Singleton
+class OpcodeExecutorCache:
     """
     A singleton class that implements a cache for translated instructions.
     This cache is used to store previously translated instructions along with their corresponding guard functions.
@@ -58,16 +57,10 @@ class OpcodeExecutorCache(metaclass=Singleton):
     MAX_CACHE_SIZE = 20
     cache: dict[types.CodeType, GuardedFunctions]
     translate_count: int
-    code_symbolic_inputs: dict[types.CodeType, dict[str, dict[int, int]]]
 
     def __init__(self):
         self.cache = {}
         self.translate_count = 0
-        self.code_symbolic_inputs = {}
-
-    def get_symbolic_inputs(self, code: types.CodeType):
-        self.code_symbolic_inputs.setdefault(code, {})
-        return self.code_symbolic_inputs[code]
 
     def clear(self):
         """
@@ -75,7 +68,6 @@ class OpcodeExecutorCache(metaclass=Singleton):
         """
         self.cache.clear()
         self.translate_count = 0
-        self.code_symbolic_inputs.clear()
 
     def __call__(self, frame: types.FrameType, **kwargs) -> CustomCode:
         code: types.CodeType = frame.f_code
@@ -138,10 +130,6 @@ class OpcodeExecutorCache(metaclass=Singleton):
         guarded_fns.append((new_custom_code, guard_fn))
         return new_custom_code
 
-    def before_translate_hook(self, frame: types.FrameType):
-        if not ENV_SOT_ALLOW_DYNAMIC_SHAPE.get():
-            return
-
     def translate(
         self, frame: types.FrameType, **kwargs
     ) -> tuple[CustomCode, Guard]:
@@ -154,7 +142,7 @@ class OpcodeExecutorCache(metaclass=Singleton):
         Returns:
             tuple[CustomCode, Guard]: The cache getter function and a guarded function for the translated code object.
         """
-        self.before_translate_hook(frame)
+        code: types.CodeType = frame.f_code
         self.translate_count += 1
         custom_new_code, guard_fn = start_translate(frame, **kwargs)
         return custom_new_code, guard_fn
@@ -182,7 +170,7 @@ class OpcodeExecutorCache(metaclass=Singleton):
                     result = guard(frame)
                 except Exception as e:
                     print(
-                        f"[Cache]: skip checking {guard_str}\n         because error occurred {e}"
+                        f"[Cache]: skip checking {guard_str}\n         because error occured {e}"
                     )
                 if result is False:
                     print(f"[Cache]: missed at {guard_str}")
@@ -192,10 +180,7 @@ class OpcodeExecutorCache(metaclass=Singleton):
         return inner
 
 
-def start_translate(
-    frame: types.FrameType,
-    **kwargs,
-) -> GuardedFunction:
+def start_translate(frame: types.FrameType, **kwargs) -> GuardedFunction:
     """
     Starts the translation process for the given frame and returns the translated code object and its guard function, or None if translation fails.
 
@@ -205,6 +190,13 @@ def start_translate(
     Returns:
         GuardedFunction | None: The translated code object and its guard function, or None if translation fails.
     """
+    if sys.version_info >= (3, 11):
+        for const in frame.f_code.co_consts:
+            if isinstance(const, types.CodeType) and const.co_name.startswith(
+                "<"
+            ):
+                log(2, f"Found code object {const.co_name}, skip it\n")
+                return CustomCode(None, False), dummy_guard
     simulator = OpcodeExecutor(frame, **kwargs)
     try:
         simulator.check_code_simulatable()
@@ -221,7 +213,7 @@ def start_translate(
             raise InnerError(
                 f"{simulator._code.co_name} should not fallback, but got '{e}'"
             )
-        # if disable_eval_frame is True, it means we want fallback to speedup rather than error occurred
+        # if disable_eval_frame is True, it means we want fallback to speedup rather than error occured
         if is_strict_mode() and e.disable_eval_frame is False:
             raise
         log(

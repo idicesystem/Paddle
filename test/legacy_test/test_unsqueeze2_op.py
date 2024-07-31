@@ -1,4 +1,4 @@
-# Copyright (c) 2024 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2018 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class TestUnsqueezeOp(OpTest):
             "Out": self.inputs["X"].reshape(self.new_shape),
             "XShape": np.random.random(self.ori_shape).astype("float64"),
         }
-        self.prim_op_type = "prim"
+        self.prim_op_type = "comp"
         self.if_enable_cinn()
 
     def if_enable_cinn(self):
@@ -46,6 +46,7 @@ class TestUnsqueezeOp(OpTest):
     def test_check_output(self):
         self.check_output(
             no_check_set=["XShape"],
+            check_prim=True,
             check_pir=True,
             check_prim_pir=True,
         )
@@ -54,6 +55,7 @@ class TestUnsqueezeOp(OpTest):
         self.check_grad(
             ["X"],
             "Out",
+            check_prim=True,
             check_pir=True,
             check_prim_pir=True,
         )
@@ -97,22 +99,6 @@ class TestUnsqueezeOp4(TestUnsqueezeOp):
         self.ori_shape = (10, 2, 5)
         self.axes = (3, 1, 1)
         self.new_shape = (10, 1, 1, 2, 5, 1)
-
-
-# Test for output rank=7
-class TestUnsqueezeOp5(TestUnsqueezeOp):
-    def init_test_case(self):
-        self.ori_shape = (10, 2, 5)
-        self.axes = (1, 2, 3, 4)
-        self.new_shape = (10, 1, 1, 1, 1, 2, 5)
-
-
-# Test for output rank=8
-class TestUnsqueezeOp6(TestUnsqueezeOp):
-    def init_test_case(self):
-        self.ori_shape = (10, 2, 5)
-        self.axes = (1, 2, 3, 4, 5)
-        self.new_shape = (10, 1, 1, 1, 1, 1, 2, 5)
 
 
 class TestUnsqueezeOp_ZeroDim1(TestUnsqueezeOp):
@@ -161,11 +147,7 @@ class TestUnsqueezeOp_AxesTensorList(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(
-            no_check_set=["XShape"],
-            check_pir=True,
-            check_symbol_infer=(self.attrs is None),
-        )
+        self.check_output(no_check_set=["XShape"], check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(["X"], "Out", check_pir=True)
@@ -226,11 +208,7 @@ class TestUnsqueezeOp_AxesTensor(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(
-            no_check_set=["XShape"],
-            check_pir=True,
-            check_symbol_infer=(self.attrs is None),
-        )
+        self.check_output(no_check_set=["XShape"], check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(["X"], "Out", check_pir=True)
@@ -319,7 +297,6 @@ class TestUnsqueezeAPI(unittest.TestCase):
         np.testing.assert_array_equal(res_4, input.reshape([3, 2, 5, 1]))
         np.testing.assert_array_equal(res_5, input.reshape([3, 1, 1, 2, 5, 1]))
 
-    @test_with_pir_api
     def test_error(self):
         def test_axes_type():
             x2 = paddle.static.data(name="x2", shape=[2, 25], dtype="int32")
@@ -332,7 +309,7 @@ class TestUnsqueezeAPI(unittest.TestCase):
                 x2 = paddle.static.data(name="x2", shape=[2, 25], dtype="int32")
                 self.unsqueeze(x2, axis=2.1)
 
-        self.assertRaises(TypeError, test_pir_axes_type)
+        self.assertRaises(ValueError, test_pir_axes_type)
 
 
 class TestUnsqueezeInplaceAPI(TestUnsqueezeAPI):

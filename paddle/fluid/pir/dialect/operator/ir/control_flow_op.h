@@ -15,49 +15,44 @@
 #pragma once
 #include <vector>
 
-#include "paddle/fluid/pir/dialect/operator/interface/infer_symbolic_shape/infer_symbolic_shape.h"
-#include "paddle/fluid/pir/dialect/operator/interface/op_yaml_info.h"
 #include "paddle/fluid/pir/dialect/operator/interface/vjp.h"
-#include "paddle/pir/include/core/block.h"
-#include "paddle/pir/include/core/op_base.h"
+#include "paddle/pir/core/op_base.h"
 
 namespace paddle {
 namespace dialect {
 
-class IfOp : public pir::Op<IfOp, VjpInterface, InferSymbolicShapeInterface> {
+class IfOp : public pir::Op<IfOp, VjpInterface> {
  public:
   using Op::Op;
   static const char *name() { return "pd_op.if"; }
   static constexpr const char **attributes_name = nullptr;
   static constexpr uint32_t attributes_num = 0;
-  TEST_API static void Build(pir::Builder &builder,             // NOLINT
-                             pir::OperationArgument &argument,  // NOLINT
-                             pir::Value cond,
-                             std::vector<pir::Type> &&output_types);
+  static void Build(pir::Builder &builder,             // NOLINT
+                    pir::OperationArgument &argument,  // NOLINT
+                    pir::Value cond,
+                    std::vector<pir::Type> &&output_types);
 
-  TEST_API static void Build(pir::Builder &builder,             // NOLINT
-                             pir::OperationArgument &argument,  // NOLINT
-                             pir::Value cond,
-                             std::unique_ptr<pir::Block> &&true_block,
-                             std::unique_ptr<pir::Block> &&false_block);
+  static void Build(pir::Builder &builder,             // NOLINT
+                    pir::OperationArgument &argument,  // NOLINT
+                    pir::Value cond,
+                    std::unique_ptr<pir::Block> &&true_block,
+                    std::unique_ptr<pir::Block> &&false_block);
 
   pir::Value cond() { return operand_source(0); }
-  TEST_API pir::Block &true_block();
-  TEST_API pir::Block &false_block();
+  pir::Block &true_block();
+  pir::Block &false_block();
   pir::Region &true_region() { return (*this)->region(0); }
   pir::Region &false_region() { return (*this)->region(1); }
   void Print(pir::IrPrinter &printer);  // NOLINT
   void VerifySig();
   void VerifyRegion();
 
-  static std::vector<std::vector<pir::Value>> Vjp(
+  static std::vector<std::vector<pir::OpResult>> Vjp(
       pir::Operation *op,
       const std::vector<std::vector<pir::Value>> &inputs_,
-      const std::vector<std::vector<pir::Value>> &outputs,
+      const std::vector<std::vector<pir::OpResult>> &outputs,
       const std::vector<std::vector<pir::Value>> &out_grads,
       const std::vector<std::vector<bool>> &stop_gradients);
-
-  bool InferSymbolicShape(pir::InferSymbolicShapeContext *infer_context);
 };
 
 ///
@@ -70,39 +65,29 @@ class IfOp : public pir::Op<IfOp, VjpInterface, InferSymbolicShapeInterface> {
 ///      cond, outputs = body(outputs)
 ///   }
 ///
-class WhileOp
-    : public pir::Op<WhileOp, VjpInterface, InferSymbolicShapeInterface> {
+class WhileOp : public pir::Op<WhileOp> {
  public:
   using Op::Op;
   static const char *name() { return "pd_op.while"; }
   static constexpr uint32_t attributes_num = 0;
   static constexpr const char **attributes_name = nullptr;
 
-  TEST_API static void Build(pir::Builder &builder,             // NOLINT
-                             pir::OperationArgument &argument,  // NOLINT
-                             pir::Value cond,
-                             const std::vector<pir::Value> &inputs,
-                             bool construct_body = true);
-  TEST_API pir::Block &body();
-  TEST_API pir::Value cond();
-  const pir::Block::ArgsType &block_args() { return body().args(); }
+  static void Build(pir::Builder &builder,             // NOLINT
+                    pir::OperationArgument &argument,  // NOLINT
+                    pir::Value cond,
+                    const std::vector<pir::Value> &inputs);
+  pir::Block &body();
+  pir::Value cond();
   void Print(pir::IrPrinter &printer);  // NOLINT
-  void VerifySig();
-  void VerifyRegion();
-  static std::vector<std::vector<pir::Value>> Vjp(
-      pir::Operation *op,
-      const std::vector<std::vector<pir::Value>> &inputs_,
-      const std::vector<std::vector<pir::Value>> &outputs,
-      const std::vector<std::vector<pir::Value>> &out_grads,
-      const std::vector<std::vector<bool>> &stop_gradients);
-  bool InferSymbolicShape(pir::InferSymbolicShapeContext *infer_context);
+  void VerifySig() {}
+  void VerifyRegion() {}
 };
 
 struct TuplePushOpVjpInterfaceModel : public VjpInterface::Concept {
-  static std::vector<std::vector<pir::Value>> Vjp(
+  static std::vector<std::vector<pir::OpResult>> Vjp(
       pir::Operation *op,
       const std::vector<std::vector<pir::Value>> &inputs,
-      const std::vector<std::vector<pir::Value>> &outputs,
+      const std::vector<std::vector<pir::OpResult>> &outputs,
       const std::vector<std::vector<pir::Value>> &out_grads,
       const std::vector<std::vector<bool>> &stop_gradients);
 
@@ -127,69 +112,12 @@ class HasElementsOp : public pir::Op<HasElementsOp> {
   static constexpr uint32_t attributes_num = 0;
   static constexpr const char **attributes_name = nullptr;
 
-  TEST_API static void Build(pir::Builder &builder,             // NOLINT
-                             pir::OperationArgument &argument,  // NOLINT
-                             pir::Value container);
+  static void Build(pir::Builder &builder,             // NOLINT
+                    pir::OperationArgument &argument,  // NOLINT
+                    pir::Value stack);
   void VerifySig();
   pir::Value input() { return operand_source(0); }
   pir::Value out() { return result(0); }
-};
-
-///
-/// \brief The AssertOp is an operation that asserts the given condition is
-/// true. If the condition is false, prints the tensors in data. ``summarize``
-/// specifies the number of the elements in the tensors to print.
-
-/// It takes two inputs: cond and data, and takes one attribute: summarize. The
-/// semantics of AssertOp[assert_op(cond, data, summarize)] are as below:
-///   if(!cond){
-///      print(summarize number of elements in data)
-///   }
-///
-class AssertOp
-    : public pir::Op<AssertOp, OpYamlInfoInterface, pir::SideEffectTrait> {
- public:
-  using Op::Op;
-  static const char ERROR_INFO_ATTR_NAME[];
-  static const char *name() { return "pd_op.assert"; }
-  static constexpr uint32_t attributes_num = 1;
-  static const char *attributes_name[1];
-
-  static void Build(pir::Builder &builder,             // NOLINT
-                    pir::OperationArgument &argument,  // NOLINT
-                    pir::Value cond_,
-                    pir::Value data_,
-                    int64_t summarize);
-
-  static OpInfoTuple GetOpInfo();
-  void VerifySig();
-
-  pir::Value cond() { return operand_source(0); }
-  pir::Value data() { return operand_source(1); }
-};
-
-class SelectInputOp
-    : public pir::Op<SelectInputOp, InferSymbolicShapeInterface> {
- public:
-  using Op::Op;
-  static const char *name() { return "pd_op.select_input"; }
-  static constexpr const char **attributes_name = nullptr;
-  static constexpr uint32_t attributes_num = 0;
-  void VerifySig();
-  pir::Value mask() { return operand_source(0); }
-  pir::Value out() { return result(0); }
-  bool InferSymbolicShape(pir::InferSymbolicShapeContext *infer_context);
-};
-
-class SelectOutputOp : public pir::Op<SelectOutputOp> {
- public:
-  using Op::Op;
-  static const char *name() { return "pd_op.select_output"; }
-  static constexpr const char **attributes_name = nullptr;
-  static constexpr uint32_t attributes_num = 0;
-  void VerifySig();
-  pir::Value mask() { return operand_source(0); }
-  pir::Value x() { return operand_source(1); }
 };
 
 }  // namespace dialect
@@ -198,6 +126,3 @@ class SelectOutputOp : public pir::Op<SelectOutputOp> {
 IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::IfOp)
 IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::WhileOp)
 IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::HasElementsOp);
-IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::AssertOp);
-IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::SelectInputOp)
-IR_DECLARE_EXPLICIT_TYPE_ID(paddle::dialect::SelectOutputOp)

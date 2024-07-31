@@ -12,12 +12,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+#include "paddle/phi/core/distributed/auto_parallel/device_mesh.h"
 #include <iostream>
 #include <sstream>
-
-#include "paddle/phi/core/distributed/auto_parallel/device_mesh.h"
-#include "paddle/phi/core/distributed/auto_parallel/proto_helper.h"
-
 #include "gtest/gtest.h"
 
 namespace phi {
@@ -86,7 +83,7 @@ TEST(DeviceMesh, Ctor) {
   std::stringstream sstream;
   sstream << device_mesh;
   EXPECT_EQ(sstream.str(), device_mesh.to_string());
-  auto proto = phi::distributed::to_proto(device_mesh);
+  auto proto = device_mesh.to_proto();
   DeviceMesh new_device_mesh = DeviceMesh::from_proto(proto);
   EXPECT_EQ(device_mesh, new_device_mesh);
 }

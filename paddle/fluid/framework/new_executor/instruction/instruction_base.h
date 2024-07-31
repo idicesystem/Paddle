@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "paddle/fluid/framework/new_executor/new_executor_defs.h"
-#include "paddle/phi/api/profiler/event.h"
+#include "paddle/fluid/platform/event.h"
 
 namespace pir {
 class Value;
@@ -34,7 +34,7 @@ using SchedulingPriority = int64_t;
 
 class InstructionBase {
  public:
-  explicit InstructionBase(size_t id, const phi::Place& place);
+  explicit InstructionBase(size_t id, const platform::Place& place);
 
   virtual ~InstructionBase() = default;
 
@@ -63,8 +63,8 @@ class InstructionBase {
     execution_stream_ = stream;
   }
 
-  const phi::DeviceContext& DeviceContext() const;
-  void SetDeviceContext(phi::DeviceContext* ctx) { dev_ctx_ = ctx; }
+  const platform::DeviceContext& DeviceContext() const;
+  void SetDeviceContext(platform::DeviceContext* ctx) { dev_ctx_ = ctx; }
 
   const std::vector<size_t>& NextInstrsInDifferenceThread() const {
     return next_instrs_in_different_thread_;
@@ -80,26 +80,7 @@ class InstructionBase {
     next_instrs_in_same_thread_.push_back(id);
   }
 
-  bool IsForceRecordEvent() const { return force_record_event_; }
-  void SetForceRecordEvent(bool force_record) {
-    force_record_event_ = force_record;
-  }
-
-  const std::vector<std::string>& EventsToWaitInfo() const {
-    return events_to_wait_info_;
-  }
-  void SetEventsToWaitInfo(const std::vector<std::string>& info) {
-    events_to_wait_info_ = info;
-  }
-
-  const std::string& EventToRecordInfo() const { return event_to_record_info_; }
-  void SetEventToRecordInfo(const std::string& info) {
-    event_to_record_info_ = info;
-  }
-
-  const std::shared_ptr<EventInter>& EventToRecord() const {
-    return event_to_record_;
-  }
+  const EventInter& EventToRecord() const { return *event_to_record_; }
   void AddEventToRecord(std::shared_ptr<platform::DeviceEvent> event,
                         platform::DeviceType waiter_type) {
     event_to_record_ = std::make_shared<EventInter>(id_, event, waiter_type);
@@ -114,10 +95,6 @@ class InstructionBase {
     events_to_wait_.emplace_back(instr_id, event, waiter_type);
   }
 
-  void AddEventToWait(const EventInter* event_inter) {
-    events_to_wait_.push_back(*event_inter);
-  }
-
   void RecordEvent(const Place& place) const;
   void WaitEvent(const Place& place) const;
 
@@ -127,8 +104,8 @@ class InstructionBase {
   void AddEagerGCVar(Variable* var);
   void ClearEagerGCVars();
 
-  const std::vector<std::pair<const Variable*, Variable*>>& InplaceInfo() const;
-  void AddInplace(const Variable* in, Variable* out);
+  const std::vector<std::pair<Variable*, Variable*>>& InplaceInfo() const;
+  void AddInplace(Variable* in, Variable* out);
   void ClearInplace();
 
   std::map<int, int>& GetMutableInplaceBackMap() { return inplace_back_map_; }
@@ -187,17 +164,11 @@ class InstructionBase {
 
   std::string execution_stream_{kDefaultStream};
 
-  phi::DeviceContext* dev_ctx_;  // not owned
+  platform::DeviceContext* dev_ctx_;  // not owned
 
   std::vector<size_t> next_instrs_in_different_thread_;
 
   std::vector<size_t> next_instrs_in_same_thread_;
-
-  bool force_record_event_{false};
-
-  std::vector<std::string> events_to_wait_info_;
-
-  std::string event_to_record_info_{"default"};
 
   std::shared_ptr<EventInter> event_to_record_;
 
@@ -207,7 +178,7 @@ class InstructionBase {
 
   std::vector<Variable*> eager_gc_vars_;
 
-  std::vector<std::pair<const Variable*, Variable*>>
+  std::vector<std::pair<Variable*, Variable*>>
       vec_inplace_in_to_out_;  // If not use share data, need this ?
 
   std::map<int, int> inplace_back_map_;

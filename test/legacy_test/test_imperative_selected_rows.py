@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -20,6 +19,7 @@ import numpy as np
 import paddle
 from paddle import base
 from paddle.base import core
+from paddle.base.dygraph.base import to_variable
 
 
 class SimpleNet(paddle.nn.Layer):
@@ -39,13 +39,7 @@ class SimpleNet(paddle.nn.Layer):
 
 class TestSimpleNet(unittest.TestCase):
     def test_selectedrows_gradient1(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
 
@@ -84,13 +78,7 @@ class TestSimpleNet(unittest.TestCase):
                     paddle.enable_static()
 
     def test_selectedrows_gradient2(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
 
@@ -103,7 +91,7 @@ class TestSimpleNet(unittest.TestCase):
                     grad_clip = paddle.nn.ClipGradByGlobalNorm(5.0)
 
                     input_word = np.array([[1, 2], [2, 1]]).astype('int64')
-                    input = paddle.to_tensor(input_word)
+                    input = to_variable(input_word)
 
                     simplenet = SimpleNet(20, 32, "float32")
                     adam = paddle.optimizer.SGD(

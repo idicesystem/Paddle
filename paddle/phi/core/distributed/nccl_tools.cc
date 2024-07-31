@@ -29,20 +29,17 @@ namespace distributed {
 
 ncclRedOp_t ToNCCLRedType(ReduceOp reduction) {
   static const std::unordered_map<ReduceOp, ncclRedOp_t> red_type = {
-    {ReduceOp::MIN, ncclMin},
-    {ReduceOp::MAX, ncclMax},
-    {ReduceOp::SUM, ncclSum},
-    {ReduceOp::PRODUCT, ncclProd},
-#if NCCL_VERSION_CODE >= 21000
-    {ReduceOp::AVG, ncclAvg},
-#endif
+      {ReduceOp::MIN, ncclMin},
+      {ReduceOp::MAX, ncclMax},
+      {ReduceOp::SUM, ncclSum},
+      {ReduceOp::PRODUCT, ncclProd},
   };
   auto it = red_type.find(reduction);
   PADDLE_ENFORCE_EQ(it != red_type.end(),
                     true,
                     phi::errors::InvalidArgument(
                         "Invalid nccl reduction. Must be ncclMin | ncclMax | "
-                        "ncclProd | ncclSum | ncclAvg."));
+                        "ncclProd | ncclSum"));
   return it->second;
 }
 
@@ -62,8 +59,7 @@ std::string NCCLDTypeToString(ncclDataType_t dtype) {
   PD_NCCL_DTYPE_TO_STR(ncclFloat32, "float32");
   PD_NCCL_DTYPE_TO_STR(ncclHalf, "float16");
   PD_NCCL_DTYPE_TO_STR(ncclFloat16, "float16");
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+#if NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000
   PD_NCCL_DTYPE_TO_STR(ncclBfloat16, "bfloat16");
 #endif
   PD_NCCL_DTYPE_TO_STR(ncclDouble, "float64");

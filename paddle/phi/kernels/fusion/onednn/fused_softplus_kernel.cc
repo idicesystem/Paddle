@@ -17,7 +17,8 @@
 #include "paddle/phi/backends/onednn/onednn_reuse.h"
 #include "paddle/phi/core/kernel_registry.h"
 
-namespace phi::fusion {
+namespace phi {
+namespace fusion {
 
 template <typename T, typename Context>
 void FusedSoftplusKernel(const Context& dev_ctx,
@@ -55,7 +56,8 @@ void FusedSoftplusKernel(const Context& dev_ctx,
   out->set_mem_desc(dst_memory_p->get_desc());
 }
 
-}  // namespace phi::fusion
+}  // namespace fusion
+}  // namespace phi
 
 PD_REGISTER_KERNEL(fused_softplus,
                    OneDNN,

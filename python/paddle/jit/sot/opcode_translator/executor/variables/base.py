@@ -26,8 +26,9 @@ from ....profiler import event_register
 from ....utils import NameGenerator, get_unbound_method, log
 from ....utils.exceptions import FallbackError, HasNoAttributeError
 from ..dispatcher import Dispatcher
-from ..guard import StringifiedExpression, check_guard, union_free_vars
+from ..guard import StringifyExpression, check_guard, union_free_vars
 from ..mutable_data import MutableDictLikeData
+from ..pycode_generator import PyCodeGen
 from ..tracker import (
     DummyTracker,
     GetAttrTracker,
@@ -37,16 +38,16 @@ from ..tracker import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
-
     from ..function_graph import FunctionGraph
-    from ..pycode_generator import PyCodeGen
 
     # Each variable object should implement a method called `from_value`,
     # which should adhere to the FromValueFunc signature.
-    FromValueFunc: TypeAlias = Callable[
+    FromValueFunc = Callable[
         [Any, FunctionGraph, Tracker], Optional["VariableBase"]
     ]
+
+
+ConstTypes = (int, float, str, bool, type(None))
 
 
 @event_register("find_traceable_vars")
@@ -244,7 +245,7 @@ class VariableFactory:
 class VariableBase:
     """
     VariableBase is a basic concept and each symbols in VM stack is regarded as
-    an Variable Object in symbolic tracing process.
+    an Variable Object in symblic tracing process.
 
     There are two key data structures during Python runtime:
     PyFrameObject, which provides the instance for function logical lock usage,
@@ -330,24 +331,24 @@ class VariableBase:
         return hash(self.id)
 
     @check_guard
-    def make_stringified_guard(self) -> list[StringifiedExpression]:
+    def make_stringify_guard(self) -> list[StringifyExpression]:
         """
-        Create a StringifiedExpression object that represents a guard expression for this variable.
+        Create a StringifyExpression object that represents a guard expression for this variable.
 
         Returns:
-            StringifiedExpression: An object that contains the guard expression and the free variables used in the expression.
+            StringifyExpression: An object that contains the guard expression and the free variables used in the expression.
         """
 
         # Get a ValueTracer object from the Tracker object associated with the variable
         frame_value_tracer = self.tracker.trace_value_from_frame()
 
         return [
-            StringifiedExpression(
+            StringifyExpression(
                 f"id(type({{}})) == {id(self.get_py_type())}",
                 [frame_value_tracer],
                 union_free_vars(frame_value_tracer.free_vars),
             ),
-            StringifiedExpression(
+            StringifyExpression(
                 f"{{}} == {self.get_py_value()!r}",
                 [frame_value_tracer],
                 union_free_vars(frame_value_tracer.free_vars),
@@ -386,7 +387,7 @@ class VariableBase:
                 self.graph.add_global_guarded_variable(self)
             self._reconstruct(codegen)
 
-    def _reconstruct(self, codegen: PyCodeGen) -> None:
+    def _reconstruct(self, codegen: PyCodeGen):
         """
         Abstract method to construct an opcode and append it into codegen.instructions
         """

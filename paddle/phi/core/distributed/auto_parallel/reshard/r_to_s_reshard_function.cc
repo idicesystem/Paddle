@@ -22,7 +22,8 @@
 #include "paddle/phi/core/distributed/store/store_utils.h"
 #include "paddle/phi/kernels/split_kernel.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 
 bool RToSReshardFunction::IsSuitable(const DistTensor& in,
                                      const TensorDistAttr& out_dist_attr) {
@@ -45,7 +46,7 @@ void RToSReshardFunction::Eval(phi::DeviceContext* dev_ctx,
                                const DistTensor& in,
                                const TensorDistAttr& out_dist_attr,
                                DistTensor* out) {
-  VLOG(3) << "Call " << Name();
+  VLOG(3) << "Call RToSReshardFunction Eval";
   const auto& out_dims_mapping = out_dist_attr.dims_mapping();
   const auto& out_process_mesh = out_dist_attr.process_mesh();
   const DenseTensor& in_physical_tensor_cur_rank = in.value();
@@ -109,7 +110,7 @@ void RToSReshardFunctionCrossMesh::Eval(phi::DeviceContext* dev_ctx,
                                         const DistTensor& in,
                                         const TensorDistAttr& out_dist_attr,
                                         DistTensor* out) {
-  VLOG(3) << "Call " << Name();
+  VLOG(3) << "Call RToSReshardFunctionCrossMesh Eval";
   const auto& in_dist_attr = in.dist_attr();
 
   DistTensor tmp_result;
@@ -140,4 +141,5 @@ void RToSReshardFunctionCrossMesh::Eval(phi::DeviceContext* dev_ctx,
   same_status_func.Eval(dev_ctx, tmp_result, out_dist_attr, out);
 }
 
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

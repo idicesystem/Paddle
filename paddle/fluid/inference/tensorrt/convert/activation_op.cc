@@ -112,7 +112,7 @@ class ActivationOpConverter : public OpConverter {
 
     auto output_name = op_desc.Output("Out")[0];
 
-    ReplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
   }
 
  protected:
@@ -181,9 +181,9 @@ class STanhOpConverter : public ActivationOpConverter {
   STanhOpConverter() { op_type_ = "stanh"; }
 };
 
-class ThresholdedReluOpConverter : public ActivationOpConverter {
+class ThreasholdedReluOpConverter : public ActivationOpConverter {
  public:
-  ThresholdedReluOpConverter() { op_type_ = "thresholded_relu"; }
+  ThreasholdedReluOpConverter() { op_type_ = "thresholded_relu"; }
 };
 #endif
 
@@ -201,5 +201,5 @@ REGISTER_TRT_OP_CONVERTER(selu, SeluOpConverter);
 REGISTER_TRT_OP_CONVERTER(softsign, SoftsignOpConverter);
 REGISTER_TRT_OP_CONVERTER(softplus, SoftplusOpConverter);
 REGISTER_TRT_OP_CONVERTER(stanh, STanhOpConverter);
-REGISTER_TRT_OP_CONVERTER(thresholded_relu, ThresholdedReluOpConverter);
+REGISTER_TRT_OP_CONVERTER(thresholded_relu, ThreasholdedReluOpConverter);
 #endif

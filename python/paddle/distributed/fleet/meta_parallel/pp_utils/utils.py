@@ -24,7 +24,6 @@ FLOAT_TYPE_DICT = {
     paddle.float32: "float32",
     paddle.float64: "float64",
     paddle.bfloat16: "bfloat16",
-    paddle.bool: "bool",
 }
 
 PADDLE_TO_NUMBER = {
@@ -34,7 +33,6 @@ PADDLE_TO_NUMBER = {
     paddle.int32: 3,
     paddle.int64: 4,
     paddle.bfloat16: 5,
-    paddle.bool: 6,
 }
 
 NUMBER_TO_DTYPE = {
@@ -44,7 +42,6 @@ NUMBER_TO_DTYPE = {
     3: "int32",
     4: "int64",
     5: "bfloat16",
-    6: "bool",
 }
 
 

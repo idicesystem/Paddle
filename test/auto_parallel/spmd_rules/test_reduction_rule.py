@@ -28,12 +28,8 @@ class TestReductionSPMDRule(unittest.TestCase):
     Unit tests for reduction spmd rule.
     """
 
-    def config(self):
-        self.kernel = "max"
-
     def setUp(self):
-        self.config()
-        self.rule = core.get_phi_spmd_rule(self.kernel)
+        self.rule = core.get_phi_spmd_rule("max")
 
         x_shape = [64, 32]
         process_mesh = auto.ProcessMesh(mesh=[0, 1, 2, 3])
@@ -432,10 +428,10 @@ class TestReductionSPMDRule(unittest.TestCase):
         self.assertEqual(infered_input_dist_attrs[0].dims_mapping, [0, -1, -1])
         self.assertEqual(infered_output_dist_attrs[0].dims_mapping, [0, -1, -1])
 
-    def test_backward_multi_mesh_dim_partial(self):
+    def test_backward_multi_mesh_dim_parital(self):
         # reduction on dim 1, 2, keep_dim = true, partial_dim=[1]
         # [0, -1, -1] --> [0, -1, -1], [0, -1, -1] (output --> input, output)
-        # output partial_dim: [1], input partial_dim: []
+        # output parital_dim: [1], input parital_dim: []
         out_shape = [96, 1, 1]
         process_mesh = auto.ProcessMesh(mesh=[[0, 1, 2], [3, 4, 5]])
 
@@ -463,15 +459,6 @@ class TestReductionSPMDRule(unittest.TestCase):
         self.assertEqual(infered_input_dist_attrs[0].dims_mapping, [0, -1, -1])
         self.assertEqual(infered_output_dist_attrs[0].dims_mapping, [0, -1, -1])
         self.assertEqual(infered_input_dist_attrs[0]._is_partial(), False)
-
-
-class TestSquaredL2NormSPMDRule(TestReductionSPMDRule):
-    """
-    Unit tests for squared_l2_norm spmd rule.
-    """
-
-    def config(self):
-        self.kernel = "squared_l2_norm"
 
 
 if __name__ == "__main__":

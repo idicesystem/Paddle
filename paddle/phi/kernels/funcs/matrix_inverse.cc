@@ -16,7 +16,8 @@ limitations under the License. */
 
 #include "paddle/phi/kernels/funcs/blas/blas.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename Context, typename T>
 void MatrixInverseFunctor<Context, T>::operator()(const Context& dev_ctx,
@@ -27,7 +28,6 @@ void MatrixInverseFunctor<Context, T>::operator()(const Context& dev_ctx,
 
 template class MatrixInverseFunctor<CPUContext, float>;
 template class MatrixInverseFunctor<CPUContext, double>;
-template class MatrixInverseFunctor<CPUContext, phi::dtype::complex<float>>;
-template class MatrixInverseFunctor<CPUContext, phi::dtype::complex<double>>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

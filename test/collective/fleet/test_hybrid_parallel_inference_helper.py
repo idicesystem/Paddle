@@ -14,14 +14,12 @@
 
 import unittest
 
-from legacy_test.test_parallel_dygraph_dataparallel import (
-    TestMultipleAccelerators,
-)
+from legacy_test.test_parallel_dygraph_dataparallel import TestMultipleGpus
 
 
-class TestHybridParallelInferenceHelper(TestMultipleAccelerators):
+class TestHybridParallelInferenceHelper(TestMultipleGpus):
     def test_hybrid_parallel_inference_helper(self):
-        self.run_mnist_2accelerators('hybrid_parallel_inference_helper.py')
+        self.run_mnist_2gpu('hybrid_parallel_inference_helper.py')
 
 
 if __name__ == "__main__":

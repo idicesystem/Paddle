@@ -56,10 +56,7 @@ class TestReshapeBf16Op(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            core.CPUPlace(),
-            no_check_set=['XShape'],
-            check_dygraph=False,
-            check_pir_onednn=(self.op_type == "reshape2"),
+            core.CPUPlace(), no_check_set=['XShape'], check_dygraph=False
         )
 
     def test_check_grad(self):
@@ -72,7 +69,6 @@ class TestReshapeBf16Op(OpTest):
             user_defined_grad_outputs=[
                 self.inputs["X"].reshape(self.infered_shape)
             ],
-            check_pir_onednn=(self.op_type == "reshape2"),
         )
 
 

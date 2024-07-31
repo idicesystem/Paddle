@@ -17,7 +17,9 @@
 #include <iostream>
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class BitwiseAndConverter : public OpConverter {
  public:
@@ -42,15 +44,17 @@ class BitwiseAndConverter : public OpConverter {
                                    *y_tensor,
                                    nvinfer1::ElementWiseOperation::kAND);
     } else {
-      PADDLE_THROW(common::errors::Fatal(
+      PADDLE_THROW(platform::errors::Fatal(
           "bitwise_and TRT converter is only supported on bool"));
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "bitwise_and", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "bitwise_and", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(bitwise_and, BitwiseAndConverter);

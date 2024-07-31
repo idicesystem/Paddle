@@ -80,7 +80,7 @@ class ProcessGroupMPI : public ProcessGroupWithoutStream {
         PADDLE_ENFORCE_EQ(
             is_completed_,
             true,
-            phi::errors::InvalidArgument("MPI operation timeout! "));
+            platform::errors::InvalidArgument("MPI operation timeout! "));
       }
       if (exception_) {
         std::rethrow_exception(exception_);

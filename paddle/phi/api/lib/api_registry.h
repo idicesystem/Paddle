@@ -14,7 +14,7 @@ limitations under the License. */
 
 #pragma once
 
-#include "paddle/common/macros.h"
+#include "paddle/phi/api/include/dll_decl.h"
 
 namespace paddle {
 namespace experimental {

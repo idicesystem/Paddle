@@ -20,7 +20,7 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
-#include "paddle/common/hostdevice.h"
+#include "paddle/phi/core/hostdevice.h"
 #ifdef PADDLE_WITH_CUDA
 #include <cuComplex.h>
 #include <thrust/complex.h>
@@ -294,10 +294,8 @@ HOSTDEVICE inline complex<T>& operator*=(complex<T>& a,  // NOLINT
                  thrust::complex<T>(b.real, b.imag));
   return a;
 #else
-  T r = a.real * b.real - a.imag * b.imag;
-  T i = a.imag * b.real + b.imag * a.real;
-  a.real = r;
-  a.imag = i;
+  a.real = a.real * b.real - a.imag * b.imag;
+  a.imag = a.imag * b.real + b.imag * a.real;
   return a;
 #endif
 }

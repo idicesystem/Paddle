@@ -60,10 +60,10 @@ struct TEST_API ExecutorPrepareContext {
 class TEST_API Executor {
  public:
   // TODO(dzhwinter) : Do not rely on this function, it will be removed
-  explicit Executor(const phi::DeviceContext& device)
+  explicit Executor(const platform::DeviceContext& device)
       : Executor(device.GetPlace()) {}
 
-  explicit Executor(const phi::Place& place);
+  explicit Executor(const platform::Place& place);
 
   ~Executor();
   /*
@@ -157,10 +157,10 @@ class TEST_API Executor {
 
   void ReleaseTrainer(std::shared_ptr<TrainerBase> trainer);
 
-  const phi::Place GetPlace() const { return place_; }
+  const platform::Place GetPlace() const { return place_; }
 
  private:
-  const phi::Place place_;
+  const platform::Place place_;
 };
 
 }  // namespace framework

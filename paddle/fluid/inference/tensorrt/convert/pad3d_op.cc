@@ -57,7 +57,7 @@ class Pad3dOpConverter : public OpConverter {
     const int pad_size = paddings->getDimensions().d[0];
     PADDLE_ENFORCE_EQ(input_dim * 2 - 4,
                       pad_size,
-                      common::errors::InvalidArgument(
+                      phi::errors::InvalidArgument(
                           "Expected paddings size is %d, but received %d.",
                           input_dim * 2 - 4,
                           pad_size));
@@ -163,11 +163,12 @@ class Pad3dOpConverter : public OpConverter {
       slice_layer->setMode(nvinfer1::SliceMode::kCLAMP);
 #endif
     } else {
-      PADDLE_THROW(common::errors::Fatal("Unsupported mode: %s", padding_mode));
+      PADDLE_THROW(paddle::platform::errors::Fatal("Unsupported mode: %s",
+                                                   padding_mode));
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(slice_layer, "pad3d", {output_name}, test_mode);
+    RreplenishLayerAndOutput(slice_layer, "pad3d", {output_name}, test_mode);
 
 #else
     VLOG(3) << "pad3d is not supported when TensorRT < 8.2";

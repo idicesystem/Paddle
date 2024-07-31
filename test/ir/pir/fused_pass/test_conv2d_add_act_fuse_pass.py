@@ -18,21 +18,25 @@ import numpy as np
 from pass_test import PassTest
 
 import paddle
-from paddle.base import core
-from paddle.pir.core import create_parameter
+
+paddle.enable_static()
 
 
+@unittest.skipIf(
+    not paddle.base.core.is_compiled_with_cuda(),
+    "core is not complied with CUDA",
+)
 class TestConv2dAddActFusePattern(PassTest):
     r"""
-      x_var   f_var(w)
+      x_var   f_var
     \       /
        conv2d
          |
-      conv2d_var    y_var(w)
+      conv2d_var    y_var
           \          /
          elementwise_add
               |
-            add_var
+       elementwise_add_var
               |
              act
               |
@@ -42,162 +46,61 @@ class TestConv2dAddActFusePattern(PassTest):
     def is_program_valid(self, program):
         return True
 
-    def build_ir_program(self):
-        for bias_shape in [[1, 32, 1, 1], [32, 1, 1], [32]]:
-            with paddle.pir_utils.IrGuard():
-                main_prog = paddle.static.Program()
-                start_prog = paddle.static.Program()
-                with paddle.pir.core.program_guard(main_prog, start_prog):
-                    x = paddle.static.data(
-                        name='x', shape=[3, 1, 28, 28], dtype='float32'
-                    )
-                    conv2d = paddle.nn.Conv2D(
-                        in_channels=1,
-                        out_channels=32,
-                        kernel_size=3,
-                        padding=1,
-                        data_format='NCHW',
-                        bias_attr=False,
-                    )
+    def build_ir_progam(self):
+        pir_program = None
+        with paddle.pir_utils.IrGuard():
+            pir_program = paddle.static.Program()
+            with paddle.pir.core.program_guard(pir_program):
+                x = paddle.static.data(
+                    name='x', shape=[3, 1, 28, 28], dtype='float32'
+                )
+                conv2d = paddle.nn.Conv2D(
+                    in_channels=1,
+                    out_channels=32,
+                    kernel_size=3,
+                    padding=1,
+                    data_format='NCHW',
+                    bias_attr=False,
+                )
+                y = paddle.static.data(
+                    name="y", shape=[3, 32, 28, 28], dtype="float32"
+                )
+                act_op = paddle.nn.ReLU()
+                out = act_op(paddle.add(conv2d(x), y))
 
-                    y = create_parameter(
-                        name="y",
-                        shape=bias_shape,
-                        dtype='float32',
-                        initializer=paddle.nn.initializer.Assign(
-                            np.random.random(bias_shape).astype("float32")
-                        ),
-                    )
-                    act_op = paddle.nn.ReLU()
-                    out = act_op(paddle.add(conv2d(x), y))
-                    out = paddle.assign(out)
-                    self.pass_attr_list = [{'conv2d_add_act_fuse_pass': {}}]
-                    self.feeds = {
-                        "x": np.random.random((3, 1, 28, 28)).astype("float32"),
-                    }
-                    self.fetch_list = [out]
-                    self.valid_op_map = {
-                        "pd_op.add": 0,
-                        "pd_op.relu": 0,
-                        "pd_op.conv2d": 0,
-                        "pd_op.fused_conv2d_add_act": 1,
-                    }
-                    return [main_prog, start_prog]
+        self.pass_list = ['conv2d_add_act_fuse_pass']
+        self.feeds = {
+            "x": np.random.random((3, 32, 28, 28)).astype("float32"),
+            "y": np.random.random((3, 32, 28, 28)).astype("float32"),
+        }
+        self.fetch_list = [out]
+        self.valid_op_map = {
+            "pd_op.add": 0,
+            "pd_op.relu": 0,
+            "pd_op.conv2d": 0,
+            "pd_op.fused_conv2d_add_act": 1,
+        }
+        return pir_program
 
     def setUp(self):
-        if core.is_compiled_with_cuda():
-            self.places.append(paddle.CUDAPlace(0))
+        self.place_runtime = "gpu"
 
     def sample_program(self):
-        yield self.build_ir_program(), False
+        yield self.build_ir_progam(), False
 
     def test_check_output(self):
         self.check_pass_correct()
 
 
-class TestConv2dAddActFusePattern_cutlass(PassTest):
-    r"""
-      x_var   f_var(w)
-    \       /
-       conv2d
-         |
-      conv2d_var    y_var(w)
-          \          /
-         elementwise_add
-              |
-            add_var
-              |
-             act
-              |
-            act_var
-    """
-
-    def is_program_valid(self, program):
-        return True
-
-    def sample_program(self):
-        for dtype in ["float16"]:
-            for w_shape in [[32, 8, 3, 3]]:
-                for bias_shape in [[1, 1, 1, 32], [1, 1, 32], [32]]:
-                    rand_value = (
-                        0.001 * paddle.rand(shape=w_shape, dtype=dtype).numpy()
-                    )
-                    with paddle.pir_utils.IrGuard():
-                        main_prog = paddle.static.Program()
-                        start_prog = paddle.static.Program()
-                        with paddle.pir.core.program_guard(
-                            main_prog, start_prog
-                        ):
-                            x = paddle.static.data(
-                                name='x', shape=[3, 28, 28, 8], dtype='float16'
-                            )
-                            w = create_parameter(
-                                shape=w_shape,
-                                dtype=dtype,
-                                initializer=paddle.nn.initializer.Assign(
-                                    rand_value
-                                ),
-                            )
-                            conv2d_out = paddle.nn.functional.conv2d(
-                                x=x,
-                                weight=w,
-                                bias=None,
-                                padding=1,
-                                data_format="NHWC",
-                            )
-
-                            y = create_parameter(
-                                name="y",
-                                shape=bias_shape,
-                                dtype='float16',
-                                initializer=paddle.nn.initializer.Assign(
-                                    np.random.random(bias_shape).astype(
-                                        "float16"
-                                    )
-                                ),
-                            )
-                            act_op = paddle.nn.ReLU()
-                            out = act_op(paddle.add(conv2d_out, y))
-                            out = paddle.assign(out)
-                            self.pass_attr_list = [
-                                {
-                                    'conv2d_add_act_fuse_pass': {
-                                        "use_cutlass": True
-                                    }
-                                }
-                            ]
-                            self.feeds = {
-                                "x": np.random.random((3, 28, 28, 8)).astype(
-                                    "float16"
-                                ),
-                            }
-                            self.fetch_list = [out]
-                            self.valid_op_map = {
-                                "pd_op.add": 0,
-                                "pd_op.relu": 0,
-                                "pd_op.conv2d": 0,
-                                "pd_op.fused_conv2d_add_act": 1,
-                            }
-                            yield [main_prog, start_prog], False
-
+class TestConv2dAddActFusePatternWithCpu(TestConv2dAddActFusePattern):
     def setUp(self):
-        self.use_cutlass = False
-        if core.is_compiled_with_cuda():
-            self.places.append(paddle.CUDAPlace(0))
-        self.skip_accuracy_verification = False
-
-    def test_check_output(self):
-        """
-        conv2d_add_act_fuse_pass's unittest have been tested locally, this pass
-        relies on users manually installing libCutlassConv2d.so,
-        this test code has been temporarily shut down(i.e. self.use_cutlass = False).
-        You can easily run this unittest by manually installing libCutlassConv2d.so and set self.use_cutlass True.
-        (See details: paddle/phi/kernels/fusion/cutlass/conv2d/README.md)
-        """
-        if self.use_cutlass:
-            self.check_pass_correct(1e-3, 1e-3)
+        self.place_runtime = "cpu"
 
 
+@unittest.skipIf(
+    not paddle.base.core.is_compiled_with_cuda(),
+    "core is not complied with CUDA",
+)
 class TestConv2dAdd2ActFusePattern(PassTest):
     r"""
      x_var   f_var(persistable)
@@ -220,66 +123,59 @@ class TestConv2dAdd2ActFusePattern(PassTest):
     def is_program_valid(self, program):
         return True
 
-    def build_ir_program(self):
-        for bias_shape in [[1, 32, 1, 1], [32, 1, 1], [32]]:
-            with paddle.pir_utils.IrGuard():
-                main_prog = paddle.static.Program()
-                start_prog = paddle.static.Program()
-                with paddle.pir.core.program_guard(main_prog, start_prog):
-                    x = paddle.static.data(
-                        name='x', shape=[3, 1, 28, 28], dtype='float32'
-                    )
-                    conv2d = paddle.nn.Conv2D(
-                        in_channels=1,
-                        out_channels=32,
-                        kernel_size=3,
-                        padding=1,
-                        data_format='NCHW',
-                        bias_attr=False,
-                    )
-                    y = create_parameter(
-                        name="y",
-                        shape=bias_shape,
-                        dtype='float32',
-                        initializer=paddle.nn.initializer.Assign(
-                            np.random.random(bias_shape).astype("float32")
-                        ),
-                    )
-                    residual_data = paddle.static.data(
-                        name="residual_data",
-                        shape=[3, 32, 28, 28],
-                        dtype="float32",
-                    )
-                    act_op = paddle.nn.ReLU()
-                    out = act_op(
-                        paddle.add(residual_data, paddle.add(conv2d(x), y))
-                    )
-                    out = paddle.assign(out)
-                    self.pass_attr_list = [{'conv2d_add_act_fuse_pass': {}}]
-                    self.feeds = {
-                        "x": np.random.random((3, 1, 28, 28)).astype("float32"),
-                        "residual_data": np.random.random(
-                            (3, 32, 28, 28)
-                        ).astype("float32"),
-                    }
-                    self.fetch_list = [out]
-                    self.valid_op_map = {
-                        "pd_op.add": 0,
-                        "pd_op.relu": 0,
-                        "pd_op.conv2d": 0,
-                        "pd_op.fused_conv2d_add_act": 1,
-                    }
-                    return [main_prog, start_prog]
+    def build_ir_progam(self):
+        pir_program = None
+        with paddle.pir_utils.IrGuard():
+            pir_program = paddle.static.Program()
+            with paddle.pir.core.program_guard(pir_program):
+                x = paddle.static.data(
+                    name='x', shape=[3, 1, 28, 28], dtype='float32'
+                )
+                conv2d = paddle.nn.Conv2D(
+                    in_channels=1,
+                    out_channels=32,
+                    kernel_size=3,
+                    padding=1,
+                    data_format='NCHW',
+                    bias_attr=False,
+                )
+                y = paddle.static.data(
+                    name="y", shape=[3, 32, 28, 28], dtype="float32"
+                )
+                residual_data = paddle.static.data(
+                    name="residual_data", shape=[3, 32, 28, 28], dtype="float32"
+                )
+                act_op = paddle.nn.ReLU()
+                out = act_op(
+                    paddle.add(residual_data, paddle.add(conv2d(x), y))
+                )
+        self.pass_list = ['conv2d_add_act_fuse_pass']
+        self.feeds = {
+            "x": np.random.random((3, 32, 28, 28)).astype("float32"),
+            "y": np.random.random((3, 32, 28, 28)).astype("float32"),
+        }
+        self.fetch_list = [out]
+        self.valid_op_map = {
+            "pd_op.add": 0,
+            "pd_op.relu": 0,
+            "pd_op.conv2d": 0,
+            "pd_op.fused_conv2d_add_act": 1,
+        }
+        return pir_program
 
     def setUp(self):
-        if core.is_compiled_with_cuda():
-            self.places.append(paddle.CUDAPlace(0))
+        self.place_runtime = "gpu"
 
     def sample_program(self):
-        yield self.build_ir_program(), False
+        yield self.build_ir_progam(), False
 
     def test_check_output(self):
         self.check_pass_correct()
+
+
+class TestConv2dAdd2ActFusePatternWithCpu(TestConv2dAdd2ActFusePattern):
+    def setUp(self):
+        self.place_runtime = "cpu"
 
 
 if __name__ == "__main__":

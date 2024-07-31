@@ -43,27 +43,24 @@ class TestAllcloseLayer(unittest.TestCase):
 
         x = np.array([10000.0, 1e-07]).astype(dtype)
         y = np.array([10000.1, 1e-08]).astype(dtype)
-        result_v, result_nan_v, result_c = exe.run(
-            feed={'a': x, 'b': y},
-            fetch_list=[result, result_nan, result_corner],
+        result_v, result_nan_v = exe.run(
+            feed={'a': x, 'b': y}, fetch_list=[result, result_nan]
         )
         self.assertEqual(result_v, False)
         self.assertEqual(result_nan_v, False)
 
         x = np.array([10000.0, 1e-08]).astype(dtype)
         y = np.array([10000.1, 1e-09]).astype(dtype)
-        result_v, result_nan_v, result_c = exe.run(
-            feed={'a': x, 'b': y},
-            fetch_list=[result, result_nan, result_corner],
+        result_v, result_nan_v = exe.run(
+            feed={'a': x, 'b': y}, fetch_list=[result, result_nan]
         )
         self.assertEqual(result_v, True)
         self.assertEqual(result_nan_v, True)
 
         x = np.array([1.0, float('nan')]).astype(dtype)
         y = np.array([1.0, float('nan')]).astype(dtype)
-        result_v, result_nan_v, result_c = exe.run(
-            feed={'a': x, 'b': y},
-            fetch_list=[result, result_nan, result_corner],
+        result_v, result_nan_v = exe.run(
+            feed={'a': x, 'b': y}, fetch_list=[result, result_nan]
         )
         self.assertEqual(result_v, False)
         self.assertEqual(result_nan_v, True)
@@ -71,10 +68,7 @@ class TestAllcloseLayer(unittest.TestCase):
         # for corner case
         x = np.array([10.1, 10.1]).astype(dtype)
         y = np.array([10, 10]).astype(dtype)
-        result_v, result_nan_v, result_c = exe.run(
-            feed={'a': x, 'b': y},
-            fetch_list=[result, result_nan, result_corner],
-        )
+        (result_c,) = exe.run(feed={'a': x, 'b': y}, fetch_list=[result_corner])
         corner_res = dtype == 'float64'
         self.assertEqual(result_c, corner_res)
 

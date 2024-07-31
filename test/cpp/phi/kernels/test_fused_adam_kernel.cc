@@ -71,7 +71,6 @@ auto GenerateConstantTensorVectors(
 
 static auto ToConstTensorPtrVector(const std::vector<DenseTensor> &tensors) {
   std::vector<const DenseTensor *> results;
-  results.reserve(tensors.size());
   for (const auto &t : tensors) {
     results.push_back(&t);
   }
@@ -81,7 +80,6 @@ static auto ToConstTensorPtrVector(const std::vector<DenseTensor> &tensors) {
 static auto ToMutableTensorPtrVector(
     std::vector<DenseTensor> &tensors) {  // NOLINT
   std::vector<DenseTensor *> results;
-  results.reserve(tensors.size());
   for (auto &t : tensors) {
     results.push_back(&t);
   }
@@ -90,7 +88,6 @@ static auto ToMutableTensorPtrVector(
 
 static auto ToMetaTensorVector(const std::vector<DenseTensor> &tensors) {
   std::vector<MetaTensor> results;
-  results.reserve(tensors.size());
   for (auto &t : tensors) {
     results.emplace_back(t);
   }
@@ -100,7 +97,6 @@ static auto ToMetaTensorVector(const std::vector<DenseTensor> &tensors) {
 static auto ToConstMetaTensorPtrVector(
     const std::vector<MetaTensor> &meta_tensors) {
   std::vector<const MetaTensor *> results;
-  results.reserve(meta_tensors.size());
   for (auto &t : meta_tensors) {
     results.push_back(&t);
   }
@@ -110,7 +106,6 @@ static auto ToConstMetaTensorPtrVector(
 static auto ToMutableMetaTensorPtrVector(
     std::vector<MetaTensor> &meta_tensors) {  // NOLINT
   std::vector<MetaTensor *> results;
-  results.reserve(meta_tensors.size());
   for (auto &t : meta_tensors) {
     results.push_back(&t);
   }
@@ -445,7 +440,7 @@ static auto GenerateRandomShapes(size_t n, uint64_t low, uint64_t high) {
   std::uniform_int_distribution<uint64_t> dist(low, high);
   std::vector<std::vector<int64_t>> shapes(n);
   for (size_t i = 0; i < n; ++i) {
-    shapes[i].push_back(static_cast<int64_t>(dist(engine)));
+    shapes[i].push_back(dist(engine));
   }
   return shapes;
 }

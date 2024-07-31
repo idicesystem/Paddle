@@ -49,11 +49,8 @@ void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
     LOG(INFO) << "fn:\n" << DumpToString(fn);
   }
    */
-  PADDLE_ENFORCE_EQ(
-      !llvm::verifyModule(*module, &llvm::errs()),
-      true,
-      phi::errors::InvalidArgument(
-          "Transformation resulted in an invalid module\n\nmodule:\n"));
+  CHECK(!llvm::verifyModule(*module, &llvm::errs()))
+      << "Transformation resulted in an invalid module\n\nmodule:\n";
 
   bool debug = false;
   if (optimize) {
@@ -102,8 +99,7 @@ SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
   llvm::InitializeAllAsmPrinters();
 
   jit_ = llvm::cantFail(llvm::orc::LLJITBuilder().create());
-  PADDLE_ENFORCE_NOT_NULL(jit_,
-                          phi::errors::InvalidArgument("JIT creation failed."));
+  CHECK(jit_) << "JIT create failed";
 
   auto proc_symbols_generator = llvm::cantFail(
       llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
@@ -133,9 +129,7 @@ void SimpleJIT::Link(ir::Module module, bool optimize) {
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
   ir_emitter->Compile(module);
 
-  PADDLE_ENFORCE_EQ(!llvm::verifyModule(*m, &llvm::errs()),
-                    true,
-                    phi::errors::InvalidArgument("Invalid module found."));
+  CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
   AddModule(std::move(m), optimize);
 }

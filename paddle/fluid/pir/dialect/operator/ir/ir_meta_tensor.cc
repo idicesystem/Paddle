@@ -14,10 +14,10 @@
 
 #include "paddle/fluid/pir/dialect/operator/ir/ir_meta_tensor.h"
 #include "paddle/fluid/pir/dialect/operator/ir/ir_selected_rows.h"
-#include "paddle/fluid/pir/dialect/operator/ir/ir_sparse_tensor.h"
 #include "paddle/fluid/pir/dialect/operator/ir/ir_tensor.h"
 
-namespace paddle::dialect {
+namespace paddle {
+namespace dialect {
 static inline void ValidCheck(const IrMetaTensor& meta_tensor) {
   PADDLE_ENFORCE_EQ(meta_tensor.initialized(),
                     true,
@@ -51,50 +51,15 @@ const phi::LoD& IrMetaTensor::lod() const {
 }
 
 void IrMetaTensor::set_dims(const phi::DDim& dims) {
-  if (paddle::dialect::IrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrTensor*>(tensor_)->SetDims(dims);
-  } else if (paddle::dialect::IrSelectedRows::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSelectedRows*>(tensor_)->SetDims(dims);
-  } else if (paddle::dialect::IrSparseCooTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCooTensor*>(tensor_)->SetDims(dims);
-  } else if (paddle::dialect::IrSparseCsrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCsrTensor*>(tensor_)->SetDims(dims);
-  } else {
-    PADDLE_THROW(phi::errors::Unimplemented(
-        "The current MetaTensor is not initialized."));
-  }
+  static_cast<paddle::dialect::IrTensor*>(tensor_)->SetDims(dims);
 }
 
 void IrMetaTensor::set_dtype(phi::DataType dtype) {
-  if (paddle::dialect::IrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrTensor*>(tensor_)->SetDtype(dtype);
-  } else if (paddle::dialect::IrSelectedRows::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSelectedRows*>(tensor_)->SetDtype(dtype);
-  } else if (paddle::dialect::IrSparseCooTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCooTensor*>(tensor_)->SetDtype(dtype);
-  } else if (paddle::dialect::IrSparseCsrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCsrTensor*>(tensor_)->SetDtype(dtype);
-  } else {
-    PADDLE_THROW(phi::errors::Unimplemented(
-        "The current MetaTensor is not initialized."));
-  }
+  static_cast<paddle::dialect::IrTensor*>(tensor_)->SetDtype(dtype);
 }
 
 void IrMetaTensor::set_layout(phi::DataLayout layout) {
-  if (paddle::dialect::IrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrTensor*>(tensor_)->SetLayout(layout);
-  } else if (paddle::dialect::IrSelectedRows::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSelectedRows*>(tensor_)->SetLayout(layout);
-  } else if (paddle::dialect::IrSparseCooTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCooTensor*>(tensor_)->SetLayout(
-        layout);
-  } else if (paddle::dialect::IrSparseCsrTensor::classof(tensor_)) {
-    static_cast<paddle::dialect::IrSparseCsrTensor*>(tensor_)->SetLayout(
-        layout);
-  } else {
-    PADDLE_THROW(phi::errors::Unimplemented(
-        "The current MetaTensor is not initialized."));
-  }
+  static_cast<paddle::dialect::IrTensor*>(tensor_)->SetLayout(layout);
 }
 
 void IrMetaTensor::share_lod(const MetaTensor& meta_tensor) {
@@ -126,4 +91,5 @@ bool IrMetaTensor::is_tensor_array() const { return false; }
 
 bool IrMetaTensor::is_dense() const { return false; }
 
-}  // namespace paddle::dialect
+}  // namespace dialect
+}  // namespace paddle

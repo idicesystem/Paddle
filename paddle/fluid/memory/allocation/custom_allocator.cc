@@ -16,10 +16,6 @@
 
 #include "paddle/fluid/platform/device/device_wrapper.h"
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/fluid/platform/profiler.h"
-#include "paddle/fluid/platform/profiler/trace_event.h"
-
-COMMON_DECLARE_bool(custom_device_mem_record);
 
 namespace paddle {
 namespace memory {
@@ -30,20 +26,12 @@ void CustomAllocator::FreeImpl(phi::Allocation* allocation) {
   PADDLE_ENFORCE_EQ(
       allocation->place(),
       place_,
-      common::errors::PermissionDenied("CustomDevice memory is "
-                                       "freed in incorrect device. "
-                                       "This may be a bug"));
+      platform::errors::PermissionDenied("CustomDevice memory is "
+                                         "freed in incorrect device. "
+                                         "This may be a bug"));
   if (phi::DeviceManager::HasDeviceType(place_.GetDeviceType())) {
     phi::DeviceManager::GetDeviceWithPlace(place_)->MemoryDeallocate(
         allocation->ptr(), allocation->size());
-  }
-  if (FLAGS_custom_device_mem_record) {
-    DEVICE_MEMORY_STAT_UPDATE(
-        Reserved, place_.GetDeviceId(), -allocation->size());
-    platform::RecordMemEvent(allocation->ptr(),
-                             place_,
-                             allocation->size(),
-                             platform::TracerMemEventType::ReservedFree);
   }
   delete allocation;
 }
@@ -54,21 +42,16 @@ phi::Allocation* CustomAllocator::AllocateImpl(size_t size) {
   void* ptr =
       phi::DeviceManager::GetDeviceWithPlace(place_)->MemoryAllocate(size);
   if (LIKELY(ptr)) {
-    if (FLAGS_custom_device_mem_record) {
-      DEVICE_MEMORY_STAT_UPDATE(Reserved, place_.GetDeviceId(), size);
-      platform::RecordMemEvent(
-          ptr, place_, size, platform::TracerMemEventType::ReservedAllocate);
-    }
     return new Allocation(ptr, size, place_);
   }
 
   size_t avail, total;
   phi::DeviceManager::MemoryStats(place_, &total, &avail);
 
-  auto dev_type = phi::PlaceHelper::GetDeviceType(place_);
-  auto dev_id = phi::PlaceHelper::GetDeviceId(place_);
+  auto dev_type = platform::PlaceHelper::GetDeviceType(place_);
+  auto dev_id = platform::PlaceHelper::GetDeviceId(place_);
 
-  PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+  PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
       "\n\nOut of memory error on %s:%d. "
       "Cannot allocate %s memory on %s:%d, "
       "available memory is only %s.\n\n"

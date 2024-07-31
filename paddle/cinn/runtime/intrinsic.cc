@@ -51,9 +51,7 @@ cinn_type_t ToRuntimeType(Type type) {
   SET_TYPE_CASE_ITEM(Float16().PointerOf, cinn_type_of<float16*>);
   SET_TYPE_CASE_ITEM(BFloat16().PointerOf, cinn_type_of<bfloat16*>);
 
-  std::stringstream ss;
-  ss << "Not supported type " << type;
-  PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+  LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();
 #undef SET_TYPE_CASE_ITEM
 }

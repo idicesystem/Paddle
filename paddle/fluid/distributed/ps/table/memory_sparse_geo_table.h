@@ -28,7 +28,7 @@
 #include "paddle/fluid/distributed/ps/table/common_table.h"
 #include "paddle/fluid/distributed/ps/table/depends/feature_value.h"
 #include "paddle/fluid/distributed/ps/table/depends/geo_recorder.h"
-#include "paddle/utils/string/string_helper.h"
+#include "paddle/fluid/string/string_helper.h"
 
 namespace paddle {
 namespace distributed {
@@ -49,7 +49,7 @@ class MemorySparseGeoTable : public Table {
   int32_t Save(const std::string& path, const std::string& param) override {
     return 0;
   }
-#if defined(PADDLE_WITH_HETERPS) && defined(PADDLE_WITH_PSCORE)
+#ifdef PADDLE_WITH_GPU_GRAPH
   int32_t Save_v2(const std::string& path, const std::string& param) override {
     return 0;
   }

@@ -13,102 +13,100 @@
 # limitations under the License.
 
 import atexit  # noqa: F401
+from . import io
+from .spawn import spawn
+from .launch.main import launch
+from .parallel import (  # noqa: F401
+    init_parallel_env,
+    get_rank,
+    get_world_size,
+    ParallelEnv,
+    DataParallel,
+)
+from .parallel_with_gloo import (
+    gloo_init_parallel_env,
+    gloo_barrier,
+    gloo_release,
+)
 
-from .value_patch import monkey_patch_value_in_dist
-
-monkey_patch_value_in_dist()
-from paddle.base.core import Placement, ReduceType
-from paddle.distributed.fleet.base.topology import ParallelMode
 from paddle.distributed.fleet.dataset import InMemoryDataset, QueueDataset
+from paddle.distributed.fleet.base.topology import ParallelMode
 
-from . import (
-    cloud_utils,  # noqa: F401
-    io,
-    rpc,  # noqa: F401
-)
-from .auto_parallel import shard_op  # noqa: F401
-from .auto_parallel.api import (
-    DistAttr,
-    DistModel,
-    ShardingStage1,
-    ShardingStage2,
-    ShardingStage3,
-    Strategy,
-    dtensor_from_fn,
-    reshard,
-    shard_dataloader,
-    shard_layer,
-    shard_optimizer,
-    shard_scaler,
-    shard_tensor,
-    to_static,
-    unshard_dtensor,
-)
-from .auto_parallel.placement_type import (
-    Partial,
-    Replicate,
-    Shard,
-)
-from .auto_parallel.process_mesh import ProcessMesh
-from .checkpoint.load_state_dict import load_state_dict
-from .checkpoint.save_state_dict import save_state_dict
 from .collective import (
-    is_available,
-    new_group,
     split,
+    new_group,
+    is_available,
 )
 from .communication import (  # noqa: F401
-    P2POp,
+    stream,
     ReduceOp,
     all_gather,
     all_gather_object,
     all_reduce,
     alltoall,
     alltoall_single,
-    barrier,
-    batch_isend_irecv,
     broadcast,
     broadcast_object_list,
-    destroy_process_group,
+    reduce,
+    send,
+    scatter,
     gather,
-    get_backend,
-    get_group,
-    irecv,
-    is_initialized,
+    scatter_object_list,
     isend,
     recv,
-    reduce,
+    irecv,
+    batch_isend_irecv,
+    P2POp,
     reduce_scatter,
-    scatter,
-    scatter_object_list,
-    send,
-    stream,
+    is_initialized,
+    destroy_process_group,
+    get_group,
     wait,
+    barrier,
+    get_backend,
 )
-from .entry_attr import (
-    CountFilterEntry,
+
+from .auto_parallel.process_mesh import ProcessMesh
+
+from paddle.base.core import ReduceType, Placement
+from .auto_parallel.placement_type import (
+    Shard,
+    Replicate,
+    Partial,
+)
+
+from .auto_parallel import shard_op  # noqa: F401
+
+from .auto_parallel.api import (
+    DistAttr,
+    shard_tensor,
+    dtensor_from_fn,
+    reshard,
+    shard_layer,
+    shard_optimizer,
+    to_static,
+    Strategy,
+)
+
+from .fleet import BoxPSDataset  # noqa: F401
+
+from .entry_attr import (  # noqa: F401
     ProbabilityEntry,
+    CountFilterEntry,
     ShowClickEntry,
 )
-from .fleet import BoxPSDataset  # noqa: F401
-from .launch.main import launch
-from .parallel import (  # noqa: F401
-    DataParallel,
-    ParallelEnv,
-    get_rank,
-    get_world_size,
-    init_parallel_env,
-)
-from .parallel_with_gloo import (
-    gloo_barrier,
-    gloo_init_parallel_env,
-    gloo_release,
-)
+
+from . import cloud_utils  # noqa: F401
+
 from .sharding import (  # noqa: F401
     group_sharded_parallel,
     save_group_sharded_model,
 )
-from .spawn import spawn
+
+from . import rpc  # noqa: F401
+
+from .checkpoint.save_state_dict import save_state_dict
+from .checkpoint.load_state_dict import load_state_dict
 
 __all__ = [
     "io",
@@ -159,7 +157,6 @@ __all__ = [
     "dtensor_from_fn",
     "reshard",
     "shard_layer",
-    "shard_dataloader",
     "ReduceType",
     "Placement",
     "Shard",
@@ -168,12 +165,6 @@ __all__ = [
     "save_state_dict",
     "load_state_dict",
     "shard_optimizer",
-    "shard_scaler",
-    "ShardingStage1",
-    "ShardingStage2",
-    "ShardingStage3",
     "to_static",
     "Strategy",
-    "DistModel",
-    "unshard_dtensor",
 ]

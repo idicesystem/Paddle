@@ -11,8 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if defined(PADDLE_WITH_GLOO) && defined(PADDLE_WITH_HETERPS) && \
-    defined(PADDLE_WITH_PSCORE)
+#if defined(PADDLE_WITH_GLOO) && defined(PADDLE_WITH_GPU_GRAPH)
 #pragma once
 #include <memory>  // std::unique_ptr
 #include <string>  // std::string

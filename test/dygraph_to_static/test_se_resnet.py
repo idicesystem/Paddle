@@ -20,17 +20,13 @@ import time
 import unittest
 
 import numpy as np
-from dygraph_to_static_utils import (
-    Dy2StTestBase,
-    enable_to_static_guard,
-    test_default_and_pir,
-)
+from dygraph_to_static_utils import Dy2StTestBase, test_ast_only, test_pt_only
 from predictor_utils import PredictorTools
 
 import paddle
 from paddle import base
-from paddle.framework import use_pir_api
-from paddle.jit.pir_translated_layer import PIR_INFER_MODEL_SUFFIX
+from paddle.base.dygraph.base import to_variable
+from paddle.jit.api import to_static
 from paddle.jit.translated_layer import INFER_MODEL_SUFFIX, INFER_PARAMS_SUFFIX
 from paddle.nn import BatchNorm, Linear
 from paddle.static import InputSpec
@@ -323,6 +319,7 @@ class SeResNeXt(paddle.nn.Layer):
             ),
         )
 
+    @to_static(full_graph=True)
     def forward(self, inputs, label):
         if self.layers == 50 or self.layers == 101:
             y = self.conv0(inputs)
@@ -366,7 +363,6 @@ class TestSeResnet(Dy2StTestBase):
             self.temp_dir.name, "inference/se_resnet"
         )
         self.model_filename = "se_resnet" + INFER_MODEL_SUFFIX
-        self.pir_model_filename = "se_resnet" + PIR_INFER_MODEL_SUFFIX
         self.params_filename = "se_resnet" + INFER_PARAMS_SUFFIX
         self.dy_state_dict_save_path = os.path.join(
             self.temp_dir.name, "se_resnet.dygraph"
@@ -376,13 +372,14 @@ class TestSeResnet(Dy2StTestBase):
         self.temp_dir.cleanup()
 
     def train(self, train_reader, to_static):
+        paddle.jit.enable_to_static(to_static)
+
         np.random.seed(SEED)
 
         with base.dygraph.guard(place):
             paddle.seed(SEED)
             paddle.framework.random._manual_program_seed(SEED)
             se_resnext = SeResNeXt()
-            se_resnext = paddle.jit.to_static(se_resnext, full_graph=True)
             optimizer = optimizer_setting(
                 train_parameters, se_resnext.parameters()
             )
@@ -404,8 +401,8 @@ class TestSeResnet(Dy2StTestBase):
                         .reshape(BATCH_SIZE, 1)
                     )
 
-                    img = paddle.to_tensor(dy_x_data)
-                    label = paddle.to_tensor(y_data)
+                    img = to_variable(dy_x_data)
+                    label = to_variable(y_data)
                     label.stop_gradient = True
 
                     pred, avg_loss, acc_top1, acc_top5 = se_resnext(img, label)
@@ -453,15 +450,10 @@ class TestSeResnet(Dy2StTestBase):
                     step_idx += 1
                     if step_idx == STEP_NUM:
                         if to_static:
-                            if use_pir_api():
-                                output_spec = [0]
-                            else:
-                                output_spec = [pred]
-
                             paddle.jit.save(
                                 se_resnext,
                                 self.model_save_prefix,
-                                output_spec=output_spec,
+                                output_spec=[pred],
                                 input_names_after_prune=['x'],
                                 input_spec=[
                                     InputSpec(
@@ -485,30 +477,23 @@ class TestSeResnet(Dy2StTestBase):
             )
 
     def predict_dygraph(self, data):
-        with enable_to_static_guard(False):
-            with base.dygraph.guard(place):
-                se_resnext = SeResNeXt()
+        paddle.jit.enable_to_static(False)
+        with base.dygraph.guard(place):
+            se_resnext = SeResNeXt()
 
-                model_dict = paddle.load(
-                    self.dy_state_dict_save_path + '.pdparams'
-                )
-                se_resnext.set_dict(model_dict)
-                se_resnext.eval()
+            model_dict = paddle.load(self.dy_state_dict_save_path + '.pdparams')
+            se_resnext.set_dict(model_dict)
+            se_resnext.eval()
 
-                label = np.random.random([1, 1]).astype("int64")
-                img = paddle.to_tensor(data)
-                label = paddle.to_tensor(label)
-                pred_res, _, _, _ = se_resnext(img, label)
+            label = np.random.random([1, 1]).astype("int64")
+            img = base.dygraph.to_variable(data)
+            label = base.dygraph.to_variable(label)
+            pred_res, _, _, _ = se_resnext(img, label)
 
-                return pred_res.numpy()
+            return pred_res.numpy()
 
     def predict_static(self, data):
         paddle.enable_static()
-        if use_pir_api():
-            model_filename = self.pir_model_filename
-        else:
-            model_filename = self.model_filename
-
         exe = base.Executor(place)
         [
             inference_program,
@@ -517,7 +502,7 @@ class TestSeResnet(Dy2StTestBase):
         ] = paddle.static.io.load_inference_model(
             self.model_save_dir,
             executor=exe,
-            model_filename=model_filename,
+            model_filename=self.model_filename,
             params_filename=self.params_filename,
         )
 
@@ -539,17 +524,13 @@ class TestSeResnet(Dy2StTestBase):
             return pred_res.numpy()
 
     def predict_analysis_inference(self, data):
-        if use_pir_api():
-            model_filename = self.pir_model_filename
-        else:
-            model_filename = self.model_filename
         output = PredictorTools(
             self.model_save_dir,
-            model_filename,
+            self.model_filename,
             self.params_filename,
             [data],
         )
-        (out,) = output()
+        out = output()
         return out
 
     def verify_predict(self):
@@ -557,7 +538,7 @@ class TestSeResnet(Dy2StTestBase):
         dy_pre = self.predict_dygraph(image)
         st_pre = self.predict_static(image)
         dy_jit_pre = self.predict_dygraph_jit(image)
-
+        predictor_pre = self.predict_analysis_inference(image)
         np.testing.assert_allclose(
             dy_pre,
             st_pre,
@@ -571,7 +552,6 @@ class TestSeResnet(Dy2StTestBase):
             err_msg=f'dy_jit_pre:\n {dy_jit_pre}\n, st_pre: \n{st_pre}.',
         )
 
-        predictor_pre = self.predict_analysis_inference(image)
         flat_st_pre = st_pre.flatten()
         flat_predictor_pre = np.array(predictor_pre).flatten()
         for i in range(len(flat_predictor_pre)):
@@ -579,16 +559,18 @@ class TestSeResnet(Dy2StTestBase):
             self.assertAlmostEqual(
                 flat_predictor_pre[i],
                 flat_st_pre[i],
-                delta=1e-5,
-                msg=f"predictor_pre:\n {flat_predictor_pre[i]}\n, st_pre: \n{flat_st_pre[i]}.",
+                delta=1e-6,
+                msg="predictor_pre:\n {}\n, st_pre: \n{}.".format(
+                    flat_predictor_pre[i], flat_st_pre[i]
+                ),
             )
 
-    @test_default_and_pir
+    @test_ast_only
+    @test_pt_only
     def test_check_result(self):
-        with enable_to_static_guard(False):
-            pred_1, loss_1, acc1_1, acc5_1 = self.train(
-                self.train_reader, to_static=False
-            )
+        pred_1, loss_1, acc1_1, acc5_1 = self.train(
+            self.train_reader, to_static=False
+        )
         pred_2, loss_2, acc1_2, acc5_2 = self.train(
             self.train_reader, to_static=True
         )

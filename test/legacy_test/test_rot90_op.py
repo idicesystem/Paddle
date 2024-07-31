@@ -18,13 +18,11 @@ import numpy as np
 
 import paddle
 from paddle import base
-from paddle.pir_utils import test_with_pir_api
 
 
 class TestRot90_API(unittest.TestCase):
     """Test rot90 api."""
 
-    @test_with_pir_api
     def test_static_graph(self):
         paddle.enable_static()
         startup_program = base.Program()
@@ -55,7 +53,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_k_0(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -85,7 +82,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_k_2(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -115,7 +111,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_k_3(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -145,7 +140,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_neg_k_1(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -175,7 +169,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_neg_k_2(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -205,7 +198,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_neg_k_3(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -235,7 +227,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_static_neg_k_4(self):
         paddle.enable_static()
         input = paddle.static.data(name='input', dtype='float32', shape=[2, 3])
@@ -265,7 +256,6 @@ class TestRot90_API(unittest.TestCase):
                 msg='rot90 output is wrong, out =' + str(out_np),
             )
 
-    @test_with_pir_api
     def test_error_api(self):
         paddle.enable_static()
 
@@ -312,7 +302,7 @@ class TestRot90_API(unittest.TestCase):
     def test_dygraph(self):
         img = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.float32)
         with base.dygraph.guard():
-            inputs = paddle.to_tensor(img)
+            inputs = base.dygraph.to_variable(img)
 
             ret = paddle.rot90(inputs, k=1, axes=[0, 1])
             ret = ret.rot90(1, axes=[0, 1])

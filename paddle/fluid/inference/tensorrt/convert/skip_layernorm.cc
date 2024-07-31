@@ -17,7 +17,9 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/engine.h"
 #include "paddle/phi/common/data_type.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class SkipLayerNormOpConverter : public OpConverter {
  public:
@@ -27,7 +29,7 @@ class SkipLayerNormOpConverter : public OpConverter {
     VLOG(4) << "convert fused skip layernorm op to tensorrt layer";
     PADDLE_ENFORCE_EQ(engine_->with_dynamic_shape(),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Skip_layernorm must run the dynamic shape mode."));
     framework::OpDesc op_desc(op, nullptr);
     auto output_name = op_desc.Output("Out")[0];
@@ -65,19 +67,17 @@ class SkipLayerNormOpConverter : public OpConverter {
 
     if ((x_rank == 2 && y_rank == 4) || (y_rank == 2 && x_rank == 4)) {
       if (x_rank == 2 && y_rank == 4) {
-        auto* reshape_before_skip_layer_n =
+        auto* reshape_before_skiplayn =
             TRT_ENGINE_ADD_LAYER(engine_, Shuffle, *input1);
         std::vector<nvinfer1::ITensor*> reshape_before_tensor;
         reshape_before_tensor.push_back(GetEleTensorOfShape(Shape(input1), 0));
         reshape_before_tensor.push_back(GetEleTensorOfShape(Shape(input1), 1));
         reshape_before_tensor.push_back(Add1DConstantLayer(1));
         reshape_before_tensor.push_back(Add1DConstantLayer(1));
-        reshape_before_skip_layer_n->setInput(1,
-                                              *Concat(reshape_before_tensor));
-        reshape_before_skip_layer_n->setName(
-            ("reshape_before_skip_layer_n(Output: " + output_name + ")")
-                .c_str());
-        input1 = reshape_before_skip_layer_n->getOutput(0);
+        reshape_before_skiplayn->setInput(1, *Concat(reshape_before_tensor));
+        reshape_before_skiplayn->setName(
+            ("reshape_before_skiplayn(Output: " + output_name + ")").c_str());
+        input1 = reshape_before_skiplayn->getOutput(0);
 
         if (enable_int8) {
           if (op_desc.HasAttr("X")) {
@@ -85,19 +85,17 @@ class SkipLayerNormOpConverter : public OpConverter {
           }
         }
       } else {
-        auto* reshape_before_skip_layer_n =
+        auto* reshape_before_skiplayn =
             TRT_ENGINE_ADD_LAYER(engine_, Shuffle, *input2);
         std::vector<nvinfer1::ITensor*> reshape_before_tensor;
         reshape_before_tensor.push_back(GetEleTensorOfShape(Shape(input2), 0));
         reshape_before_tensor.push_back(GetEleTensorOfShape(Shape(input2), 1));
         reshape_before_tensor.push_back(Add1DConstantLayer(1));
         reshape_before_tensor.push_back(Add1DConstantLayer(1));
-        reshape_before_skip_layer_n->setInput(1,
-                                              *Concat(reshape_before_tensor));
-        reshape_before_skip_layer_n->setName(
-            ("reshape_before_skip_layer_n(Output: " + output_name + ")")
-                .c_str());
-        input2 = reshape_before_skip_layer_n->getOutput(0);
+        reshape_before_skiplayn->setInput(1, *Concat(reshape_before_tensor));
+        reshape_before_skiplayn->setName(
+            ("reshape_before_skiplayn(Output: " + output_name + ")").c_str());
+        input2 = reshape_before_skiplayn->getOutput(0);
 
         if (enable_int8) {
           if (op_desc.HasAttr("Y")) {
@@ -129,14 +127,14 @@ class SkipLayerNormOpConverter : public OpConverter {
       VLOG(4) << "fused skip_layernorm op: use_varseqlen and with_interleaved";
       if (!enable_int8) {
         PADDLE_THROW(
-            common::errors::Fatal("use with_interleaved must be int8."));
+            platform::errors::Fatal("use with_interleaved must be int8."));
       }
       auto creator = GetPluginRegistry()->getPluginCreator(
           "CustomSkipLayerNormPluginDynamic", "3");
       PADDLE_ENFORCE_NE(
           creator,
           nullptr,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "fail to get creator of CustomSkipLayerNormPluginDynamic"));
       const std::vector<nvinfer1::PluginField> fields{
           {"beta",
@@ -147,15 +145,17 @@ class SkipLayerNormOpConverter : public OpConverter {
            scale_weight.values,
            GetPluginFieldType(scale_weight.type),
            static_cast<int32_t>(scale_weight.count)}};
-      std::unique_ptr<nvinfer1::PluginFieldCollection> pluginPtr(
-          new nvinfer1::PluginFieldCollection);
+      nvinfer1::PluginFieldCollection* pluginPtr =
+          static_cast<nvinfer1::PluginFieldCollection*>(
+              malloc(sizeof(nvinfer1::PluginFieldCollection) +
+                     fields.size() * sizeof(nvinfer1::PluginField)));
       pluginPtr->nbFields = static_cast<int32_t>(fields.size());
       pluginPtr->fields = fields.data();
 
-      auto pluginObj = creator->createPlugin("CustomSkipLayerNormPluginDynamic",
-                                             pluginPtr.get());
+      auto pluginObj =
+          creator->createPlugin("CustomSkipLayerNormPluginDynamic", pluginPtr);
 
-      pluginPtr.reset();
+      free(pluginPtr);
 
       auto plugin_layer = engine_->network()->addPluginV2(
           inputs.data(), inputs.size(), *pluginObj);
@@ -163,7 +163,7 @@ class SkipLayerNormOpConverter : public OpConverter {
       PADDLE_ENFORCE_NE(
           plugin_layer,
           nullptr,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "fail to add CustomSkipLayerNormPluginDynamic layer"));
       layer = plugin_layer;
     } else {
@@ -172,7 +172,7 @@ class SkipLayerNormOpConverter : public OpConverter {
       PADDLE_ENFORCE_NE(
           creator,
           nullptr,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "fail to get creator of CustomSkipLayerNormPluginDynamic"));
       int32_t type = static_cast<int32_t>((engine_->WithFp16() == 1)
                                               ? nvinfer1::DataType::kHALF
@@ -184,7 +184,7 @@ class SkipLayerNormOpConverter : public OpConverter {
           PADDLE_GET_CONST(int32_t, op_desc.GetAttr("hidden_size"));
       PADDLE_ENFORCE_GT(hidden_size,
                         0,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "in CustomSkipLayerNormPluginDynamic hidden "
                             "dimension should > 0"));
 
@@ -209,15 +209,18 @@ class SkipLayerNormOpConverter : public OpConverter {
                           smooth_scale.data(),
                           nvinfer1::PluginFieldType::kFLOAT32,
                           static_cast<int32_t>(smooth_scale.size())});
-        std::unique_ptr<nvinfer1::PluginFieldCollection> pluginPtr(
-            new nvinfer1::PluginFieldCollection);
+        nvinfer1::PluginFieldCollection* pluginPtr =
+            static_cast<nvinfer1::PluginFieldCollection*>(
+                malloc(sizeof(nvinfer1::PluginFieldCollection) +
+                       fields.size() *
+                           sizeof(nvinfer1::PluginField)));  // remember to free
         pluginPtr->nbFields = static_cast<int32_t>(fields.size());
         pluginPtr->fields = fields.data();
 
         auto pluginObj = creator->createPlugin(
-            "CustomSkipLayerNormPluginDynamicWithSmooth", pluginPtr.get());
+            "CustomSkipLayerNormPluginDynamicWithSmooth", pluginPtr);
 
-        pluginPtr.reset();
+        free(pluginPtr);
 
         auto plugin_layer = engine_->network()->addPluginV2(
             inputs.data(), inputs.size(), *pluginObj);
@@ -225,20 +228,23 @@ class SkipLayerNormOpConverter : public OpConverter {
         PADDLE_ENFORCE_NE(
             plugin_layer,
             nullptr,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "fail to add CustomSkipLayerNormPluginDynamicWithSmooth "
                 "layer"));
         layer = plugin_layer;
       } else {
-        std::unique_ptr<nvinfer1::PluginFieldCollection> pluginPtr(
-            new nvinfer1::PluginFieldCollection);
+        nvinfer1::PluginFieldCollection* pluginPtr =
+            static_cast<nvinfer1::PluginFieldCollection*>(
+                malloc(sizeof(nvinfer1::PluginFieldCollection) +
+                       fields.size() *
+                           sizeof(nvinfer1::PluginField)));  // remember to free
         pluginPtr->nbFields = static_cast<int32_t>(fields.size());
         pluginPtr->fields = fields.data();
 
         auto pluginObj = creator->createPlugin(
-            "CustomSkipLayerNormPluginDynamic", pluginPtr.get());
+            "CustomSkipLayerNormPluginDynamic", pluginPtr);
 
-        pluginPtr.reset();
+        free(pluginPtr);
 
         auto plugin_layer = engine_->network()->addPluginV2(
             inputs.data(), inputs.size(), *pluginObj);
@@ -246,15 +252,17 @@ class SkipLayerNormOpConverter : public OpConverter {
         PADDLE_ENFORCE_NE(
             plugin_layer,
             nullptr,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "fail to add CustomSkipLayerNormPluginDynamic layer"));
         layer = plugin_layer;
       }
     }
-    ReplenishLayerAndOutput(layer, "skip_layernorm", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "skip_layernorm", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(skip_layernorm, SkipLayerNormOpConverter);

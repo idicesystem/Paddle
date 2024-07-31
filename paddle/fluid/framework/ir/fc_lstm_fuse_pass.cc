@@ -17,13 +17,17 @@
 #include <string>
 
 #include "paddle/fluid/framework/op_version_registry.h"
-#include "paddle/utils/string/pretty_log.h"
+#include "paddle/fluid/string/pretty_log.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Scope;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Node;
 
@@ -207,20 +211,20 @@ int FCLstmFusePass::BuildFusion(Graph* graph,
     if (with_fc_bias) {
       // Add FC-bias with LSTM-bias and create a new weight
       PADDLE_ENFORCE_NOT_NULL(
-          scope, common::errors::InvalidArgument("Scope cannot be nullptr."));
+          scope, platform::errors::InvalidArgument("Scope cannot be nullptr."));
       auto* lstm_bias_var = scope->FindVar(bias->Name());
       auto* fc_bias_var = scope->FindVar(fc_bias->Name());
       PADDLE_ENFORCE_NOT_NULL(lstm_bias_var,
-                              common::errors::InvalidArgument(
+                              platform::errors::InvalidArgument(
                                   "Lstm bias var ptr cannot be nullptr."));
       PADDLE_ENFORCE_NOT_NULL(fc_bias_var,
-                              common::errors::InvalidArgument(
+                              platform::errors::InvalidArgument(
                                   "FC bias var ptr cannot be nullptr."));
       auto* lstm_bias_tensor = lstm_bias_var->GetMutable<phi::DenseTensor>();
       const auto& fc_bias_tensor = fc_bias_var->Get<phi::DenseTensor>();
 
       auto lstm_bias_data =
-          lstm_bias_tensor->mutable_data<float>(phi::CPUPlace());
+          lstm_bias_tensor->mutable_data<float>(platform::CPUPlace());
       auto* fc_bias_data = fc_bias_tensor.data<float>();
 
       for (int i = 0; i < fc_bias_tensor.numel(); i++) {
@@ -375,7 +379,9 @@ void FCLstmFusePass::ApplyImpl(ir::Graph* graph) const {
                             fusion_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(mul_lstm_fuse_pass, paddle::framework::ir::MulLstmFusePass);
 REGISTER_PASS(fc_lstm_fuse_pass, paddle::framework::ir::FCLstmFusePass);

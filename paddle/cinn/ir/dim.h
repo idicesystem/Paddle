@@ -15,13 +15,13 @@
 #pragma once
 
 #include "paddle/cinn/ir/ir_base.h"
-#include "paddle/pir/include/dialect/shape/ir/shape_op.h"
-#include "paddle/pir/include/dialect/shape/utils/dim_expr.h"
+#include "paddle/pir/dialect/shape/ir/shape_op.h"
 
 namespace cinn {
 namespace ir {
 
 struct _Dim_;
+using pir::shape::SymbolicDimOp;
 
 //! Wrapper for _Dim_
 class Dim : public IrNodeRef {
@@ -32,7 +32,7 @@ class Dim : public IrNodeRef {
 
   operator Expr() const { return Expr(ptr()); }
 
-  Dim(const std::string& name, const symbol::DimExpr& sym_dim);
+  Dim(const std::string& name, const SymbolicDimOp& sym_dim);
 
   const _Dim_* operator->() const;
   _Dim_* operator->();
@@ -44,16 +44,20 @@ class Dim : public IrNodeRef {
 struct _Dim_ : ExprNode<_Dim_> {
   //! The name of this struct.
   std::string name;
-  symbol::DimExpr sym_dim;
+  SymbolicDimOp sym_dim;
   Expr dim_expr;
 
-  bool IsUniSymbolic() const;
+  SymbolicDimOp GetSymbolicDim() const;
 
-  std::string ToString() const;
+  bool IsDynamic() const;
+
+  std::string GetSymbolName() const;
+
+  int64_t GetRealDimSize() const;
 
   Expr GetDimExpr() const;
 
-  static Dim Make(const std::string& name, const symbol::DimExpr& sym_dim);
+  static Dim Make(const std::string& name, const SymbolicDimOp& sym_dim);
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Dim_;
 };

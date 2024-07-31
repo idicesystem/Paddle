@@ -15,9 +15,9 @@ limitations under the License. */
 #include <gtest/gtest.h>
 
 #include "paddle/fluid/framework/tensor_util.h"
+#include "paddle/fluid/operators/math/concat_and_split.h"
 #include "paddle/fluid/platform/device_context.h"
-#include "paddle/phi/common/place.h"
-#include "paddle/phi/kernels/funcs/concat_and_split_functor.h"
+#include "paddle/fluid/platform/place.h"
 
 /**
  * case 1:
@@ -45,15 +45,15 @@ void ConcatCase1(DeviceContext* context) {
   input_b.mutable_data<int>(dim_b, Place());
   out.mutable_data<int>(dim_out, Place());
 
-  if (phi::is_gpu_place(Place())) {
-    input_a_cpu.mutable_data<int>(dim_a, phi::CPUPlace());
-    input_b_cpu.mutable_data<int>(dim_b, phi::CPUPlace());
-    out_cpu.mutable_data<int>(dim_out, phi::CPUPlace());
+  if (paddle::platform::is_gpu_place(Place())) {
+    input_a_cpu.mutable_data<int>(dim_a, paddle::platform::CPUPlace());
+    input_b_cpu.mutable_data<int>(dim_b, paddle::platform::CPUPlace());
+    out_cpu.mutable_data<int>(dim_out, paddle::platform::CPUPlace());
   }
 
   int* a_ptr = nullptr;
   int* b_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     a_ptr = input_a_cpu.data<int>();
     b_ptr = input_b_cpu.data<int>();
   } else {
@@ -68,7 +68,7 @@ void ConcatCase1(DeviceContext* context) {
     b_ptr[i] = i;
   }
 
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     paddle::framework::TensorCopySync(input_a_cpu, Place(), &input_a);
     paddle::framework::TensorCopySync(input_b_cpu, Place(), &input_b);
   }
@@ -77,28 +77,29 @@ void ConcatCase1(DeviceContext* context) {
   input.push_back(input_a);
   input.push_back(input_b);
 
-  phi::funcs::ConcatFunctor<DeviceContext, int> concat_functor;
+  paddle::operators::math::ConcatFunctor<DeviceContext, int> concat_functor;
   concat_functor(*context, input, 0, &out);
 
   // check the dim of input_a, input_b
   PADDLE_ENFORCE_EQ(input_a.dims(),
                     dim_a,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_a.dims(),
                         dim_a));
   PADDLE_ENFORCE_EQ(input_b.dims(),
                     dim_b,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_b.dims(),
                         dim_b));
 
   int* out_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
-    paddle::framework::TensorCopySync(out, phi::CPUPlace(), &out_cpu);
+  if (paddle::platform::is_gpu_place(Place())) {
+    paddle::framework::TensorCopySync(
+        out, paddle::platform::CPUPlace(), &out_cpu);
     out_ptr = out_cpu.data<int>();
   } else {
     out_ptr = out.data<int>();
@@ -110,13 +111,13 @@ void ConcatCase1(DeviceContext* context) {
     if (j >= cols) {
       PADDLE_ENFORCE_EQ(out_ptr[j],
                         b_ptr[idx_b],
-                        common::errors::InvalidArgument(
+                        paddle::platform::errors::InvalidArgument(
                             "Concat test failed, the result should be equal."));
       ++idx_b;
     } else {
       PADDLE_ENFORCE_EQ(out_ptr[j],
                         a_ptr[idx_a],
-                        common::errors::InvalidArgument(
+                        paddle::platform::errors::InvalidArgument(
                             "Concat test failed, the result should be equal."));
       ++idx_a;
     }
@@ -149,15 +150,15 @@ void ConcatCase2(DeviceContext* context) {
   input_b.mutable_data<int>(dim_b, Place());
   out.mutable_data<int>(dim_out, Place());
 
-  if (phi::is_gpu_place(Place())) {
-    input_a_cpu.mutable_data<int>(dim_a, phi::CPUPlace());
-    input_b_cpu.mutable_data<int>(dim_b, phi::CPUPlace());
-    out_cpu.mutable_data<int>(dim_out, phi::CPUPlace());
+  if (paddle::platform::is_gpu_place(Place())) {
+    input_a_cpu.mutable_data<int>(dim_a, paddle::platform::CPUPlace());
+    input_b_cpu.mutable_data<int>(dim_b, paddle::platform::CPUPlace());
+    out_cpu.mutable_data<int>(dim_out, paddle::platform::CPUPlace());
   }
 
   int* a_ptr = nullptr;
   int* b_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     a_ptr = input_a_cpu.data<int>();
     b_ptr = input_b_cpu.data<int>();
   } else {
@@ -172,7 +173,7 @@ void ConcatCase2(DeviceContext* context) {
     b_ptr[i] = i;
   }
 
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     paddle::framework::TensorCopySync(input_a_cpu, Place(), &input_a);
     paddle::framework::TensorCopySync(input_b_cpu, Place(), &input_b);
   }
@@ -181,28 +182,29 @@ void ConcatCase2(DeviceContext* context) {
   input.push_back(input_a);
   input.push_back(input_b);
 
-  phi::funcs::ConcatFunctor<DeviceContext, int> concat_functor;
+  paddle::operators::math::ConcatFunctor<DeviceContext, int> concat_functor;
   concat_functor(*context, input, 1, &out);
 
   // check the dim of input_a, input_b
   PADDLE_ENFORCE_EQ(input_a.dims(),
                     dim_a,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_a.dims(),
                         dim_a));
   PADDLE_ENFORCE_EQ(input_b.dims(),
                     dim_b,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_b.dims(),
                         dim_b));
 
   int* out_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
-    paddle::framework::TensorCopySync(out, phi::CPUPlace(), &out_cpu);
+  if (paddle::platform::is_gpu_place(Place())) {
+    paddle::framework::TensorCopySync(
+        out, paddle::platform::CPUPlace(), &out_cpu);
     out_ptr = out_cpu.data<int>();
   } else {
     out_ptr = out.data<int>();
@@ -216,14 +218,14 @@ void ConcatCase2(DeviceContext* context) {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 28 + j],
             b_ptr[idx_b],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_b;
       } else {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 28 + j],
             a_ptr[idx_a],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_a;
       }
@@ -257,15 +259,15 @@ void ConcatCase3(DeviceContext* context) {
   input_b.mutable_data<int>(dim_b, Place());
   out.mutable_data<int>(dim_out, Place());
 
-  if (phi::is_gpu_place(Place())) {
-    input_a_cpu.mutable_data<int>(dim_a, phi::CPUPlace());
-    input_b_cpu.mutable_data<int>(dim_b, phi::CPUPlace());
-    out_cpu.mutable_data<int>(dim_out, phi::CPUPlace());
+  if (paddle::platform::is_gpu_place(Place())) {
+    input_a_cpu.mutable_data<int>(dim_a, paddle::platform::CPUPlace());
+    input_b_cpu.mutable_data<int>(dim_b, paddle::platform::CPUPlace());
+    out_cpu.mutable_data<int>(dim_out, paddle::platform::CPUPlace());
   }
 
   int* a_ptr = nullptr;
   int* b_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     a_ptr = input_a_cpu.data<int>();
     b_ptr = input_b_cpu.data<int>();
   } else {
@@ -280,7 +282,7 @@ void ConcatCase3(DeviceContext* context) {
     b_ptr[i] = i;
   }
 
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     paddle::framework::TensorCopySync(input_a_cpu, Place(), &input_a);
     paddle::framework::TensorCopySync(input_b_cpu, Place(), &input_b);
   }
@@ -289,28 +291,29 @@ void ConcatCase3(DeviceContext* context) {
   input.push_back(input_a);
   input.push_back(input_b);
 
-  phi::funcs::ConcatFunctor<DeviceContext, int> concat_functor;
+  paddle::operators::math::ConcatFunctor<DeviceContext, int> concat_functor;
   concat_functor(*context, input, 2, &out);
 
   // check the dim of input_a, input_b
   PADDLE_ENFORCE_EQ(input_a.dims(),
                     dim_a,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_a.dims(),
                         dim_a));
   PADDLE_ENFORCE_EQ(input_b.dims(),
                     dim_b,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_b.dims(),
                         dim_b));
 
   int* out_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
-    paddle::framework::TensorCopySync(out, phi::CPUPlace(), &out_cpu);
+  if (paddle::platform::is_gpu_place(Place())) {
+    paddle::framework::TensorCopySync(
+        out, paddle::platform::CPUPlace(), &out_cpu);
     out_ptr = out_cpu.data<int>();
   } else {
     out_ptr = out.data<int>();
@@ -325,14 +328,14 @@ void ConcatCase3(DeviceContext* context) {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 9 + j],
             b_ptr[idx_b],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_b;
       } else {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 9 + j],
             a_ptr[idx_a],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_a;
       }
@@ -367,15 +370,15 @@ void ConcatCase4(DeviceContext* context) {
   input_b.mutable_data<int>(dim_b, Place());
   out.mutable_data<int>(dim_out, Place());
 
-  if (phi::is_gpu_place(Place())) {
-    input_a_cpu.mutable_data<int>(dim_a, phi::CPUPlace());
-    input_b_cpu.mutable_data<int>(dim_b, phi::CPUPlace());
-    out_cpu.mutable_data<int>(dim_out, phi::CPUPlace());
+  if (paddle::platform::is_gpu_place(Place())) {
+    input_a_cpu.mutable_data<int>(dim_a, paddle::platform::CPUPlace());
+    input_b_cpu.mutable_data<int>(dim_b, paddle::platform::CPUPlace());
+    out_cpu.mutable_data<int>(dim_out, paddle::platform::CPUPlace());
   }
 
   int* a_ptr = nullptr;
   int* b_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     a_ptr = input_a_cpu.data<int>();
     b_ptr = input_b_cpu.data<int>();
   } else {
@@ -390,7 +393,7 @@ void ConcatCase4(DeviceContext* context) {
     b_ptr[i] = i;
   }
 
-  if (phi::is_gpu_place(Place())) {
+  if (paddle::platform::is_gpu_place(Place())) {
     paddle::framework::TensorCopySync(input_a_cpu, Place(), &input_a);
     paddle::framework::TensorCopySync(input_b_cpu, Place(), &input_b);
   }
@@ -399,29 +402,30 @@ void ConcatCase4(DeviceContext* context) {
   input.push_back(input_a);
   input.push_back(input_b);
 
-  phi::funcs::ConcatFunctor<DeviceContext, int> concat_functor;
+  paddle::operators::math::ConcatFunctor<DeviceContext, int> concat_functor;
   concat_functor(*context, input, 1, &out);
   context->Wait();
 
   // check the dim of input_a, input_b
   PADDLE_ENFORCE_EQ(input_a.dims(),
                     dim_a,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_a.dims(),
                         dim_a));
   PADDLE_ENFORCE_EQ(input_b.dims(),
                     dim_b,
-                    common::errors::InvalidArgument(
+                    paddle::platform::errors::InvalidArgument(
                         "The dims of Input tensor should be the same as the "
                         "declared dims. Tensor dims: [%s], declared dims: [%s]",
                         input_b.dims(),
                         dim_b));
 
   int* out_ptr = nullptr;
-  if (phi::is_gpu_place(Place())) {
-    paddle::framework::TensorCopySync(out, phi::CPUPlace(), &out_cpu);
+  if (paddle::platform::is_gpu_place(Place())) {
+    paddle::framework::TensorCopySync(
+        out, paddle::platform::CPUPlace(), &out_cpu);
     out_ptr = out_cpu.data<int>();
   } else {
     out_ptr = out.data<int>();
@@ -436,14 +440,14 @@ void ConcatCase4(DeviceContext* context) {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 24 + j],
             b_ptr[idx_b],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_b;
       } else {
         PADDLE_ENFORCE_EQ(
             out_ptr[i * 24 + j],
             a_ptr[idx_a],
-            common::errors::InvalidArgument(
+            paddle::platform::errors::InvalidArgument(
                 "Concat test failed, the result should be equal."));
         ++idx_a;
       }
@@ -465,25 +469,26 @@ void TestConcatMain() {
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 template <>
-void TestConcatMain<phi::GPUContext, phi::GPUPlace>() {
-  auto* context = new phi::GPUContext(phi::GPUPlace());
-  context->SetAllocator(paddle::memory::allocation::AllocatorFacade::Instance()
-                            .GetAllocator(phi::GPUPlace(), context->stream())
-                            .get());
+void TestConcatMain<phi::GPUContext, paddle::platform::CUDAPlace>() {
+  auto* context = new phi::GPUContext(paddle::platform::CUDAPlace());
+  context->SetAllocator(
+      paddle::memory::allocation::AllocatorFacade::Instance()
+          .GetAllocator(paddle::platform::CUDAPlace(), context->stream())
+          .get());
   context->PartialInitWithAllocator();
 
-  ConcatCase1<phi::GPUContext, phi::GPUPlace>(context);
-  ConcatCase2<phi::GPUContext, phi::GPUPlace>(context);
-  ConcatCase3<phi::GPUContext, phi::GPUPlace>(context);
-  ConcatCase4<phi::GPUContext, phi::GPUPlace>(context);
+  ConcatCase1<phi::GPUContext, paddle::platform::CUDAPlace>(context);
+  ConcatCase2<phi::GPUContext, paddle::platform::CUDAPlace>(context);
+  ConcatCase3<phi::GPUContext, paddle::platform::CUDAPlace>(context);
+  ConcatCase4<phi::GPUContext, paddle::platform::CUDAPlace>(context);
 
   delete context;
 }
 #endif
 
 TEST(math, concat) {
-  TestConcatMain<phi::CPUContext, phi::CPUPlace>();
+  TestConcatMain<phi::CPUContext, paddle::platform::CPUPlace>();
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-  TestConcatMain<phi::GPUContext, phi::GPUPlace>();
+  TestConcatMain<phi::GPUContext, paddle::platform::CUDAPlace>();
 #endif
 }

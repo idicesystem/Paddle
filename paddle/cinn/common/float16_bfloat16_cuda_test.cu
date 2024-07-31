@@ -17,21 +17,19 @@
 
 #include <random>
 #include <vector>
+
 #include "paddle/cinn/common/bfloat16.h"
 #include "paddle/cinn/common/float16.h"
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace common {
 
-#define CUDA_CALL(func)                                    \
-  {                                                        \
-    auto status = func;                                    \
-    if (status != cudaSuccess) {                           \
-      std::stringstream ss;                                \
-      ss << "CUDA Error : " << cudaGetErrorString(status); \
-      PADDLE_THROW(::common::errors::Fatal(ss.str()));     \
-    }                                                      \
+#define CUDA_CALL(func)                                            \
+  {                                                                \
+    auto status = func;                                            \
+    if (status != cudaSuccess) {                                   \
+      LOG(FATAL) << "CUDA Error : " << cudaGetErrorString(status); \
+    }                                                              \
   }
 
 class CudaMem {
@@ -39,15 +37,9 @@ class CudaMem {
   CudaMem() = default;
 
   void* mutable_data(size_t bytes) {
-    PADDLE_ENFORCE_GT(
-        bytes,
-        0,
-        ::common::errors::InvalidArgument("Cannot allocate empty memory!"));
+    CHECK_GT(bytes, 0) << "Cannot allocate empty memory!";
     if (ptr) {
-      PADDLE_ENFORCE_EQ(
-          bytes,
-          bytes_,
-          ::common::errors::InvalidArgument("Try allocate memory twice!"));
+      CHECK_EQ(bytes, bytes_) << "Try allocate memory twice!";
       return ptr;
     }
     CUDA_CALL(cudaMalloc(&ptr, bytes));
@@ -73,18 +65,12 @@ class CudaMem {
   void MemcpyFromHost(const void* src,
                       size_t bytes,
                       cudaStream_t stream = nullptr) {
-    PADDLE_ENFORCE_LE(
-        bytes,
-        bytes_,
-        ::common::errors::InvalidArgument("Too many data need copy"));
+    CHECK_LE(bytes, bytes_) << "Too many data need copy";
     CUDA_CALL(cudaMemcpyAsync(ptr, src, bytes, cudaMemcpyHostToDevice, stream));
   }
 
   void MemcpyToHost(void* dst, size_t bytes, cudaStream_t stream = nullptr) {
-    PADDLE_ENFORCE_LE(
-        bytes,
-        bytes_,
-        ::common::errors::InvalidArgument("Too many data need copy"));
+    CHECK_LE(bytes, bytes_) << "Too many data need copy";
     CUDA_CALL(cudaMemcpyAsync(dst, ptr, bytes, cudaMemcpyDeviceToHost, stream));
   }
 

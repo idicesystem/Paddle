@@ -21,11 +21,11 @@ DEFINE_C_ALLREDUCE_XPU_KERNEL(CAllReduceSum, kRedSum)
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-
+namespace plat = paddle::platform;
 PD_REGISTER_STRUCT_KERNEL(c_allreduce_sum,
                           XPU,
                           ALL_LAYOUT,
                           ops::CAllReduceSumXPUKernel,
                           float,
                           int,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

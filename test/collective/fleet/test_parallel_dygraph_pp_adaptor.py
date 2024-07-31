@@ -16,9 +16,7 @@ import os
 import shutil
 import unittest
 
-from legacy_test.test_parallel_dygraph_dataparallel import (
-    TestMultipleAccelerators,
-)
+from legacy_test.test_parallel_dygraph_dataparallel import TestMultipleGpus
 
 import paddle
 from paddle.distributed.fleet.utils.pp_parallel_adaptor import (
@@ -29,7 +27,7 @@ from paddle.distributed.fleet.utils.pp_parallel_adaptor import (
 )
 
 
-class TestPPAdaptor(TestMultipleAccelerators):
+class TestPPAdaptor(TestMultipleGpus):
     def test_parse_args(self):
         args = parse_args()
         self.assertEqual(args.src_mp, args.dst_mp)
@@ -38,8 +36,8 @@ class TestPPAdaptor(TestMultipleAccelerators):
 
     def test_hybrid_parallel_transformer_unbalanced_data(self):
         print(f"pwd {os.getcwd()}")
-        self.run_mnist_2accelerators('hybrid_parallel_pp_transformer_save.py')
-        self.run_mnist_2accelerators(
+        self.run_mnist_2gpu('hybrid_parallel_pp_transformer_save.py')
+        self.run_mnist_2gpu(
             'hybrid_parallel_pp_transformer_save_with_virtual_stage.py'
         )
         # test pp adaptor

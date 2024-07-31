@@ -39,8 +39,7 @@ class MyModel(paddle.nn.Layer):
 
 
 @unittest.skipIf(
-    not core.is_compiled_with_cuda() and not core.is_compiled_with_xpu(),
-    "Require compiled with CUDA or XPU.",
+    not core.is_compiled_with_cuda(), "Require compiled with CUDA."
 )
 class TestDtypeConvert(unittest.TestCase):
     def setUp(self):
@@ -85,18 +84,9 @@ class TestDtypeConvert(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        not core.is_compiled_with_cuda() and not core.is_compiled_with_xpu(),
-        "Require compiled with CUDA or XPU.",
-    )
-    @unittest.skipIf(
-        core.is_compiled_with_cuda()
-        and paddle.device.cuda.get_device_capability()[0] >= 8.0,
+        not core.is_compiled_with_cuda()
+        or paddle.device.cuda.get_device_capability()[0] >= 8.0,
         "run test when maximum gpu's compute capability is 8.0.",
-    )
-    @unittest.skipIf(
-        core.is_compiled_with_xpu()
-        and core.get_xpu_device_version(0) >= core.XPUVersion.XPU3,
-        "run test when xpu's compute capability < xpu3.",
     )
     def test_unsupported_bfloat16(self):
         self.verify_trans_dtype(
@@ -105,18 +95,9 @@ class TestDtypeConvert(unittest.TestCase):
         )
 
     @unittest.skipIf(
-        not core.is_compiled_with_cuda() and not core.is_compiled_with_xpu(),
-        "Require compiled with CUDA or XPU.",
-    )
-    @unittest.skipIf(
-        core.is_compiled_with_cuda()
-        and paddle.device.cuda.get_device_capability()[0] < 8.0,
+        not core.is_compiled_with_cuda()
+        or paddle.device.cuda.get_device_capability()[0] < 8.0,
         "run test when gpu's compute capability is at least 8.0.",
-    )
-    @unittest.skipIf(
-        core.is_compiled_with_xpu()
-        and core.get_xpu_device_version(0) < core.XPUVersion.XPU3,
-        "run test when xpu's compute capability >= xpu3.",
     )
     def test_supported_bfloat16(self):
         self.verify_trans_dtype(
@@ -138,6 +119,9 @@ class TestDtypeConvert(unittest.TestCase):
         )
 
 
+@unittest.skipIf(
+    not core.is_compiled_with_cuda(), "Require compiled with CUDA."
+)
 class TestSupportedTypeInfo(unittest.TestCase):
     def test_cpu(self):
         res = paddle.amp.is_float16_supported('cpu')
@@ -145,9 +129,6 @@ class TestSupportedTypeInfo(unittest.TestCase):
         res = paddle.amp.is_bfloat16_supported('cpu')
         self.assertEqual(res, core.supports_bfloat16())
 
-    @unittest.skipIf(
-        not core.is_compiled_with_cuda(), "Require compiled with CUDA."
-    )
     def test_gpu_fp16_supported(self):
         res = paddle.amp.is_float16_supported()
         self.assertEqual(res, True)
@@ -185,41 +166,6 @@ class TestSupportedTypeInfo(unittest.TestCase):
         self.assertRaises(
             ValueError, paddle.amp.is_float16_supported, device=111
         )
-
-    @unittest.skipIf(
-        not core.is_compiled_with_xpu()
-        or not core.get_xpu_device_version(0) >= core.XPUVersion.XPU2,
-        "run test when xpu's compute capability >= xpu2.",
-    )
-    def test_xpu_fp16_supported(self):
-        res = paddle.amp.is_float16_supported()
-        self.assertEqual(res, True)
-        res = paddle.amp.is_float16_supported('xpu')
-        self.assertEqual(res, True)
-        res = paddle.amp.is_float16_supported('xpu:0')
-        self.assertEqual(res, True)
-
-    @unittest.skipIf(
-        not core.is_compiled_with_xpu()
-        or core.get_xpu_device_version(0) >= core.XPUVersion.XPU3,
-        "run test when xpu's compute capability < xpu3.",
-    )
-    def test_xpu_bf16_unsupported(self):
-        res = paddle.amp.is_bfloat16_supported()
-        self.assertEqual(res, False)
-        res = paddle.amp.is_bfloat16_supported('xpu')
-        self.assertEqual(res, False)
-
-    @unittest.skipIf(
-        not core.is_compiled_with_xpu()
-        or not core.get_xpu_device_version(0) >= core.XPUVersion.XPU3,
-        "run test when xpu's compute capability >= xpu3.",
-    )
-    def test_xpu_bf16_supported(self):
-        res = paddle.amp.is_bfloat16_supported()
-        self.assertEqual(res, True)
-        res = paddle.amp.is_bfloat16_supported('xpu')
-        self.assertEqual(res, True)
 
 
 if __name__ == '__main__':

@@ -25,12 +25,13 @@ limitations under the License. */
 #include "paddle/fluid/platform/profiler/event_node.h"
 #include "paddle/fluid/platform/profiler/utils.h"
 
-namespace paddle::platform {
+namespace paddle {
+namespace platform {
 
 static const char* kDefaultFilename = "pid_%s_time_%s.paddle_trace.json";
 
 static std::string DefaultFileName() {
-  auto pid = phi::GetProcessId();
+  auto pid = GetProcessId();
   return string_format(
       std::string(kDefaultFilename), pid, GetStringFormatLocalTime().c_str());
 }
@@ -46,15 +47,13 @@ void ChromeTracingLogger::OpenFile() {
   }
 }
 
-ChromeTracingLogger::ChromeTracingLogger(const std::string& filename)
-    : start_time_(0) {
+ChromeTracingLogger::ChromeTracingLogger(const std::string& filename) {
   filename_ = filename.empty() ? DefaultFileName() : filename;
   OpenFile();
   StartLog();
 }
 
-ChromeTracingLogger::ChromeTracingLogger(const char* filename_cstr)
-    : start_time_(0) {
+ChromeTracingLogger::ChromeTracingLogger(const char* filename_cstr) {
   std::string filename(filename_cstr);
   filename_ = filename.empty() ? DefaultFileName() : filename;
   OpenFile();
@@ -789,7 +788,7 @@ void ChromeTracingLogger::RefineDisplayName(
     "name": "process_name", "pid": %lld, "tid": %lld,
     "ph": "M",
     "args": {
-      "name": "Device %lld (%s)"
+      "name": "Deivce %lld (%s)"
     }
   },
    {
@@ -837,4 +836,5 @@ void ChromeTracingLogger::EndLog() {
   )JSON");
 }
 
-}  // namespace paddle::platform
+}  // namespace platform
+}  // namespace paddle

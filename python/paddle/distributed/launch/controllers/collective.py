@@ -16,7 +16,7 @@ import json
 import os
 
 from ..context.device import DeviceType
-from .controller import Controller, ControllerMode
+from .controller import ControleMode, Controller
 
 
 class CollectiveController(Controller):
@@ -29,7 +29,7 @@ class CollectiveController(Controller):
         # collective is the default mode
         if ctx:
             ctx.logger.debug(f"{cls.__name__} enabled")
-            ctx.args.run_mode = ControllerMode.COLLECTIVE
+            ctx.args.run_mode = ControleMode.COLLECTIVE
             return True
         else:
             return False
@@ -95,9 +95,7 @@ class CollectiveController(Controller):
         ips = self.ctx.args.ips.split(',')
 
         job_endpoints = [
-            f"{h}:{p + start_port}"
-            for h in ips
-            for p in range(self.pod.replicas)
+            f"{h}:{p+start_port}" for h in ips for p in range(self.pod.replicas)
         ]
 
         self.ctx.logger.debug(f"job endpoints: {job_endpoints}")
@@ -127,7 +125,6 @@ class CollectiveController(Controller):
                 "PADDLE_TRAINER_ID": f"{i + rank_offset}",
                 "PADDLE_TRAINERS_NUM": f"{len(job_endpoints)}",
                 "PADDLE_RANK_IN_NODE": str(i),
-                "PADDLE_AUTO_CLUSTER": str(self.ctx.args.auto_cluster_config),
             }
             if len(",".join(job_endpoints)) < 120 * 1024:
                 e.update({"PADDLE_TRAINER_ENDPOINTS": ",".join(job_endpoints)})
@@ -149,7 +146,7 @@ class CollectiveController(Controller):
             else:
                 e.update({'PADDLE_DISTRI_BACKEND': 'gloo'})
 
-            log_file = f"workerlog.{i + rank_offset}"
+            log_file = f"workerlog.{i}"
             self.add_container(envs=e, log_file=log_file)
 
         return True
@@ -165,9 +162,7 @@ class CollectiveController(Controller):
         # compatible
         endpoints = [
             f"{self.ctx.node.ip}:{p}"
-            for p in self.ctx.node.get_free_ports(
-                self.pod.replicas, self.pod.rank
-            )
+            for p in self.ctx.node.get_free_ports(self.pod.replicas)
         ]
 
         data = json.dumps(
@@ -230,7 +225,6 @@ class CollectiveController(Controller):
                 "PADDLE_TRAINER_ID": f"{i + rank_offset}",
                 "PADDLE_TRAINERS_NUM": f"{global_size}",
                 "PADDLE_RANK_IN_NODE": str(i),
-                "PADDLE_AUTO_CLUSTER": str(self.ctx.args.auto_cluster_config),
             }
             if len(",".join(job_endpoints)) < 120 * 1024:
                 e.update({"PADDLE_TRAINER_ENDPOINTS": ",".join(job_endpoints)})
@@ -253,7 +247,7 @@ class CollectiveController(Controller):
                 e.update({'PADDLE_DISTRI_BACKEND': 'gloo'})
 
             # log_file = "{}.{}.{}.log".format(self.job.id, self.pod.name, i)
-            log_file = f"workerlog.{i + rank_offset}"
+            log_file = f"workerlog.{i}"
             self.add_container(envs=e, log_file=log_file)
 
         return True
@@ -264,7 +258,7 @@ class CollectiveElasticController(CollectiveController):
     def enable(cls, ctx):
         if ctx.args.master and ctx.args.master.startswith("etcd://"):
             ctx.logger.debug(f"{cls.__name__} enabled")
-            ctx.args.run_mode = ControllerMode.COLLECTIVE
+            ctx.args.run_mode = ControleMode.COLLECTIVE
             return True
         else:
             return False

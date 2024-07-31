@@ -16,7 +16,6 @@
 #include "paddle/phi/kernels/funcs/embedding_grad.h"
 
 #include "glog/logging.h"
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_primitives.h"
 #include "paddle/phi/common/amp_type_traits.h"
@@ -26,8 +25,9 @@
 #include "paddle/phi/core/mixed_vector.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/embedding_util.h"
+#include "paddle/utils/flags.h"
 
-COMMON_DECLARE_int64(embedding_deterministic);
+PD_DECLARE_int64(embedding_deterministic);
 
 namespace phi {
 
@@ -88,9 +88,9 @@ struct EmbeddingGradCUDAFunctor {
       auto d_output_t = out_grad_;
       auto d_table_t = weight_grad_;
 
-      size_t N = weight_grad_->dims()[0];
-      size_t D = weight_grad_->dims()[1];
-      size_t K = input_.numel();
+      int N = weight_grad_->dims()[0];
+      int D = weight_grad_->dims()[1];
+      int K = input_.numel();
 
       const T* d_output = d_output_t.template data<T>();
       const auto* ids = input_.template data<IdT>();
@@ -266,9 +266,7 @@ PD_REGISTER_KERNEL(embedding_grad,
                    float,
                    double,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::bfloat16) {}
 
 PD_REGISTER_KERNEL(embedding_sparse_grad,
                    GPU,
@@ -277,6 +275,4 @@ PD_REGISTER_KERNEL(embedding_sparse_grad,
                    float,
                    double,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::bfloat16) {}

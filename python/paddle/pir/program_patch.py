@@ -12,28 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from paddle.base.wrapped_decorator import signature_safe_contextmanager
-
 from . import Program
 
 _already_patch_program = False
 
+global_prog_seed = 0
+
 
 def monkey_patch_program():
-    @signature_safe_contextmanager
-    def _lr_schedule_guard(self, is_with_opt=False):
-        # TODO(dev): Currently there has not equivalent of op_role in PIR
-        # mode, so we simply remove _lr_schedule_guard here, this should
-        # be fixed in the future.
-        yield
-
-    program_attrs = {
-        "_lr_schedule_guard": _lr_schedule_guard,
-    }
+    def global_seed(self, seed=0):
+        global global_prog_seed
+        global_prog_seed = seed
+        self._seed = global_prog_seed
 
     global _already_patch_program
     if not _already_patch_program:
-        for attr, value in program_attrs.items():
-            setattr(Program, attr, value)
+        Program.global_seed = global_seed
+        global global_prog_seed
+        Program._seed = global_prog_seed
 
         _already_patch_program = True

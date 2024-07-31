@@ -17,7 +17,10 @@
 #include "paddle/phi/kernels/funcs/jit/kernels.h"
 #include "paddle/phi/kernels/funcs/jit/registry.h"
 
-namespace phi::jit::more::mix {
+namespace phi {
+namespace jit {
+namespace more {
+namespace mix {
 
 using CPUPlace = phi::CPUPlace;
 
@@ -193,7 +196,10 @@ bool GRUHtPart1Kernel::CanBeUsed(const gru_attr_t& attr) const { return true; }
 
 bool GRUHtPart2Kernel::CanBeUsed(const gru_attr_t& attr) const { return true; }
 
-}  // namespace phi::jit::more::mix
+}  // namespace mix
+}  // namespace more
+}  // namespace jit
+}  // namespace phi
 
 namespace mix = phi::jit::more::mix;
 

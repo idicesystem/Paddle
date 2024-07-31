@@ -17,7 +17,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/delete_dropout_op_pass.h"
 #include "paddle/fluid/framework/ir/pass_tester_helper.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 TEST(DeleteDropoutOpsPass, dropout) {
   for (std::string dropout_implementation :
@@ -61,14 +63,14 @@ TEST(DeleteDropoutOpsPass, dropout) {
       PADDLE_ENFORCE_EQ(
           num_dropout_nodes_after,
           0,
-          common::errors::InvalidArgument("num_dropout_nodes_after = %d.",
-                                          num_dropout_nodes_after));
+          platform::errors::InvalidArgument("num_dropout_nodes_after = %d.",
+                                            num_dropout_nodes_after));
 
       if (dropout_implementation == "downgrade_in_infer") {
         PADDLE_ENFORCE_EQ(
             num_dropout_nodes_before,
             num_scale_nodes_after - num_scale_nodes_before,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "num_dropout_nodes_before = %d, num_scale_nodes_after = %d, "
                 "num_scale_nodes_before = %d.",
                 num_dropout_nodes_before,
@@ -78,7 +80,7 @@ TEST(DeleteDropoutOpsPass, dropout) {
         PADDLE_ENFORCE_EQ(
             num_scale_nodes_after - num_scale_nodes_before,
             0,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "num_scale_nodes_after = %d, num_scale_nodes_before = %d.",
                 num_scale_nodes_after,
                 num_scale_nodes_before));
@@ -87,6 +89,8 @@ TEST(DeleteDropoutOpsPass, dropout) {
   }
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(delete_dropout_op_x_pass);

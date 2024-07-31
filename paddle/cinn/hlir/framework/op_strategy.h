@@ -18,10 +18,9 @@
 #include <utility>
 #include <vector>
 
-#include "paddle/cinn/hlir/framework/op.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/schedule.h"
 #include "paddle/cinn/lang/packed_func.h"
-#include "paddle/cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -32,45 +31,14 @@ using CINNSchedule = lang::PackedFunc;
 
 class OpStrategy;
 
-/**
- * \brief Attributes of each node in graph.
- *  The attributes include the node's name, the corresponding operator
- *  and other parameters like axis.
- */
-struct NodeAttr {
-  using attr_t = utils::Attribute;
-
-  /**
-   * \brief The operator this node uses.
-   */
-  const Operator* op{nullptr};
-
-  /**
-   * \brief The name of this node.
-   */
-  std::string node_name;
-
-  /**
-   * \brief The attributes stored as string in dictionary.
-   */
-  absl::flat_hash_map<std::string, attr_t> attr_store;
-};
-
-std::ostream& operator<<(std::ostream& os, const NodeAttr& node_attr);
-
 using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
     const NodeAttr&,
     const std::vector<ir::Tensor>&,
     const std::vector<Type>&,
     const std::vector<std::vector<int>>&,
     const cinn::common::Target&)>;
-
-using StrategyFunctionSymbolic = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr&,
-    const std::vector<ir::Tensor>&,
-    const std::vector<Type>&,
-    const std::vector<std::vector<ir::Dim>>&,
-    const cinn::common::Target&)>;
+using InferShapeFunction = std::function<std::vector<std::vector<int>>(
+    const std::vector<std::vector<int>>&, const AttrMapType&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public cinn::common::Object {

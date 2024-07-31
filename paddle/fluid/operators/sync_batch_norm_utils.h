@@ -28,9 +28,7 @@ namespace cub = hipcub;
 #endif
 #include "paddle/fluid/distributed/collective/process_group.h"
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
-#include "paddle/common/flags.h"
 #include "paddle/fluid/distributed/collective/process_group_nccl.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 #include "paddle/common/layout.h"
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
@@ -434,18 +432,18 @@ void SyncBatchNormGradFunctor(
 
   PADDLE_ENFORCE_GE(x_dims.size(),
                     2,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "The Input X dim size should be larger than 1."));
   PADDLE_ENFORCE_LE(x_dims.size(),
                     5,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "The Input X dim size should be less than 6."));
 
   int N, C, H, W, D;
   funcs::ExtractNCWHD(x_dims, layout, &N, &C, &H, &W, &D);
   PADDLE_ENFORCE_EQ(scale.dims()[0],
                     C,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "Expected first dim for input parameter(scale) of "
                         "OP(sync_batch_norm) be (%d), but given (%d).",
                         C,
@@ -458,7 +456,7 @@ void SyncBatchNormGradFunctor(
   }
   PADDLE_ENFORCE_EQ(scale.dims().size(),
                     1UL,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "Expected rank for input parameter(scale) of "
                         "OP(sync_batch_norm) be (1), but given (%d).",
                         scale.dims().size()));
@@ -483,11 +481,11 @@ void SyncBatchNormGradFunctor(
   const auto *saved_inv_var =
       saved_variance.template data<BatchNormParamType<T>>();
   const int bytes = (C * 2 + 1) * sizeof(BatchNormParamType<T>);
-  phi::DenseTensor stats_tensor;
-  stats_tensor.Resize({static_cast<int64_t>(bytes)});
-  ctx.template Alloc<BatchNormParamType<T>>(&stats_tensor);
-  auto *stats_data = stats_tensor.data<BatchNormParamType<T>>();
-  auto *stats = reinterpret_cast<BatchNormParamType<T> *>(stats_data);
+  auto alloc_ptr = phi::memory_utils::Alloc(
+      ctx.GetPlace(),
+      bytes,
+      phi::Stream(reinterpret_cast<phi::StreamId>(ctx.stream())));
+  auto *stats = reinterpret_cast<BatchNormParamType<T> *>(alloc_ptr->ptr());
 
   const int block = 512;
   const int threads = 256;
@@ -587,7 +585,7 @@ void SyncBatchNormGradFunctor(
   }
 
   if (comm) {
-    int dtype = phi::ToNCCLDataType(scale.dtype());
+    int dtype = paddle::platform::ToNCCLDataType(scale.dtype());
     // In-place operation
     PADDLE_ENFORCE_GPU_SUCCESS(
         phi::dynload::ncclAllReduce(stats,
@@ -598,15 +596,6 @@ void SyncBatchNormGradFunctor(
                                     comm,
                                     stream));
     VLOG(3) << "Sync result using all reduce";
-  } else {
-    if (FLAGS_dynamic_static_unified_comm) {
-      auto comm_ctx =
-          static_cast<distributed::NCCLCommContext *>(ctx.GetCommContext());
-      if (comm_ctx) {
-        comm_ctx->AllReduce(&stats_tensor, stats_tensor, ncclSum, stream);
-        VLOG(3) << "Sync result using all reduce";
-      }
-    }
   }
 #endif
 

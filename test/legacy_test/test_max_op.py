@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
-sys.path.append("../../legacy_test")
 import numpy as np
 from op_test import check_out_dtype
-
-sys.path.append("../../legacy_test")
 from test_sum_op import TestReduceOPTensorAxisBase
 
 import paddle

@@ -20,6 +20,7 @@ from test_imperative_base import new_program_scope
 import paddle
 from paddle import base
 from paddle.base import core
+from paddle.base.dygraph.base import to_variable
 
 
 class RecurrentTest(paddle.nn.Layer):
@@ -38,9 +39,10 @@ class TestRecurrentFeed(unittest.TestCase):
         original_np1 = np.arange(1, 5).reshape(2, 2).astype("float32")
         original_np2 = np.arange(5, 9).reshape(2, 2).astype("float32")
         with base.dygraph.guard():
-            paddle.seed(seed)
-            original_in1 = paddle.to_tensor(original_np1)
-            original_in2 = paddle.to_tensor(original_np2)
+            base.default_startup_program().random_seed = seed
+            base.default_main_program().random_seed = seed
+            original_in1 = to_variable(original_np1)
+            original_in2 = to_variable(original_np2)
             original_in1.stop_gradient = False
             original_in2.stop_gradient = False
             rt = RecurrentTest("RecurrentTest")
@@ -56,9 +58,10 @@ class TestRecurrentFeed(unittest.TestCase):
                 rt.clear_gradients()
 
         with base.dygraph.guard():
-            paddle.seed(seed)
-            original_in1 = paddle.to_tensor(original_np1)
-            original_in2 = paddle.to_tensor(original_np2)
+            base.default_startup_program().random_seed = seed
+            base.default_main_program().random_seed = seed
+            original_in1 = to_variable(original_np1)
+            original_in2 = to_variable(original_np2)
             original_in1.stop_gradient = False
             original_in2.stop_gradient = False
             rt = RecurrentTest("RecurrentTest")
@@ -74,30 +77,26 @@ class TestRecurrentFeed(unittest.TestCase):
                 rt.clear_gradients()
 
         with new_program_scope():
-            paddle.seed(seed)
+            base.default_startup_program().random_seed = seed
+            base.default_main_program().random_seed = seed
             in1 = paddle.static.data(name="inp1", shape=[2, 2])
             in1.stop_gradient = False
             in2 = paddle.static.data(name="inp2", shape=[2, 2])
             in2.stop_gradient = False
             rt1 = RecurrentTest("RecurrentTest")
             static_sum_out, static_out = rt1(in1, in2)
-            static_out.persistable = True
+            base.backward.append_backward(static_sum_out)
             exe = base.Executor(
                 base.CPUPlace()
                 if not core.is_compiled_with_cuda()
                 else base.CUDAPlace(0)
             )
 
-            if paddle.framework.use_pir_api():
-                grad_list = paddle.static.append_backward(static_sum_out)
-                _, static_dout = grad_list[-1]
-            else:
-                base.backward.append_backward(static_sum_out)
-                static_dout = (
-                    base.default_main_program()
-                    .block(0)
-                    ._find_var_recursive(static_out.name + "@GRAD")
-                )
+            static_dout = (
+                base.default_main_program()
+                .block(0)
+                ._find_var_recursive(static_out.name + "@GRAD")
+            )
             fetch_list = [static_sum_out, static_out, static_dout]
             for i in range(3):
                 out = exe.run(

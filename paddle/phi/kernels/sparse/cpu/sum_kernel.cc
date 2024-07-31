@@ -22,7 +22,8 @@
 #include "paddle/phi/kernels/reduce_sum_kernel.h"
 #include "paddle/phi/kernels/sparse/empty_kernel.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 template <typename T, typename IntT, typename Context>
 void SumCooCPUKernel(const Context& dev_ctx,
@@ -252,7 +253,8 @@ void SumCooKernel(const Context& dev_ctx,
                                }));
 }
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(sum_coo,
                    CPU,

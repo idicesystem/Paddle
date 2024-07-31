@@ -17,7 +17,6 @@ limitations under the License. */
 #ifdef PADDLE_WITH_XPU
 
 #include <memory>
-#include <vector>
 
 #include "paddle/phi/backends/xpu/forwards.h"
 #include "paddle/phi/backends/xpu/xpu_header.h"
@@ -33,14 +32,12 @@ namespace xpu = baidu::xpu::api;
 
 namespace phi {
 
-class DenseTensor;
 class XPUContext : public DeviceContext,
                    public TypeInfoTraits<DeviceContext, XPUContext> {
  public:
   XPUContext();
 
-  // is_comm_context = 1 for init comm context with gm_size=1 and l3_size=1
-  explicit XPUContext(const XPUPlace&, bool is_comm_context = 0);
+  explicit XPUContext(const XPUPlace&);
 
   virtual ~XPUContext();
 
@@ -48,20 +45,15 @@ class XPUContext : public DeviceContext,
 
   backends::xpu::XPUVersion xpu_version() const;
 
-  xpu::Context* x_context(int i = 0) const;
+  xpu::Context* x_context() const;
 
   // Return bkcl context.
   xpu::BKCLContext_t bkcl_context() const;
   void SetBkclContext(xpu::BKCLContext_t context);
-  void CreateStream(int i = 0);
-  void RecordEvent(XPUEvent event, int s) const;
-  void StreamWaitEvent(XPUEvent event, int s) const;
-  void StreamWaitStream(int wait_stream, int record_stream) const;
-  int64_t GetStreamNum() const;
-  void AddStashedMemory(int stream, const phi::DenseTensor& tensor);
+  void CreateStream();
 
   // For share external stream.
-  void SetStream(void* stream, int i = 0);
+  void SetStream(void* stream);
 
   // Wait for all operations completion in the stream.
   void Wait() const override;
@@ -76,9 +68,9 @@ class XPUContext : public DeviceContext,
   // NOTE: External users manage resources. Used in inference scenarios.
   // The Set interface is for inference only, DeviceContext will mark the
   // resource as external, and will not delete any resource when destructing.
-  void SetXContext(xpu::Context*, int i = 0);
+  void SetXContext(xpu::Context*);
 
-  void SetL3Cache(int64_t l3_size = 1024, int i = 0);
+  void SetL3Cache(int l3_size = 14155776);
 
   void SetXpuVersion(int version);
 
@@ -88,15 +80,13 @@ class XPUContext : public DeviceContext,
 
   Eigen::DefaultDevice* eigen_device() const { return nullptr; }
 
-  XPUStream stream(int i = 0) const;
+  XPUStream stream() const;
 
   static const char* name() { return "XPUContext"; }
 
  private:
   struct Impl;
-  std::vector<std::unique_ptr<Impl>> impls_;
-
-  void CheckValidStreamId(int i) const;
+  std::unique_ptr<Impl> impl_;
 };
 
 // KPS (Kernel PrimitiveS API) needs to exist as a kind of backend,

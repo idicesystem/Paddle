@@ -62,7 +62,7 @@ class CleanupFuncRegistrar:
 
     @classmethod
     def register(cls, function, signals=[]):
-        def _func_executor():
+        def _func_exectuor():
             if function not in cls._executed_func_set:
                 try:
                     function()
@@ -71,14 +71,14 @@ class CleanupFuncRegistrar:
 
         def _func_register(function):
             if not callable(function):
-                raise TypeError(f"{function} is not callable object.")
+                raise TypeError("%s is not callable object." % (function))
             # check function object whether hash-able {function}
             if function not in cls._registered_func_set:
-                atexit.register(_func_executor)
+                atexit.register(_func_exectuor)
                 cls._registered_func_set.add(function)
 
         def _signal_handler(signum=None, frame=None):
-            _func_executor()
+            _func_exectuor()
             if signum is not None:
                 if signum == signal.SIGINT:
                     raise KeyboardInterrupt

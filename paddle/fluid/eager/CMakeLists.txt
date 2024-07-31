@@ -13,15 +13,18 @@ set(eager_deps
     grad_tensor_holder
     custom_operator_node)
 
-if(WITH_GPU OR WITH_ROCM)
-  set(eager_deps ${eager_deps} phi_gpu)
-endif()
-
 if(NOT (NOT WITH_PYTHON AND ON_INFER))
   set(eager_deps ${eager_deps} accumulation_node prim_utils)
 endif()
 
-set(fluid_deps tracer layer proto_desc operator op_registry variable_helper)
+set(fluid_deps
+    tracer
+    layer
+    proto_desc
+    operator
+    op_registry
+    variable_helper
+    memcpy)
 set(generated_deps final_dygraph_function final_dygraph_node dygraph_function
                    dygraph_node)
 
@@ -49,7 +52,7 @@ endif()
 cc_library(
   eager_nan_inf_utils
   SRCS nan_inf_utils.cc
-  DEPS phi common)
+  DEPS phi common nan_inf_utils enforce)
 cc_library(
   grad_node_info
   SRCS grad_node_info.cc
@@ -70,6 +73,7 @@ cc_library(
        operator
        op_registry
        variable_helper
+       memcpy
        generated_op
        autograd_meta
        hook_utils)

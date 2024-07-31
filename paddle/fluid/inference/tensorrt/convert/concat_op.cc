@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * ConcatOp
@@ -47,10 +49,12 @@ class ConcatOpConverter : public OpConverter {
         engine_, Concatenation, itensors.data(), itensors.size());
     layer->setAxis(axis);
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "concat", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "concat", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(concat, ConcatOpConverter);

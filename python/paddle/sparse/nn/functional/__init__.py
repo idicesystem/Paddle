@@ -13,14 +13,7 @@
 # limitations under the License.
 
 from .activation import leaky_relu, relu, relu6, softmax
-from .conv import (
-    conv2d,
-    conv3d,
-    subm_conv2d,
-    subm_conv2d_igemm,
-    subm_conv3d,
-    subm_conv3d_igemm,
-)
+from .conv import conv2d, conv3d, subm_conv2d, subm_conv3d
 from .pooling import max_pool3d
 from .transformer import attention
 
@@ -28,9 +21,7 @@ __all__ = [
     'conv2d',
     'conv3d',
     'subm_conv2d',
-    'subm_conv2d_igemm',
     'subm_conv3d',
-    'subm_conv3d_igemm',
     'max_pool3d',
     'relu',
     'relu6',

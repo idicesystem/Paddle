@@ -20,32 +20,7 @@ from test_imperative_base import new_program_scope
 import paddle
 import paddle.nn.functional as F
 from paddle import base
-from paddle.autograd.backward_utils import ValueDict
 from paddle.base import core
-
-
-def create_parameter_mapping(startup_program, main_program):
-    startup_params = {}
-    main_params = {}
-    parameter_mapping = ValueDict()
-    for op in startup_program.global_block().ops:
-        if op.name() == "builtin.set_parameter":
-            name = op.attrs()["parameter_name"]
-            param = op.operand(0).source()
-            startup_params[name] = param
-
-    for op in main_program.global_block().ops:
-        if op.name() == "builtin.parameter":
-            name = op.attrs()["parameter_name"]
-            param = op.result(0)
-            main_params[name] = param
-
-    assert len(startup_params) == len(main_params)
-    for name, startup_param in startup_params.items():
-        assert name in main_params
-        main_param = main_params[name]
-        parameter_mapping[main_param] = startup_param
-    return parameter_mapping
 
 
 class Policy(paddle.nn.Layer):
@@ -84,28 +59,22 @@ class TestImperativeMnist(unittest.TestCase):
 
         def run_dygraph():
             paddle.seed(seed)
-            if paddle.framework.use_pir_api():
-                with paddle.pir_utils.OldIrGuard():
-                    # Note: dygraph use self.main_program.global_block().create_parameter(), it's need manual seed to old Program
-                    paddle.framework.random._manual_program_seed(seed)
-                paddle.framework.random._manual_program_seed(seed)
-            else:
-                paddle.framework.random._manual_program_seed(seed)
+            paddle.framework.random._manual_program_seed(seed)
 
             policy = Policy(input_size=4)
 
-            dy_state = paddle.to_tensor(state)
+            dy_state = base.dygraph.base.to_variable(state)
             dy_state.stop_gradient = True
             loss_probs = policy(dy_state)
 
-            dy_mask = paddle.to_tensor(mask)
+            dy_mask = base.dygraph.base.to_variable(mask)
             dy_mask.stop_gradient = True
 
             loss_probs = paddle.log(loss_probs)
             loss_probs = paddle.multiply(loss_probs, dy_mask)
             loss_probs = paddle.sum(loss_probs, axis=-1)
 
-            dy_reward = paddle.to_tensor(reward)
+            dy_reward = base.dygraph.base.to_variable(reward)
             dy_reward.stop_gradient = True
 
             loss_probs = paddle.multiply(dy_reward, loss_probs)
@@ -144,13 +113,7 @@ class TestImperativeMnist(unittest.TestCase):
 
         with new_program_scope():
             paddle.seed(seed)
-            if paddle.framework.use_pir_api():
-                with paddle.pir_utils.OldIrGuard():
-                    # Note: dygraph use self.main_program.global_block().create_parameter(), it's need manual seed to old Program
-                    paddle.framework.random._manual_program_seed(seed)
-                paddle.framework.random._manual_program_seed(seed)
-            else:
-                paddle.framework.random._manual_program_seed(seed)
+            paddle.framework.random._manual_program_seed(seed)
 
             exe = base.Executor(
                 base.CPUPlace()
@@ -186,33 +149,19 @@ class TestImperativeMnist(unittest.TestCase):
             # initialize params and fetch them
             static_param_init_value = {}
             static_param_name_list = []
-            static_params = []
             for param in policy.parameters():
                 static_param_name_list.append(param.name)
-                static_params.append(param)
-
-            if paddle.framework.use_pir_api():
-                parameter_mapping = create_parameter_mapping(
-                    paddle.static.default_startup_program(),
-                    paddle.static.default_main_program(),
-                )
-                startup_params = [
-                    parameter_mapping[param] for param in static_params
-                ]
-            else:
-                startup_params = static_params
 
             out = exe.run(
-                paddle.static.default_startup_program(),
-                fetch_list=startup_params,
+                base.default_startup_program(),
+                fetch_list=static_param_name_list,
             )
 
             for i in range(len(static_param_name_list)):
-                param_name = static_param_name_list[i]
-                static_param_init_value[param_name] = out[i]
+                static_param_init_value[static_param_name_list[i]] = out[i]
 
-            fetch_list = [st_loss]
-            fetch_list.extend(static_params)
+            fetch_list = [st_loss.name]
+            fetch_list.extend(static_param_name_list)
 
             out = exe.run(
                 base.default_main_program(),

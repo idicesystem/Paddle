@@ -23,10 +23,10 @@
 #include "paddle/fluid/framework/new_executor/garbage_collector/garbage_collector.h"
 #include "paddle/fluid/platform/profiler/event_tracing.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
-VariableScope::VariableScope(Scope* scope)
-    : var_list_(), name2id_(), vec_meta_info_(), data_transfer_added_vars_() {
+VariableScope::VariableScope(Scope* scope) {
   // for @EMPTY@ variable
   name2id_[kEmptyVarName] = kEmptyVarIndex;
   var_list_.push_back(nullptr);
@@ -35,9 +35,11 @@ VariableScope::VariableScope(Scope* scope)
   PADDLE_ENFORCE_NE(
       scope,
       nullptr,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "You have passed a nullptr to construct VariableScope."));
 }
+
+VariableScope::~VariableScope() = default;
 
 Scope* VariableScope::GetMutableScope() const { return scope_; }
 
@@ -94,7 +96,7 @@ void VariableScope::AddVar(const std::string& name,
     auto id = VarSize();
     name2id_[name] = static_cast<int>(id);
     vec_meta_info_.emplace_back(0, var_desc);
-    if (local_scope_ != nullptr) {  // NOLINT
+    if (local_scope_ != nullptr) {
       var_list_.push_back(local_scope_->FindVar(name));
     } else {
       var_list_.push_back(scope_->FindVar(name));
@@ -102,7 +104,7 @@ void VariableScope::AddVar(const std::string& name,
     PADDLE_ENFORCE_EQ(
         var_list_.size(),
         name2id_.size(),
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The size of var_list and name2id map should be equal"));
   }
 }
@@ -123,43 +125,39 @@ paddle::framework::VarDesc* VariableScope::VarDesc(int id) const {
   return vec_meta_info_[id].var_desc_;
 }
 
-void VariableScope::SetVarSkipInplace(const std::string& name, bool skip) {
+void VariableScope::SetVarSikpInplace(const std::string& name, bool skip) {
   CheckExist(name);
-  vec_meta_info_[VarId(name)].skip_inplace_ = skip;
+  vec_meta_info_[VarId(name)].sikp_inplace_ = skip;
 }
 
-bool VariableScope::GetVarSkipInplace(int id) const {
+bool VariableScope::GetVarSikpInplace(int id) const {
   CheckExist(id);
-  return vec_meta_info_[id].skip_inplace_;
+  return vec_meta_info_[id].sikp_inplace_;
 }
 
 void VariableScope::CheckExist(int id) const {
   PADDLE_ENFORCE_LT(id,
                     name2id_.size(),
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "Required var_id < %d, but received var_id = %d.",
                         name2id_.size(),
                         id));
 }
 
 void VariableScope::CheckExist(const std::string& name) const {
-  PADDLE_ENFORCE_EQ(HasVar(name),
-                    true,
-                    common::errors::NotFound("%s not in VariableScope.", name));
+  PADDLE_ENFORCE_EQ(
+      HasVar(name),
+      true,
+      platform::errors::NotFound("%s not in VariableScope.", name));
 }
 
 Instruction::Instruction(size_t id,
                          OpFuncNode&& op_func_node,
-                         const phi::DeviceContext& dev_ctx)
+                         const platform::DeviceContext& dev_ctx)
     : is_artificial_(false),
       id_(id),
-      next_instrs_in_different_thread(),
-      next_instrs_in_same_thread(),
-      events_to_wait_(),
       op_func_node_(op_func_node),
-      dev_ctx_(dev_ctx),
-      gc_check_vars_(),
-      vec_inplace_in_to_out_() {
+      dev_ctx_(dev_ctx) {
   if (op_func_node.operator_base_ != nullptr &&
       op_func_node.operator_base_->Type() == "depend") {
     is_artificial_ = true;
@@ -170,13 +168,13 @@ Instruction::Instruction(size_t id,
   }
   PADDLE_ENFORCE_GE(id,
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "Required id >= 0, but received id = %d", id));
 }
 
 void Instruction::WaitEvent(const Place& place) const {
   // If InterpreterCore in on CPUPlace, do nothing.
-  if (phi::is_cpu_place(place)) {
+  if (platform::is_cpu_place(place)) {
     return;
   }
 
@@ -226,7 +224,7 @@ OperatorBase* Instruction::OpBase() const {
   auto op_base = op_func_node_.operator_base_;
   PADDLE_ENFORCE_NOT_NULL(
       op_base,
-      common::errors::PreconditionNotMet("op_base shall not be nullptr."));
+      platform::errors::PreconditionNotMet("op_base shall not be nullptr."));
   return op_base.get();
 }
 
@@ -301,23 +299,23 @@ std::shared_ptr<ExecutionContext> Instruction::InnerExecutionContext() const {
   return execution_ctx_;
 }
 
-const phi::DeviceContext& Instruction::DeviceContext() const {
+const platform::DeviceContext& Instruction::DeviceContext() const {
   return dev_ctx_;
 }
 
-const std::vector<std::pair<const Variable*, Variable*>>&
-Instruction::InplaceInfo() const {
+const std::vector<std::pair<Variable*, Variable*>>& Instruction::InplaceInfo()
+    const {
   return vec_inplace_in_to_out_;
 }
 
-void Instruction::AddInplace(const Variable* in, Variable* out) {
+void Instruction::AddInplace(Variable* in, Variable* out) {
   vec_inplace_in_to_out_.emplace_back(in, out);
 }
 
 void Instruction::ClearInplace() { vec_inplace_in_to_out_.clear(); }
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-void Instruction::UpdateRecordStreamForGcInfo() {
+void Instruction::UpdataRecordStreamForGcInfo() {
   if (!IsInterpretercoreFastGCEnabled() ||
       KernelType() != OpFuncType::kGpuAsync) {
     return;
@@ -351,4 +349,5 @@ void Instruction::UpdateRecordStreamForGcInfo() {
 }
 #endif
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

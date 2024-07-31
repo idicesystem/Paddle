@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class FillConstantBatchSizeLikeOpConverter : public OpConverter {
  public:
@@ -31,7 +33,7 @@ class FillConstantBatchSizeLikeOpConverter : public OpConverter {
     // be float
     PADDLE_ENFORCE_EQ(dtype,
                       5,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "fill_constant_batch_size_like's input data type "
                           "must be float in Paddle-TRT."));
 
@@ -74,13 +76,15 @@ class FillConstantBatchSizeLikeOpConverter : public OpConverter {
     layer->setInput(1, *Add1DConstantLayer(value_vec, name + "alpha", true));
     layer->setInput(2, *Add1DConstantLayer(beta_vec, name + "beta", false));
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "fill_constant_batch_size_like", {output_name}, test_mode);
 #endif
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(fill_constant_batch_size_like,
                           FillConstantBatchSizeLikeOpConverter);

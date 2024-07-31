@@ -40,10 +40,7 @@ if(NOT WIN32)
     endif()
   endif()
   if(NOT cuda_less12_and_gcc_greater12)
-    cc_library(
-      jit_kernel_benchmark
-      SRCS benchmark.cc
-      DEPS phi common)
+    cc_binary(jit_kernel_benchmark SRCS benchmark.cc DEPS phi common)
   endif()
 endif()
 if(WITH_TESTING AND TEST jit_kernel_test)

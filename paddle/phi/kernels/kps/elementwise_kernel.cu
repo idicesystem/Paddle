@@ -59,19 +59,17 @@ void MultiPrecisionAddKernelImpl(const Context& dev_ctx,
   std::vector<const DenseTensor*> inputs = {&x, &y};
   std::vector<DenseTensor*> outputs = {out};
   if (y.dtype() == phi::DataType::BFLOAT16) {
-    funcs::BroadcastKernel<T>(
+    funcs::ElementwiseKernel<T>(
         dev_ctx,
         inputs,
         &outputs,
-        funcs::MultiPrecisionAddFunctor<T, phi::bfloat16>(),
-        -1);
+        funcs::MultiPrecisionAddFunctor<T, phi::bfloat16>());
   } else if (y.dtype() == phi::DataType::FLOAT16) {
-    funcs::BroadcastKernel<T>(
+    funcs::ElementwiseKernel<T>(
         dev_ctx,
         inputs,
         &outputs,
-        funcs::MultiPrecisionAddFunctor<T, phi::float16>(),
-        -1);
+        funcs::MultiPrecisionAddFunctor<T, phi::float16>());
   } else {
     PADDLE_THROW(phi::errors::InvalidArgument(
         "Unsupport x dtype:%s, y dtype:%s for add(x, y) operation",
@@ -164,18 +162,6 @@ void ElementwisePowKernel(const Context& dev_ctx,
   ElementwisePowRawKernel<T>(dev_ctx, x, y, axis, out);
 }
 
-template <typename T, typename Context>
-void CopySignKernel(const Context& dev_ctx,
-                    const DenseTensor& x,
-                    const DenseTensor& y,
-                    DenseTensor* out) {
-  std::vector<const DenseTensor*> inputs = {&x, &y};
-  std::vector<DenseTensor*> outputs = {out};
-  dev_ctx.template Alloc<T>(out);
-  funcs::BroadcastKernel<T>(
-      dev_ctx, inputs, &outputs, funcs::CopySignFunctor<T>());
-}
-
 }  // namespace phi
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
@@ -231,20 +217,6 @@ PD_REGISTER_KERNEL(elementwise_pow,
                    double,
                    int,
                    int64_t,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {}
-PD_REGISTER_KERNEL(copysign,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::CopySignKernel,
-                   bool,
-                   uint8_t,
-                   int8_t,
-                   int16_t,
-                   int,
-                   int64_t,
-                   float,
-                   double,
                    phi::dtype::float16,
                    phi::dtype::bfloat16) {}
 
@@ -309,9 +281,6 @@ PD_REGISTER_KERNEL(add,
                    double,
                    int16_t,
                    int,
-                   bool,
-                   uint8_t,
-                   int8_t,
                    int64_t,
                    phi::dtype::float16,
                    phi::dtype::bfloat16,
@@ -326,9 +295,6 @@ PD_REGISTER_KERNEL(grad_add,
                    double,
                    int16_t,
                    int,
-                   bool,
-                   uint8_t,
-                   int8_t,
                    int64_t,
                    phi::dtype::float16,
                    phi::dtype::bfloat16,

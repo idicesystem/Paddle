@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import random
 import unittest
 from itertools import combinations, combinations_with_replacement
@@ -47,13 +46,7 @@ class TestCombinationsAPIBase(unittest.TestCase):
         self.modify_setting()
         self.x_np = np.random.random(self.x_shape).astype(self.dtype_np)
 
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.place.append('cpu')
+        self.place = ['cpu']
         if paddle.is_compiled_with_cuda():
             self.place.append('gpu')
 
@@ -128,13 +121,7 @@ class TestCombinationsAPI2(TestCombinationsAPIBase):
 
 class TestCombinationsEmpty(unittest.TestCase):
     def setUp(self):
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.place.append('cpu')
+        self.place = ['cpu']
         if paddle.is_compiled_with_cuda():
             self.place.append('gpu')
 

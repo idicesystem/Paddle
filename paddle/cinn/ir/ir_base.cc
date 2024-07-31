@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/ir/ir_base.h"
-#include <sstream>
+
 #include "paddle/cinn/common/cinn_value.h"
 #include "paddle/cinn/common/common.h"
 #include "paddle/cinn/ir/buffer.h"
@@ -22,7 +22,7 @@
 #include "paddle/cinn/ir/ir_visitor.h"
 #include "paddle/cinn/ir/module.h"
 #include "paddle/cinn/ir/tensor.h"
-#include "paddle/common/enforce.h"
+
 namespace cinn {
 namespace ir {
 
@@ -50,7 +50,7 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
 #undef __m
 
     default:
-      PADDLE_THROW(::common::errors::InvalidArgument("unknown IrNodeTy found"));
+      LOG(FATAL) << "unknown IrNodeTy found";
   }
 
   return os;
@@ -115,11 +115,11 @@ int16_t Expr::as_int16() const {
   return As<IntImm>()->value;
 }
 int32_t Expr::as_int32() const {
-  CHECK(type().is_int(32)) << utils::enforce::GetCurrentTraceBackString();
+  CHECK(type().is_int(32));
   return As<IntImm>()->value;
 }
 int64_t Expr::as_int64() const {
-  CHECK(type().is_int(64) || type().is_int(32));
+  CHECK(type().is_int(64));
   return As<IntImm>()->value;
 }
 
@@ -231,56 +231,8 @@ bool Expr::is_cmp() const {
 }
 
 const Expr &IrNode::operand(int i) {
-  PADDLE_ENFORCE_LT(
-      i,
-      operands.size(),
-      ::common::errors::InvalidArgument("The index %d is out of range", i));
+  CHECK_LT(i, operands.size());
   return operands[i];
-}
-
-void IrNode::set_type(Type type) { type_ = type; }
-
-void IrNode::replace(Expr old_op, Expr new_op) {
-  std::stringstream ss;
-  ss << "Not Implemented, The node:(" << node_type() << ") has an old_op: ("
-     << old_op.node_type() << ") should be replaced with new_op: ("
-     << new_op.node_type() << ") but not Implemented";
-
-  PADDLE_THROW(::common::errors::Unimplemented(ss.str()));
-}
-
-void IrNode::convert_int32_to_int64() {
-  CHECK(type_ == Int(64) || type_ == Int(32) || type_.is_unk())
-      << "Current only support convert int32_t to int64_t, but get type is "
-      << type_;
-  type_ = Int(64);
-  for (Expr &operand : operands) {
-    operand->convert_int32_to_int64();
-  }
-}
-
-void TryElevateInt32ToInt64(const std::vector<Expr> &expr_vec) {
-  Type type = expr_vec.front()->type();
-  for (const Expr &expr : expr_vec) {
-    if (expr->type() == Int(64)) {
-      type = Int(64);
-      break;
-    }
-  }
-
-  // Not need Elevate to Int(64)
-  if (type != Int(64)) {
-    return;
-  }
-  for (const Expr &expr : expr_vec) {
-    CHECK(expr->type() == Int(64) || expr->type() == Int(32) ||
-          expr->type().is_unk())
-        << "Current only support convert int32_t to int64_t, but get type is "
-        << expr->type();
-    if (expr->type() == Int(32)) {
-      expr->convert_int32_to_int64();
-    }
-  }
 }
 
 }  // namespace ir

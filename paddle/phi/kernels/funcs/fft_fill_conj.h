@@ -15,8 +15,8 @@
 #pragma once
 
 #include <vector>
-#include "paddle/common/hostdevice.h"
 #include "paddle/phi/core/dense_tensor.h"
+#include "paddle/phi/core/hostdevice.h"
 #include "paddle/phi/kernels/funcs/for_range.h"
 #if defined(__NVCC__) || defined(__HIPCC__)
 #include "thrust/device_vector.h"
@@ -189,23 +189,26 @@ template <typename T>
 struct FFTFillConjGradFunctor {
   T* input_;
   const size_t axis_;
-  const int64_t stride_to_last_axis;
-  const int64_t stride_second_to_last_axis;
+  const int64_t* strides_;
   const size_t double_length_;
 
   FFTFillConjGradFunctor(T* input,
                          size_t axis,
-                         int64_t stride_second_to_last_axis,
-                         int64_t stride_to_last_axis,
+                         const int64_t* strides,
                          size_t double_length)
       : input_(input),
         axis_(axis),
-        stride_to_last_axis(stride_to_last_axis),
-        stride_second_to_last_axis(stride_second_to_last_axis),
+        strides_(strides),
         double_length_(double_length) {}
 
   HOSTDEVICE void operator()(size_t index) {
-    size_t index_i = (index % stride_second_to_last_axis) / stride_to_last_axis;
+    size_t offtset = index;  // back
+    size_t index_i;
+    for (size_t i = 0; i <= axis_; i++) {
+      index_i = offtset / strides_[i];
+      offtset %= strides_[i];
+    }
+
     if ((0 < index_i) && (index_i < double_length_ + 1)) {
       input_[index] *= static_cast<T>(2);
     }

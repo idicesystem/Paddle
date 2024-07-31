@@ -21,7 +21,7 @@ def unzip(input, lod, len):
 
     **unzip layers**
 
-    unzip 'input' according to 'lod'
+    unzip 'input' accroding to 'lod'
 
     Args:
         input (Variable): The zipped input

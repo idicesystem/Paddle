@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import distutils
 import os
 import unittest
 
@@ -23,7 +24,6 @@ from paddle.distributed import fleet
 from paddle.distributed.fleet.meta_optimizers.common import CollectiveHelper
 from paddle.incubate import DistributedFusedLamb
 from paddle.nn.clip import ClipGradBase, _clip_by_global_norm_using_mp_type
-from paddle.utils import strtobool
 from paddle.vision.models import resnet18 as resnet
 
 
@@ -280,22 +280,22 @@ class TestDistributedFusedLamb(unittest.TestCase):
 
     def config(self):
         clip_after_allreduce = bool(
-            strtobool(os.getenv('CLIP_AFTER_ALLREDUCE', 'True'))
+            distutils.util.strtobool(os.getenv('CLIP_AFTER_ALLREDUCE', 'True'))
         )
         max_global_norm = float(os.getenv('MAX_GLOBAL_NORM', -1.0))
         gm_steps = int(os.getenv('GRADIENT_MERGE_STEPS', 1))
         use_master_acc_grad = bool(int(os.getenv('USE_MASTER_ACC_GRAD', '1')))
         print(
-            f'clip_after_allreduce = {clip_after_allreduce}, max_global_norm = {max_global_norm}'
+            'clip_after_allreduce = {}, max_global_norm = {}'.format(
+                clip_after_allreduce, max_global_norm
+            )
         )
         return {
             'clip_after_allreduce': clip_after_allreduce,
             'gradient_accumulation_steps': gm_steps,
-            'grad_clip': (
-                paddle.nn.ClipGradByGlobalNorm(max_global_norm)
-                if max_global_norm > 0
-                else None
-            ),
+            'grad_clip': paddle.nn.ClipGradByGlobalNorm(max_global_norm)
+            if max_global_norm > 0
+            else None,
             'use_master_acc_grad': use_master_acc_grad,
         }
 
@@ -329,7 +329,9 @@ class TestDistributedFusedLamb(unittest.TestCase):
             atol = 1.5e-7
         for ret1, ret2 in zip(result1, result2):
             max_diff = np.max(np.abs(ret1 - ret2))
-            msg = f'max_diff = {max_diff} atol = {atol} when use_fp16 = {use_fp16} , use_master_param_norm = {use_master_param_norm}'
+            msg = 'max_diff = {} atol = {} when use_fp16 = {} , use_master_param_norm = {}'.format(
+                max_diff, atol, use_fp16, use_master_param_norm
+            )
             self.assertTrue(max_diff < atol, msg)
             print(msg)
 

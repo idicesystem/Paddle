@@ -22,8 +22,8 @@
 #include <set>
 #include <stack>
 #include <unordered_set>
+
 #include "paddle/cinn/poly/isl_utils.h"
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace poly {
@@ -124,16 +124,12 @@ std::vector<Group> PartitionGraphByIterationDomain(cinn::common::Graph* graph) {
   }
 
   // NOTE DEBUG
-  // check there are same count of nodes both in the original graph and the
+  // check there are same count of nodes both in the orginal graph and the
   // groups.
   // @{
   int num_node_in_groups = 0;
   for (auto& group : groups) num_node_in_groups += group.nodes.size();
-  PADDLE_ENFORCE_EQ(num_node_in_groups,
-                    graph->num_nodes(),
-                    ::common::errors::InvalidArgument(
-                        "The number of nodes in groups should be the same as "
-                        "the number of nodes in the graph"));
+  CHECK_EQ(num_node_in_groups, graph->num_nodes());
   // @}
 
   return groups;
@@ -226,11 +222,7 @@ std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {  // NOLINT
     }
     for (auto& node : top_group->nodes) {
       for (auto& edge : node->outlinks()) {
-        PADDLE_ENFORCE_EQ(
-            edge->source()->id(),
-            node->id(),
-            ::common::errors::InvalidArgument(
-                "The edge source should be the same as the node"));
+        CHECK_EQ(edge->source()->id(), node->id());
         auto* sink = edge->sink();
         if (all_nodes.count(sink->id()) == 0 &&
             (--group_indegree[node2group[sink->id()]]) == 0) {
@@ -245,7 +237,7 @@ std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {  // NOLINT
 /**
  * Naive idea to split a graph.
  *
- * 1. treat each stage as a separate group.
+ * 1. treat each stage as a seperate group.
  * 2. If ComputeAt is set between two stages and their iteration domain matches,
  * the stages will be put in a group with relative order.
  */
@@ -274,9 +266,8 @@ std::vector<Group> NaivePartitionGraph(cinn::common::Graph* graph) {
       auto* node0 = node;
       if (name2node.count(compute_at.stage->id()) == 0) {
         continue;
-        std::stringstream ss;
-        ss << "Didn't find node with name " << compute_at.stage->id() << " !";
-        PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+        LOG(FATAL) << "Didn't find node with name " << compute_at.stage->id()
+                   << " !";
       }
       auto* node1 = name2node[compute_at.stage->id()];
       VLOG(3) << "a -> b: " << node0->id() << " -> " << node1->id();
@@ -322,11 +313,8 @@ std::vector<Group> NaivePartitionGraph(cinn::common::Graph* graph) {
     graph_node_count += group.nodes.size();
   }
   // check the groups contains all the nodes in graph.
-  PADDLE_ENFORCE_EQ(
-      graph_node_count,
-      graph->nodes().size(),
-      ::common::errors::InvalidArgument(
-          "the groups should contain all the nodes in the graph"));
+  CHECK_EQ(graph_node_count, graph->nodes().size())
+      << "the groups should contain all the nodes in the graph";
 #endif
 
   return group_order;
@@ -343,10 +331,8 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
 
   // transform the DFG groups to schedule groups.
   CHECK(!schedule_graph_.nodes().empty());
-  PADDLE_ENFORCE_EQ(schedule_graph_.nodes().size(),
-                    dfg_->nodes().size(),
-                    ::common::errors::InvalidArgument(
-                        "DFG graph is not match schedule graph"));
+  CHECK_EQ(schedule_graph_.nodes().size(), dfg_->nodes().size())
+      << "DFG graph is not match schedule graph";
   schedule_groups_.clear();
   for (auto& dfg_group : dfg_groups) {
     ScheduleGroup group;
@@ -358,11 +344,7 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
     }
     schedule_groups_.emplace_back(std::move(group));
   }
-  PADDLE_ENFORCE_EQ(schedule_groups_.size(),
-                    dfg_groups.size(),
-                    ::common::errors::InvalidArgument(
-                        "The number of groups should be the same as the DFG "
-                        "groups"));
+  CHECK_EQ(schedule_groups_.size(), dfg_groups.size());
 
   // Schedule each group
   ScheduleGroups();
@@ -441,14 +423,10 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
   }
   std::map<std::string, int> stage_level;
   for (auto& link : compute_at_links) {
-    PADDLE_ENFORCE_NE(stage_map.count(link.first),
-                      0,
-                      ::common::errors::InvalidArgument(
-                          "The stage  is not found in the stage map"));
-    PADDLE_ENFORCE_NE(stage_map.count(link.second.stage->tensor_->name),
-                      0,
-                      ::common::errors::InvalidArgument(
-                          "The stage  is not found in the stage map"));
+    CHECK_NE(stage_map.count(link.first), 0)
+        << link.first << " not found in stage_map";
+    CHECK_NE(stage_map.count(link.second.stage->tensor_->name), 0)
+        << link.second.stage->tensor_->name << " not found in stage_map";
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
     After(*a, *b, link.second.level);
@@ -501,9 +479,7 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
 
 PolyGroupScheduler::PolyGroupScheduler(const std::vector<Stage*>& stages)
     : stages_(stages) {
-  PADDLE_ENFORCE_GT(stages.size(),
-                    0,
-                    ::common::errors::InvalidArgument("No stage is provided"));
+  CHECK_GT(stages.size(), 0) << "No stage is provided";
   for (auto* stage : stages) {
     AddStage(*stage);
   }

@@ -13,29 +13,15 @@
 # limitations under the License.
 
 import contextlib
-from typing import Callable, TypeVar
 
 import decorator
-from typing_extensions import ParamSpec
-
-_InputT = ParamSpec("_InputT")
-_RetT1 = TypeVar("_RetT1")
-_RetT2 = TypeVar("_RetT2")
 
 __all__ = []
 
 
-def wrap_decorator(
-    decorator_func: Callable[
-        [Callable[_InputT, _RetT1]], Callable[_InputT, _RetT2]
-    ]
-) -> Callable[[Callable[_InputT, _RetT1]], Callable[_InputT, _RetT2]]:
+def wrap_decorator(decorator_func):
     @decorator.decorator
-    def __impl__(
-        func: Callable[_InputT, _RetT1],
-        *args: _InputT.args,
-        **kwargs: _InputT.kwargs
-    ) -> _RetT2:
+    def __impl__(func, *args, **kwargs):
         wrapped_func = decorator_func(func)
         return wrapped_func(*args, **kwargs)
 

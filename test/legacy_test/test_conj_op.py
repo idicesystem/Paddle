@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
 import unittest
 
@@ -65,13 +64,7 @@ class TestConjOp(OpTest):
 class TestComplexConjOp(unittest.TestCase):
     def setUp(self):
         self._dtypes = ["float32", "float64"]
-        self._places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self._places.append(paddle.CPUPlace())
+        self._places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             self._places.append(paddle.CUDAPlace(0))
 
@@ -159,7 +152,7 @@ class TestConjFP16OP(TestConjOp):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestConjBF16(OpTest):
     def setUp(self):

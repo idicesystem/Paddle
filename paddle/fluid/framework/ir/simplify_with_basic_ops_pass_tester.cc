@@ -62,13 +62,13 @@ TEST(SimplifyWithBasicOpsPass, dropout) {
       PADDLE_ENFORCE_EQ(
           num_dropout_nodes_after,
           0,
-          common::errors::InvalidArgument("num_dropout_nodes_after = %d.",
-                                          num_dropout_nodes_after));
+          platform::errors::InvalidArgument("num_dropout_nodes_after = %d.",
+                                            num_dropout_nodes_after));
       if (dropout_implementation == "downgrade_in_infer") {
         PADDLE_ENFORCE_EQ(
             num_dropout_nodes_before,
             num_scale_nodes_after - num_scale_nodes_before,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "num_dropout_nodes_before = %d, num_scale_nodes_after = %d, "
                 "num_scale_nodes_before = %d.",
                 num_dropout_nodes_before,
@@ -78,7 +78,7 @@ TEST(SimplifyWithBasicOpsPass, dropout) {
         PADDLE_ENFORCE_EQ(
             num_scale_nodes_after - num_scale_nodes_before,
             0,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "num_scale_nodes_after = %d, num_scale_nodes_before = %d.",
                 num_scale_nodes_after,
                 num_scale_nodes_before));

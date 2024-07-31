@@ -17,51 +17,63 @@ Convert the static program to distributed data-parallelism programs.
 
 import os
 import sys
+import warnings
 
 import paddle
-from paddle.base.compiler import CompiledProgram
-from paddle.distributed.fleet.base.private_helper_function import (
-    wait_server_ready,
+from paddle.framework import core
+from paddle.static import (
+    default_main_program,
+    default_startup_program,
+    Program,
+    Executor,
 )
+from paddle.base.compiler import CompiledProgram
+
 from paddle.distributed.transpiler.distribute_transpiler import (
     DistributeTranspilerConfig,
 )
-from paddle.framework import core
-from paddle.incubate.distributed.fleet.base import (
-    DistributedOptimizer,
-    Fleet,
-    Mode,
-)
+
+from paddle.incubate.distributed.fleet.base import Fleet
+from paddle.incubate.distributed.fleet.base import Mode
+from paddle.incubate.distributed.fleet.role_maker import MPISymetricRoleMaker
+
 from paddle.incubate.distributed.fleet.parameter_server import version
-from paddle.incubate.distributed.fleet.parameter_server.distribute_transpiler.distributed_strategy import (
-    AsyncStrategy,
-    DistributedStrategy,
-    GeoStrategy,
-    HalfAsyncStrategy,
-    StrategyFactory,
-    SyncStrategy,
-    TrainerRuntimeConfig,  # noqa: F401
+from paddle.incubate.distributed.fleet.parameter_server.pslib.optimizer_factory import (
+    DistributedAdam,
 )
-from paddle.incubate.distributed.fleet.parameter_server.ir import (
-    pserver_pass as server,
-    public,
-    trainer_pass as worker,
+from paddle.incubate.distributed.fleet.parameter_server.ir.public import (
+    get_sparse_tablenames,
 )
 from paddle.incubate.distributed.fleet.parameter_server.ir.public import (
     _get_lr_ops,
+)
+from paddle.incubate.distributed.fleet.parameter_server.ir.public import (
     _has_global_step,
-    get_sparse_tablenames,
 )
+from paddle.incubate.distributed.fleet.parameter_server.distribute_transpiler.distributed_strategy import (
+    TrainerRuntimeConfig,
+    DistributedStrategy,
+    SyncStrategy,
+    AsyncStrategy,
+    HalfAsyncStrategy,
+    GeoStrategy,
+    StrategyFactory,
+)
+
+from paddle.distributed.fleet.base.private_helper_function import (
+    wait_server_ready,
+)
+from paddle.incubate.distributed.fleet.base import DistributedOptimizer
 from paddle.incubate.distributed.fleet.parameter_server.mode import PSMode
-from paddle.incubate.distributed.fleet.parameter_server.pslib.optimizer_factory import (
-    DistributedAdam,  # noqa: F401
+
+from paddle.incubate.distributed.fleet.parameter_server.ir import (
+    trainer_pass as worker,
 )
-from paddle.incubate.distributed.fleet.role_maker import MPISymmetricRoleMaker
-from paddle.static import (
-    Executor,
-    Program,
-    default_main_program,
-    default_startup_program,
+from paddle.incubate.distributed.fleet.parameter_server.ir import (
+    pserver_pass as server,
+)
+from paddle.incubate.distributed.fleet.parameter_server.ir import (
+    public,
 )
 
 
@@ -99,7 +111,7 @@ class FleetTranspiler(Fleet):
 
     def init(self, role_maker=None):
         if role_maker is None:
-            role_maker = MPISymmetricRoleMaker()
+            role_maker = MPISymetricRoleMaker()
         super().init(role_maker)
         if self._fleet_ptr is None:
             self._fleet_ptr = core.Fleet()
@@ -144,7 +156,7 @@ class FleetTranspiler(Fleet):
 
                 if len(dist_varnames) != 0:
                     raise ValueError(
-                        "GeoStrategy can not support large scale embedding now, please use paddle.static.nn.embedding"
+                        "GeoStrategy can not support large scale embeding now, please use paddle.static.nn.embedding"
                     )
 
                 init_attrs = []
@@ -174,10 +186,10 @@ class FleetTranspiler(Fleet):
             kwargs["sparse_attrs"] = get_sparse_attrs()
             return kwargs
 
-        # if MPISymmetricRoleMaker is defined
+        # if MPISymetricRoleMaker is defined
         # we suppose a user wants to submit job on mpi cluster
 
-        if isinstance(self._role_maker, MPISymmetricRoleMaker):
+        if isinstance(self._role_maker, MPISymetricRoleMaker):
             # check whether server has been initialized
             wait_server_ready(self.server_endpoints(to_string=False))
 
@@ -252,19 +264,19 @@ class FleetTranspiler(Fleet):
 
         if model_dir:
             if not os.path.isdir(model_dir):
-                raise ValueError(f"There is no directory named '{model_dir}'")
+                raise ValueError("There is no directory named '%s'", model_dir)
 
             sparse_varnames = self.compiled_config.get_sparse_varname_on_ps(
                 True
             )
-            distributed_varnames = (
+            distribtued_varnames = (
                 self.compiled_config.get_sparse_varname_on_ps(False)
             )
 
             remaining_vars = list(
                 filter(
                     FleetTranspiler.__exclude_vars(
-                        sparse_varnames + distributed_varnames
+                        sparse_varnames + distribtued_varnames
                     ),
                     self.main_program.list_vars(),
                 )
@@ -282,7 +294,7 @@ class FleetTranspiler(Fleet):
             )
 
             # todo(tangwei12) load distributed vars
-            # self._load_sparse_params(dirname=model_dir, varnames=distributed_varnames)
+            # self._load_sparse_params(dirname=model_dir, varnames=distribtued_varnames)
 
     def init_server(self, model_dir=None, **kwargs):
         """
@@ -333,7 +345,7 @@ class FleetTranspiler(Fleet):
 
         if self._inner_mode == PSMode.TRANSPILER:
             self._communicator.stop()
-            if isinstance(self._role_maker, MPISymmetricRoleMaker):
+            if isinstance(self._role_maker, MPISymetricRoleMaker):
                 self._role_maker._finalize()
             self._executor.close()
         else:
@@ -510,7 +522,9 @@ class FleetTranspiler(Fleet):
 
         if op not in supported_opts:
             raise ValueError(
-                f"fleet can not support optimizer: {op}, only this can be supported: {supported_opts}"
+                "fleet can not support optimizer: {}, only this can be supported: {}".format(
+                    op, supported_opts
+                )
             )
 
         reshaped_names = [
@@ -818,7 +832,7 @@ class ParameterServerOptimizer(DistributedOptimizer):
         super().__init__(optimizer, strategy)
         self._mode = mode
         if self._mode == PSMode.PSLIB:
-            self._optimizer_name = f"Distributed{optimizer.type.capitalize()}"
+            self._optimizer_name = "Distributed%s" % optimizer.type.capitalize()
             if optimizer.type != "adam":
                 print(
                     "Currently, distributed optimizer only support Adam"

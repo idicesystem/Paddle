@@ -20,7 +20,8 @@ limitations under the License. */
 
 #include "glog/logging.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
 std::wstring_convert<std::codecvt_utf8<wchar_t>> kConverter;
 
@@ -46,7 +47,7 @@ void NFD(const std::string& s, std::string* ret) {
   char* result = reinterpret_cast<char*>(
       utf8proc_NFD(reinterpret_cast<const unsigned char*>(s.c_str())));
   if (result) {
-    *ret = std::string(result);
+    *ret = std::move(std::string(result));
     free(result);  // NOLINT
   }
 }
@@ -100,4 +101,5 @@ void StringMapFromStream(std::istream& is,
   }
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

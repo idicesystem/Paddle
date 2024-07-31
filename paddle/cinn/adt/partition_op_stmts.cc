@@ -21,7 +21,7 @@
 #include "paddle/cinn/adt/index_expr_infer_context.h"
 #include "paddle/cinn/adt/partition_op_stmts.h"
 #include "paddle/cinn/adt/print.h"
-#include "paddle/common/enforce.h"
+
 namespace cinn::adt {
 
 AnchorIndex PickThenEraseAnchorIndex(
@@ -290,7 +290,7 @@ void CleanSmallAnchorGroups(
   });
 }
 
-void UpdateAnchorIndex2AnchorGroup(
+void UpdataAnchorIndex2AnchorGroup(
     const AnchorGroup& igroup_spec,
     std::unordered_map<AnchorIndex, AnchorGroup>* anchor_index2igroup_spec) {
   CleanSmallAnchorGroups(igroup_spec, anchor_index2igroup_spec);
@@ -361,15 +361,13 @@ std::unordered_map<AnchorIndex, AnchorGroup> PartitionOpStmtsIntoAnchorGroups(
                             opt_anchor_op_stmt.value(),
                             visited_op_stmts,
                             EquationCtx4OpStmt};
-    UpdateAnchorIndex2AnchorGroup(igroup_spec, &anchor_index2igroup_spec);
+    UpdataAnchorIndex2AnchorGroup(igroup_spec, &anchor_index2igroup_spec);
 
     EraseCandidateAnchorIndexes(igroup_spec, candidate_anchor_indexes);
   }
 
-  PADDLE_ENFORCE_EQ(all_visited_op_stmts.size(),
-                    op_stmts->size(),
-                    ::common::errors::InvalidArgument(
-                        "Some fake_op_placeholders are not visited."));
+  CHECK_EQ(all_visited_op_stmts.size(), op_stmts->size())
+      << "Some fake_op_placeholders are not visited";
   return anchor_index2igroup_spec;
 }
 

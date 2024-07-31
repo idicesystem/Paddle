@@ -18,10 +18,8 @@
 #include "paddle/fluid/platform/profiler/event_tracing.h"
 #include "paddle/phi/backends/gpu/gpu_info.h"
 
-#if defined(PADDLE_WITH_CUDA)
+#ifdef PADDLE_WITH_CUDA
 #include "paddle/phi/backends/gpu/cuda/cuda_graph.h"
-#elif defined(PADDLE_WITH_HIP)
-#include "paddle/phi/backends/gpu/rocm/hip_graph.h"
 #endif
 
 namespace paddle {
@@ -50,7 +48,7 @@ void StreamSafeCUDAAllocation::RecordStream(gpuStream_t stream) {
                  [this] { phi::backends::gpu::SetDeviceId(place_.device); });
 
   std::lock_guard<SpinLock> lock_guard(outstanding_event_map_lock_);
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#ifdef PADDLE_WITH_CUDA
   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
     graph_capturing_stream_set_.insert(stream);
     return;
@@ -64,21 +62,11 @@ void StreamSafeCUDAAllocation::RecordStream(gpuStream_t stream) {
 void StreamSafeCUDAAllocation::EraseStream(gpuStream_t stream) {
   VLOG(8) << "Try remove stream " << stream << " for address " << ptr();
   std::lock_guard<SpinLock> lock_guard(outstanding_event_map_lock_);
-  auto it = outstanding_event_map_.find(stream);
-  if (it == outstanding_event_map_.end()) {
-    return;
-  }
-
-#ifdef PADDLE_WITH_CUDA
-  PADDLE_ENFORCE_GPU_SUCCESS(cudaEventDestroy(it->second));
-#else
-  PADDLE_ENFORCE_GPU_SUCCESS(hipEventDestroy(it->second));
-#endif
-  outstanding_event_map_.erase(it);
+  outstanding_event_map_.erase(stream);
 }
 
 bool StreamSafeCUDAAllocation::CanBeFreed() {
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#ifdef PADDLE_WITH_CUDA
   if (UNLIKELY(phi::backends::gpu::CUDAGraph::IsThisThreadCapturing())) {
     return graph_capturing_stream_set_.empty() &&
            outstanding_event_map_.empty();
@@ -98,7 +86,7 @@ bool StreamSafeCUDAAllocation::CanBeFreed() {
     gpuError_t err = cudaEventQuery(event);
     if (err == cudaErrorNotReady) {
       VLOG(9) << "Event " << event << " for " << ptr() << " is not completed";
-      // Erase the completed event before "it"
+      // Erase the completded event before "it"
       outstanding_event_map_.erase(outstanding_event_map_.begin(), it);
       return false;
     }
@@ -108,7 +96,7 @@ bool StreamSafeCUDAAllocation::CanBeFreed() {
     gpuError_t err = hipEventQuery(event);
     if (err == hipErrorNotReady) {
       VLOG(9) << "Event " << event << " for " << ptr() << " is not completed";
-      // Erase the completed event before "it"
+      // Erase the completded event before "it"
       outstanding_event_map_.erase(outstanding_event_map_.begin(), it);
       return false;
     }
@@ -162,7 +150,7 @@ void StreamSafeCUDAAllocation::RecordStreamWithNoGraphCapturing(
 
 StreamSafeCUDAAllocator::StreamSafeCUDAAllocator(
     std::shared_ptr<Allocator> underlying_allocator,
-    phi::GPUPlace place,
+    platform::CUDAPlace place,
     gpuStream_t default_stream,
     bool in_cuda_graph_capturing)
     : underlying_allocator_(std::move(underlying_allocator)),
@@ -244,9 +232,9 @@ void StreamSafeCUDAAllocator::FreeImpl(phi::Allocation* allocation) {
   }
 }
 
-uint64_t StreamSafeCUDAAllocator::ReleaseImpl(const phi::Place& place) {
+uint64_t StreamSafeCUDAAllocator::ReleaseImpl(const platform::Place& place) {
   if (UNLIKELY(in_cuda_graph_capturing_)) {
-    VLOG(7) << "Memory release forbidden in CUDA Graph Capturing";
+    VLOG(7) << "Memory release forbidden in CUDA Graph Captruing";
     return 0;
   }
 
@@ -261,8 +249,8 @@ uint64_t StreamSafeCUDAAllocator::ReleaseImpl(const phi::Place& place) {
 }
 
 void StreamSafeCUDAAllocator::ProcessUnfreedAllocations() {
-  // NOTE(Ruibiao): This condition is to reduce lock completion. It does not
-  // need to be thread-safe since here occasional misjudgments are permissible.
+  // NOTE(Ruibiao): This condition is to reduce lock competion. It does not need
+  // to be thread-safe since here occasional misjudgments are permissible.
   if (unfreed_allocations_.empty()) {
     return;
   }
@@ -286,7 +274,7 @@ uint64_t StreamSafeCUDAAllocator::ProcessUnfreedAllocationsAndRelease() {
 
 thread_local std::once_flag StreamSafeCUDAAllocation::once_flag_;
 
-std::map<phi::Place, std::vector<StreamSafeCUDAAllocator*>>
+std::map<platform::Place, std::vector<StreamSafeCUDAAllocator*>>
     StreamSafeCUDAAllocator::allocator_map_;
 SpinLock StreamSafeCUDAAllocator::allocator_map_lock_;
 

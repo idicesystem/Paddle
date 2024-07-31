@@ -23,7 +23,7 @@ from paddle.base.core import (
     is_compiled_with_rocm,
 )
 
-if is_compiled_with_cuda() or is_compiled_with_rocm():
+if is_compiled_with_cuda() and not is_compiled_with_rocm():
     from paddle.base.core import CUDAGraph as CoreCUDAGraph
 
     def is_cuda_graph_supported():
@@ -93,7 +93,8 @@ def wrap_cuda_graph(function, mode="thread_local", memory_pool="default"):
             memory_pool_id = CoreCUDAGraph.gen_new_memory_pool_id()
         else:
             raise ValueError(
-                f"memory_pool should be one of default or new under static graph mode, but got {memory_pool}",
+                "memory_pool should be one of default or new under static graph mode, but got",
+                memory_pool,
             )
         return _cuda_graph_guard(
             mode + ';' + str(memory_pool_id) + ';' + graph_id

@@ -42,7 +42,7 @@ struct StackVec {
 
   StackVec() { memset(data_, 0, num_bytes()); }
 
-  explicit StackVec(const T* external) : external_data_(external) {}
+  explicit StackVec(const T* externl) : external_data_(externl) {}
 
   static self_type Broadcast(const value_type& v) {
     self_type res;

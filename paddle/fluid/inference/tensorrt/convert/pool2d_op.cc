@@ -146,9 +146,8 @@ class Pool2dOpConverter : public OpConverter {
       // compute
       for (int i = 0; i < 2; ++i) {
         int out_size = (input_shape.d[2 + i] + strides[i] - 1) / strides[i];
-        int pad_sum = std::max((out_size - 1) * strides[i] + ksize[i] -
-                                   static_cast<int>(input_shape.d[2 + i]),
-                               0);
+        int pad_sum = std::max(
+            (out_size - 1) * strides[i] + ksize[i] - input_shape.d[2 + i], 0);
         int pad_0 = pad_sum / 2;
         int pad_1 = pad_sum - pad_0;
         paddings[i * 2] = pad_0;
@@ -180,19 +179,19 @@ class Pool2dOpConverter : public OpConverter {
             ((g_post_pad.w() > 0 && input_shape.d[input_dims - 2] > 0) ||
              (g_post_pad.h() > 0 && input_shape.d[input_dims - 1] > 0))) {
           auto *pad_layer = TRT_ENGINE_ADD_LAYER(
-              engine_, PaddingNd, *input1, g_pre_pad, g_post_pad);
+              engine_, Padding, *input1, g_pre_pad, g_post_pad);
           PADDLE_ENFORCE_NOT_NULL(
               pad_layer,
-              common::errors::Fatal(
+              platform::errors::Fatal(
                   "Pad layer in poolOp converter could not be "
                   "created. The pointer to pad layer is `NULL`."));
           input1 = pad_layer->getOutput(0);
         }
 
         auto *pool_layer = TRT_ENGINE_ADD_LAYER(
-            engine_, PoolingNd, *input1, nv_pool_type, nv_ksize);
-        pool_layer->setStrideNd(nv_strides);
-        pool_layer->setPaddingNd(nv_paddings);
+            engine_, Pooling, *input1, nv_pool_type, nv_ksize);
+        pool_layer->setStride(nv_strides);
+        pool_layer->setPadding(nv_paddings);
         pool_layer->setAverageCountExcludesPadding(exclusive);
         if (padding_algorithm == "SAME") {
           pool_layer->setPaddingMode(nvinfer1::PaddingMode::kSAME_UPPER);
@@ -200,9 +199,9 @@ class Pool2dOpConverter : public OpConverter {
         layer = pool_layer;
       } else if (!adaptive && !global_pooling && ceil_mode) {
         auto *pool_layer = TRT_ENGINE_ADD_LAYER(
-            engine_, PoolingNd, *input1, nv_pool_type, nv_ksize);
-        pool_layer->setStrideNd(nv_strides);
-        pool_layer->setPaddingNd(nv_paddings);
+            engine_, Pooling, *input1, nv_pool_type, nv_ksize);
+        pool_layer->setStride(nv_strides);
+        pool_layer->setPadding(nv_paddings);
         pool_layer->setAverageCountExcludesPadding(exclusive);
         if (padding_algorithm == "SAME") {
           pool_layer->setPaddingMode(nvinfer1::PaddingMode::kSAME_UPPER);
@@ -240,10 +239,10 @@ class Pool2dOpConverter : public OpConverter {
 
     if (global_pooling == true && adaptive == false) {
       auto *pool_layer = TRT_ENGINE_ADD_LAYER(
-          engine_, PoolingNd, *input1, nv_pool_type, nv_ksize);
+          engine_, Pooling, *input1, nv_pool_type, nv_ksize);
       PADDLE_ENFORCE_NOT_NULL(
           pool_layer,
-          common::errors::Fatal(
+          platform::errors::Fatal(
               "trt pool layer in converter could not be created."));
       auto output_name = op_desc.Output("Out")[0];
       pool_layer->setName(("pool2d (Output: " + output_name + ")").c_str());
@@ -272,23 +271,23 @@ class Pool2dOpConverter : public OpConverter {
                        &post_pad,
                        input_dims);
           auto *pad_layer = TRT_ENGINE_ADD_LAYER(
-              engine_, PaddingNd, *input1, pre_pad, post_pad);
+              engine_, Padding, *input1, pre_pad, post_pad);
 
           PADDLE_ENFORCE_NOT_NULL(
               pad_layer,
-              common::errors::Fatal(
+              platform::errors::Fatal(
                   "Pad layer in poolOp converter could not be "
                   "created. The pointer to pad layer is `NULL`."));
           input1 = pad_layer->getOutput(0);
 
           auto *pool_layer = TRT_ENGINE_ADD_LAYER(
-              engine_, PoolingNd, *input1, nv_pool_type, nv_ksize);
+              engine_, Pooling, *input1, nv_pool_type, nv_ksize);
           PADDLE_ENFORCE_NOT_NULL(
               pool_layer,
-              common::errors::Fatal(
+              platform::errors::Fatal(
                   "trt pool layer in converter could not be created."));
-          pool_layer->setStrideNd(nv_strides);
-          pool_layer->setPaddingNd(nv_paddings);
+          pool_layer->setStride(nv_strides);
+          pool_layer->setPadding(nv_paddings);
           if (padding_algorithm == "SAME") {
             pool_layer->setPaddingMode(nvinfer1::PaddingMode::kSAME_UPPER);
           }
@@ -311,7 +310,7 @@ class Pool2dOpConverter : public OpConverter {
           auto *pool_layer = engine_->AddPlugin(&input1, 1, plugin);
           PADDLE_ENFORCE_NOT_NULL(
               pool_layer,
-              common::errors::Fatal(
+              platform::errors::Fatal(
                   "trt pool plugin layer in converter could not be created."));
           layer = pool_layer;
         }
@@ -323,23 +322,23 @@ class Pool2dOpConverter : public OpConverter {
         if ((g_post_pad.w() > 0 || g_post_pad.h() > 0) &&
             (padding_algorithm != "SAME") && !ceil_mode) {
           auto *pad_layer = TRT_ENGINE_ADD_LAYER(
-              engine_, PaddingNd, *input1, g_pre_pad, g_post_pad);
+              engine_, Padding, *input1, g_pre_pad, g_post_pad);
           PADDLE_ENFORCE_NOT_NULL(
               pad_layer,
-              common::errors::Fatal(
+              platform::errors::Fatal(
                   "Pad layer in poolOp converter could not be "
                   "created. The pointer to pad layer is `NULL`."));
           input1 = pad_layer->getOutput(0);
         }
 #endif
         auto *pool_layer = TRT_ENGINE_ADD_LAYER(
-            engine_, PoolingNd, *input1, nv_pool_type, nv_ksize);
+            engine_, Pooling, *input1, nv_pool_type, nv_ksize);
         PADDLE_ENFORCE_NOT_NULL(
             pool_layer,
-            common::errors::Fatal(
+            platform::errors::Fatal(
                 "trt pool layer in converter could not be created."));
-        pool_layer->setStrideNd(nv_strides);
-        pool_layer->setPaddingNd(nv_paddings);
+        pool_layer->setStride(nv_strides);
+        pool_layer->setPadding(nv_paddings);
         if (padding_algorithm == "SAME") {
           pool_layer->setPaddingMode(nvinfer1::PaddingMode::kSAME_UPPER);
         }
@@ -366,12 +365,12 @@ class Pool2dOpConverter : public OpConverter {
       auto *pool_layer = engine_->AddPlugin(&input1, 1, plugin);
       PADDLE_ENFORCE_NOT_NULL(
           pool_layer,
-          common::errors::Fatal(
+          platform::errors::Fatal(
               "trt pool plugin layer in converter could not be created."));
       layer = pool_layer;
     }
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "pool2d", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "pool2d", {output_name}, test_mode);
   }
 };
 

@@ -51,46 +51,31 @@ class RNGStatesTracker:
         self.seeds_.add(seed)
         if name in self.states_:
             raise ValueError(f'state {name} already exists')
-        orig_rng_state_index = paddle.incubate.get_rng_state(use_index=True)
-        # register a new state and set that state with the seed, store the indices into states_
-        self.states_[name] = paddle.incubate.register_rng_state_as_index()
+        orig_rng_state = paddle.get_rng_state()
         paddle.seed(seed)
-        paddle.incubate.set_rng_state(orig_rng_state_index, use_index=True)
+        self.states_[name] = paddle.get_rng_state()
+        paddle.set_rng_state(orig_rng_state)
 
     def get_states_tracker(self):
         states = {}
-        orig_rng_state_index = paddle.incubate.get_rng_state(use_index=True)
         for name in self.states_:
-            # switch index to name
-            paddle.incubate.set_rng_state(self.states_[name], use_index=True)
-            # export the saved state
-            states[name] = paddle.get_cuda_rng_state()
-        paddle.incubate.set_rng_state(orig_rng_state_index, use_index=True)
+            states[name] = self.states_[name]
         return states
 
     def set_states_tracker(self, states):
-        orig_rng_state_index = paddle.incubate.get_rng_state(use_index=True)
-        for name in states:
-            if name not in self.states_:
-                raise ValueError(f'state {name} does not exists')
-            # switch index to name
-            paddle.incubate.set_rng_state(self.states_[name], use_index=True)
-            # set the state to saved state
-            paddle.set_cuda_rng_state(states[name])
-
-        paddle.incubate.set_rng_state(orig_rng_state_index, use_index=True)
+        self.states_ = states
 
     @contextlib.contextmanager
     def rng_state(self, name=MODEL_PARALLEL_RNG):
         if name not in self.states_:
             raise ValueError(f'state {name} does not exist')
-        orig_rng_state_index = paddle.incubate.get_rng_state(use_index=True)
-        paddle.incubate.set_rng_state(self.states_[name], use_index=True)
+        orig_rng_state = paddle.get_rng_state()
+        paddle.set_rng_state(self.states_[name])
         try:
             yield
         finally:
-            self.states_[name] = paddle.incubate.get_rng_state(use_index=True)
-            paddle.incubate.set_rng_state(orig_rng_state_index, use_index=True)
+            self.states_[name] = paddle.get_rng_state()
+            paddle.set_rng_state(orig_rng_state)
 
 
 RNG_STATE_TRACKER = RNGStatesTracker()
@@ -122,6 +107,19 @@ def model_parallel_random_seed(seed=None):
     RNG_STATE_TRACKER.reset()
     RNG_STATE_TRACKER.add(MODEL_PARALLEL_RNG, local_seed)
     paddle.seed(global_seed)
+
+
+def determinate_seed(rng_name):
+    assert rng_name is not None and rng_name != ""
+    helper = LayerHelper('seed', **locals())
+    out = helper.create_variable_for_type_inference(dtype=paddle.int32)
+    # set force_cpu to reduce sync copy from CPU->GPU->CPU, and reduce pipeline hang
+    helper.append_op(
+        type='seed',
+        outputs={'Out': out},
+        attrs={'deterministic': True, 'rng_name': rng_name, 'force_cpu': True},
+    )
+    return out
 
 
 def dropout(
@@ -235,6 +233,8 @@ def dropout(
         )
         return out
     else:
+        seed = determinate_seed(rng_name)
+
         if isinstance(p, Variable) and not p.shape != [1]:
             raise TypeError(
                 f"Required p.shape == [1] if type(p) is Variable, but received p.shape = {p.shape}"
@@ -244,9 +244,6 @@ def dropout(
         check_variable_and_dtype(
             x, 'x', ['float16', 'float32', 'float64'], 'dropout'
         )
-
-        seed = helper.create_variable_for_type_inference(dtype=paddle.int32)
-        helper.append_op(type='seed', outputs={'Out': seed})
 
         out = helper.create_variable_for_type_inference(dtype=x.dtype)
         mask = helper.create_variable_for_type_inference(

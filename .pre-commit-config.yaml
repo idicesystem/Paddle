@@ -20,6 +20,7 @@ repos:
     -   id: sort-simple-yaml
         files: (ops|backward|op_[a-z_]+)\.yaml$
     -   id: trailing-whitespace
+        files: (.*\.(py|bzl|md|rst|c|cc|cxx|cpp|cu|h|hpp|hxx|xpu|kps|cmake|yaml|yml|hook)|BUILD|.*\.BUILD|WORKSPACE|CMakeLists\.txt)$
 -   repo: https://github.com/Lucas-C/pre-commit-hooks.git
     rev: v1.5.1
     hooks:
@@ -35,15 +36,15 @@ repos:
         # Exclude some unit test files that require tabs.
         exclude: |
             (?x)^(
-                test/dygraph_to_static/test_error.py
+                test/dygraph_to_static/test_legacy_error.py
             )$
 -   repo: local
     hooks:
     -   id: copyright_checker
         name: copyright_checker
-        entry: python ./tools/codestyle/copyright.py
+        entry: python ./tools/codestyle/copyright.hook
         language: system
-        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|xpu|kps|py|pyi|sh)$
+        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|xpu|kps|py|sh)$
         exclude: |
             (?x)^(
                 paddle/utils/.*|
@@ -54,8 +55,14 @@ repos:
     rev: 23.3.0
     hooks:
     -   id: black
+        files: (.*\.(py|pyi|bzl)|BUILD|.*\.BUILD|WORKSPACE)$
+-   repo: https://github.com/PyCQA/flake8
+    rev: 5.0.4
+    hooks:
+    -   id: flake8
+        args: ["--config=.flake8"]
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
+    rev: v0.1.5
     hooks:
     -   id: ruff
         args: [--fix, --exit-non-zero-on-fix, --no-cache]
@@ -65,7 +72,7 @@ repos:
     -   id: clang-format
         name: clang-format
         description: Format files with ClangFormat.
-        entry: bash ./tools/codestyle/clang_format.sh -i
+        entry: bash ./tools/codestyle/clang_format.hook -i
         language: system
         files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|xpu|kps)$
 -   repo: local
@@ -73,7 +80,7 @@ repos:
     -   id: cpplint-cpp-source
         name: cpplint
         description: Check C++ code style using cpplint.py.
-        entry: bash ./tools/codestyle/cpplint_pre_commit.sh
+        entry: bash ./tools/codestyle/cpplint_pre_commit.hook
         language: system
         files: \.(cc|cxx|cpp|cu|h|hpp|hxx)$
         args:

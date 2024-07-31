@@ -18,7 +18,9 @@ limitations under the License. */
 
 #include "glog/logging.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Graph;
 
@@ -32,19 +34,9 @@ void DeleteWeightDequantLinearOpPass::ApplyImpl(ir::Graph* graph) const {
                                              "conv2d_transpose"};
   PADDLE_ENFORCE_EQ(graph->Has(kParamScopeAttr),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Graph must have kParamScopeAttr attribute."));
-
-  VLOG(3) << "Running delete_weight_dequant_linear_op_pass.";
-  if (graph->IsMainGraph()) {
-    VLOG(3) << "The ID of block running delete_weight_dequant_linear_op_pass "
-               "is: 0(main_graph)";
-  } else {
-    VLOG(3)
-        << "The ID of block running delete_weight_dequant_linear_op_pass is: "
-        << graph->GetBlockId();
-  }
-
+  VLOG(3) << "Handle delete weight dequant linear op pass ...";
   auto& scope = graph->Get<framework::Scope>(kParamScopeAttr);
   bool is_int8 = false;
 
@@ -119,7 +111,7 @@ void DeleteWeightDequantLinearOpPass::ApplyImpl(ir::Graph* graph) const {
                           static_cast<float>(weight_scale_data[i]));
                     }
                   } else {
-                    PADDLE_THROW(common::errors::Unimplemented(
+                    PADDLE_THROW(platform::errors::Unimplemented(
                         "The dtype of quantization scale must be FP32/FP16, "
                         "but received %d, which is not supported.",
                         weight_scale_tensor->dtype()));
@@ -131,7 +123,7 @@ void DeleteWeightDequantLinearOpPass::ApplyImpl(ir::Graph* graph) const {
                     PADDLE_ENFORCE_EQ(
                         weight_scale_nums,
                         1,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "When quant_axis == -1, it means using per_layer "
                             "dequantization. In this situation, the number of "
                             "weight_scale should be 1, but received %d.",
@@ -147,7 +139,7 @@ void DeleteWeightDequantLinearOpPass::ApplyImpl(ir::Graph* graph) const {
                     PADDLE_ENFORCE_EQ(
                         weight_scale_nums,
                         weights_shape[quant_axis],
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "When quant_axis != -1, it means using per_channel "
                             "dequantization. In this situation, the number of "
                             "weight_scale should be equal with "
@@ -191,7 +183,9 @@ void DeleteWeightDequantLinearOpPass::ApplyImpl(ir::Graph* graph) const {
       graph, "has_quant_info", "var_quant_scales", var_quant_scales);
   graph->Set("enable_int8", new bool(is_int8));
 }
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(delete_weight_dequant_linear_op_pass,
               paddle::framework::ir::DeleteWeightDequantLinearOpPass);

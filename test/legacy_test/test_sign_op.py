@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import gradient_checker
@@ -22,7 +21,7 @@ from op_test import OpTest, convert_float_to_uint16
 
 import paddle
 from paddle import base
-from paddle.base import core
+from paddle.base import Program, core, program_guard
 from paddle.pir_utils import test_with_pir_api
 
 
@@ -80,13 +79,7 @@ class TestSignBF16Op(OpTest):
 
 class TestSignAPI(unittest.TestCase):
     def setUp(self):
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(base.CPUPlace())
+        self.place = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.place.append(base.CUDAPlace(0))
 
@@ -99,7 +92,6 @@ class TestSignAPI(unittest.TestCase):
             z_expected = np.sign(np_x)
             self.assertEqual((np_z == z_expected).all(), True)
 
-    @test_with_pir_api
     def test_static(self):
         np_input1 = np.random.uniform(-10, 10, (12, 10)).astype("int8")
         np_input2 = np.random.uniform(-10, 10, (12, 10)).astype("uint8")
@@ -113,9 +105,7 @@ class TestSignAPI(unittest.TestCase):
         np_out5 = np.sign(np_input5)
 
         def run(place):
-            with paddle.static.program_guard(
-                paddle.static.Program(), paddle.static.Program()
-            ):
+            with program_guard(Program(), Program()):
                 # The input type of sign_op must be Variable or numpy.ndarray.
                 input1 = 12
                 self.assertRaises(TypeError, paddle.tensor.math.sign, input1)
@@ -157,11 +147,10 @@ class TestSignAPI(unittest.TestCase):
                 self.assertEqual((res3 == np_out3).all(), True)
                 self.assertEqual((res4 == np_out4).all(), True)
                 self.assertEqual((res5 == np_out5).all(), True)
-                if core.is_compiled_with_cuda():
-                    input6 = paddle.static.data(
-                        name='input6', shape=[-1, 4], dtype="float16"
-                    )
-                    paddle.sign(input6)
+                input6 = paddle.static.data(
+                    name='input6', shape=[-1, 4], dtype="float16"
+                )
+                paddle.sign(input6)
 
         for place in self.place:
             run(place)
@@ -192,13 +181,7 @@ class TestSignDoubleGradCheck(unittest.TestCase):
 
     def test_grad(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for p in places:
@@ -230,13 +213,7 @@ class TestSignTripleGradCheck(unittest.TestCase):
 
     def test_grad(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for p in places:

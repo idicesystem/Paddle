@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 # TODO: define the initializers of Kaiming functions in neural network
 import math
-from typing import TYPE_CHECKING
 
 import paddle
 from paddle import _C_ops
@@ -28,9 +25,6 @@ from ...base.framework import (
     in_pir_mode,
 )
 from .initializer import Initializer, calculate_gain
-
-if TYPE_CHECKING:
-    from .initializer import _NonLinearity
 
 __all__ = []
 
@@ -58,7 +52,7 @@ class MSRAInitializer(Initializer):
 
     Args:
         uniform (bool, optional): whether to use uniform or normal distribution. Default is True.
-        fan_in (float32|None, optional): fan_in (in_features) of trainable Tensor, If None, it will be infered automatically. If you don't want to use in_features of the Tensor, you can set the value of 'fan_in' smartly by yourself. Default is None.
+        fan_in (float32|None, optional): fan_in (in_features) of trainable Tensor, If None, it will be infered automaticly. If you don't want to use in_features of the Tensor, you can set the value of 'fan_in' smartly by yourself. Default is None.
         seed (int32, optional): random seed. Default is 0.
         negative_slope (float, optional): negative_slope (only used with leaky_relu). Default is 0.0.
         nonlinearity(str, optional): the non-linear function. Default is relu.
@@ -70,12 +64,12 @@ class MSRAInitializer(Initializer):
 
     def __init__(
         self,
-        uniform: bool = True,
-        fan_in: float | None = None,
-        seed: int = 0,
-        negative_slope: float = 0,
-        nonlinearity: _NonLinearity = 'relu',
-    ) -> None:
+        uniform=True,
+        fan_in=None,
+        seed=0,
+        negative_slope=0,
+        nonlinearity='relu',
+    ):
         """Constructor for MSRAInitializer"""
         assert uniform is not None
         assert seed is not None
@@ -86,22 +80,17 @@ class MSRAInitializer(Initializer):
         self._negative_slope = negative_slope
         self._nonlinearity = nonlinearity
 
-    def forward(
-        self, var: paddle.Tensor, block: paddle.pir.Block | None = None
-    ) -> paddle.Tensor | None:
+    def forward(self, var, block=None):
         """Initialize the input tensor with MSRA initialization.
 
         Args:
             var(Tensor): Tensor that needs to be initialized.
-            block(Block|None, optional): The block in which initialization ops
+            block(Block, optional): The block in which initialization ops
                    should be added. Used in static graph only, default None.
 
         Returns:
             The initialization op.
         """
-        assert not (
-            isinstance(var, framework.EagerParamBase) and var.is_dist()
-        ), "Currently, kaiming initializer not support lazy init for dist param."
         block = self._check_block(block)
         assert isinstance(
             var, (framework.Variable, paddle.pir.core.ParameterMeta)
@@ -115,7 +104,7 @@ class MSRAInitializer(Initializer):
         if self._seed == 0:
             self._seed = block.program.random_seed
 
-        # to be compatible of fp16 initializers
+        # to be compatible of fp16 initalizers
         if var.dtype == core.VarDesc.VarType.FP16 or (
             var.dtype == core.VarDesc.VarType.BF16 and not self._uniform
         ):
@@ -260,7 +249,7 @@ class KaimingNormal(MSRAInitializer):
         \frac{gain}{\sqrt{{fan\_in}}}
 
     Args:
-        fan_in (float32|None, optional): fan_in (in_features) of trainable Tensor, If None, it will be infered automatically. If you don't want to use in_features of the Tensor, you can set the value of 'fan_in' smartly by yourself. Default is None.
+        fan_in (float32|None, optional): fan_in (in_features) of trainable Tensor, If None, it will be infered automaticly. If you don't want to use in_features of the Tensor, you can set the value of 'fan_in' smartly by yourself. Default is None.
         negative_slope (float, optional): negative_slope (only used with leaky_relu). Default is 0.0.
         nonlinearity(str, optional): the non-linear function. Default is relu.
 
@@ -279,12 +268,7 @@ class KaimingNormal(MSRAInitializer):
 
     """
 
-    def __init__(
-        self,
-        fan_in: float | None = None,
-        negative_slope: float = 0.0,
-        nonlinearity: str = 'relu',
-    ) -> None:
+    def __init__(self, fan_in=None, negative_slope=0.0, nonlinearity='relu'):
         super().__init__(
             uniform=False,
             fan_in=fan_in,
@@ -330,12 +314,7 @@ class KaimingUniform(MSRAInitializer):
 
     """
 
-    def __init__(
-        self,
-        fan_in: float | None = None,
-        negative_slope: float = 0.0,
-        nonlinearity: str = 'relu',
-    ) -> None:
+    def __init__(self, fan_in=None, negative_slope=0.0, nonlinearity='relu'):
         super().__init__(
             uniform=True,
             fan_in=fan_in,

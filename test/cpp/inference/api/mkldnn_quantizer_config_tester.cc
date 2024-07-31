@@ -15,7 +15,7 @@ limitations under the License. */
 #include <fstream>
 #include <iostream>
 
-#include "paddle/fluid/inference/api/paddle_onednn_quantizer_config.h"
+#include "paddle/fluid/inference/api/paddle_mkldnn_quantizer_config.h"
 #include "test/cpp/inference/api/tester_helper.h"
 
 namespace paddle {
@@ -56,51 +56,51 @@ TEST(Mkldnn_quantizer_config, configuration) {
 
   PADDLE_ENFORCE_EQ(cfg.mkldnn_quantizer_config()->warmup_data()->size(),
                     warmup_data_size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Size of the warmup data got from config differs with "
                         "the one set previously."));
 
   PADDLE_ENFORCE_EQ(
       cfg.mkldnn_quantizer_config()->warmup_data()->at(0).name,
       "image",
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Warmup data got from config differs with the one set previously."));
 
   PADDLE_ENFORCE_EQ(cfg.mkldnn_quantizer_config()->warmup_batch_size(),
                     warmup_batch_size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Warmup batch size got from config differs with the "
                         "one set previously."));
 
   PADDLE_ENFORCE_EQ(cfg.mkldnn_quantizer_config()->enabled_op_types(),
                     enabled_op_types,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Enabled op types list got from config differs with "
                         "the one set previously."));
 
   PADDLE_ENFORCE_EQ(cfg.mkldnn_quantizer_config()->excluded_op_ids(),
                     excluded_op_ids,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Excluded op ids list got from config differs with "
                         "the one set previously."));
 
   PADDLE_ENFORCE_EQ(cfg.mkldnn_quantizer_config()->default_scale_algo(),
                     default_scale_algo,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Default scale algorithm got from config differs with "
                         "the one set previously."));
 
   PADDLE_ENFORCE_EQ(
       cfg.mkldnn_quantizer_config()->scale_algo("conv2d", "Input"),
       conv2d_scale_algo,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Scale algorithm got from config differs with the "
           "one set previously."));
 
   PADDLE_ENFORCE_EQ(
       cfg.mkldnn_quantizer_config()->scale_algo("unknown", "unknown"),
       default_scale_algo,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Scale algorithm got from config for an uknown op "
           "differs with the one set previously."));
 }

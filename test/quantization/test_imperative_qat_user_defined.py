@@ -162,7 +162,8 @@ class TestUserDefinedActPreprocess(unittest.TestCase):
         imperative_qat = self.imperative_qat
         seed = 1
         np.random.seed(seed)
-        paddle.seed(seed)
+        paddle.static.default_main_program().random_seed = seed
+        paddle.static.default_startup_program().random_seed = seed
         lenet = ImperativeLenet()
         fixed_state = {}
         param_init_map = {}
@@ -216,7 +217,9 @@ class TestUserDefinedActPreprocess(unittest.TestCase):
                     adam.clear_grad()
                     if batch_id % 50 == 0:
                         _logger.info(
-                            f"Train | At epoch {epoch} step {batch_id}: loss = {avg_loss.numpy()}, acc= {acc.numpy()}"
+                            "Train | At epoch {} step {}: loss = {:}, acc= {:}".format(
+                                epoch, batch_id, avg_loss.numpy(), acc.numpy()
+                            )
                         )
                         break
 
@@ -243,7 +246,9 @@ class TestUserDefinedActPreprocess(unittest.TestCase):
                 avg_acc[1].append(acc_top5.numpy())
                 if batch_id % 100 == 0:
                     _logger.info(
-                        f"Test | step {batch_id}: acc1 = {acc_top1.numpy()}, acc5 = {acc_top5.numpy()}"
+                        "Test | step {}: acc1 = {:}, acc5 = {:}".format(
+                            batch_id, acc_top1.numpy(), acc_top5.numpy()
+                        )
                     )
 
         train_reader = paddle.batch(

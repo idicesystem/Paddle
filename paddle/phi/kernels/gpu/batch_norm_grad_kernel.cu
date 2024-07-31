@@ -14,11 +14,11 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/common/layout.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_dnn.h"
 #include "paddle/phi/core/enforce.h"
+#include "paddle/phi/core/flags.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/batch_norm_kernel.h"
 #include "paddle/phi/kernels/empty_kernel.h"
@@ -35,10 +35,7 @@
 #define LAUNCH_BOUNDS(BlockDim)
 #endif
 
-COMMON_DECLARE_bool(cudnn_batchnorm_spatial_persistent);
-#ifdef PADDLE_WITH_HIP
-COMMON_DECLARE_bool(batch_norm_use_miopen);
-#endif
+PD_DECLARE_bool(cudnn_batchnorm_spatial_persistent);
 namespace phi {
 
 template <typename T>
@@ -592,10 +589,7 @@ void BatchNormGradFunctor(const Context &ctx,
   auto dtype = phi::backends::gpu::CudnnDataType<T>::type;
 #ifdef PADDLE_WITH_HIP
   auto compute_format =
-      data_layout == DataLayout::kNHWC
-          ? (FLAGS_batch_norm_use_miopen == true ? DataLayout::kNCHW
-                                                 : DataLayout::kNHWC)
-          : DataLayout::kNCHW;
+      data_layout == DataLayout::kNHWC ? DataLayout::kNHWC : DataLayout::kNCHW;
 
 // TODO(wangran16): wait for MIOpen to improve the performance of BN
 // HIP do not support compute format of NHWC
@@ -666,15 +660,15 @@ void BatchNormGradFunctor(const Context &ctx,
 
 // ------------------- cudnn descriptors ---------------------
 #ifdef PADDLE_WITH_HIP
-    // TODO(wangran16): wait for MIOpen to improve the performance of BN
-    miopenTensorDescriptor_t data_desc_;
-    miopenTensorDescriptor_t bn_param_desc_;
-    miopenBatchNormMode_t mode_;
+// TODO(wangran16): wait for MIOpen to improve the performance of BN
+// miopenTensorDescriptor_t data_desc_;
+// miopenTensorDescriptor_t bn_param_desc_;
+// miopenBatchNormMode_t mode_;
 
-    PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::miopenCreateTensorDescriptor(&data_desc_));
-    PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::miopenCreateTensorDescriptor(&bn_param_desc_));
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenCreateTensorDescriptor(&data_desc_));
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenCreateTensorDescriptor(&bn_param_desc_));
 #else
     cudnnTensorDescriptor_t data_desc_;
     cudnnTensorDescriptor_t bn_param_desc_;
@@ -692,12 +686,8 @@ void BatchNormGradFunctor(const Context &ctx,
     }
     epsilon = std::max(epsilon, CUDNN_BN_MIN_EPSILON);
 #ifdef PADDLE_WITH_HIP
-    // TODO(wangran16): wait for MIOpen to improve the performance of BN
-    if (H == 1 && W == 1) {
-      mode_ = miopenBNPerActivation;
-    } else {
-      mode_ = miopenBNSpatial;
-    }
+// TODO(wangran16): wait for MIOpen to improve the performance of BN
+// mode_ = miopenBNSpatial;
 #elif CUDNN_VERSION_MIN(7, 0, 1)
     if (FLAGS_cudnn_batchnorm_spatial_persistent) {
       mode_ = CUDNN_BATCHNORM_SPATIAL_PERSISTENT;
@@ -715,15 +705,14 @@ void BatchNormGradFunctor(const Context &ctx,
 #endif  // CUDNN_VERSION_MIN(7, 0, 1)
 
 #ifdef PADDLE_WITH_HIP
-    // TODO(wangran16): wait for MIOpen to improve the performance of BN
-    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenSetTensorDescriptor(
-        data_desc_,
-        CudnnDataType<T>::type,
-        x_dims.size() > 3 ? x_dims.size() : 4,
-        const_cast<int *>(dims.data()),
-        const_cast<int *>(strides.data())));
-    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::miopenDeriveBNTensorDescriptor(
-        bn_param_desc_, data_desc_, mode_));
+// TODO(wangran16): wait for MIOpen to improve the performance of BN
+// PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::miopenSetTensorDescriptor(
+//     data_desc_, CudnnDataType<T>::type,
+//     x_dims.size() > 3 ? x_dims.size() : 4, const_cast<int *>(dims.data()),
+//     const_cast<int *>(strides.data())));
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenDeriveBNTensorDescriptor(bn_param_desc_,
+//                                                       data_desc_, mode_));
 #else
     PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cudnnSetTensorNdDescriptor(
         data_desc_,
@@ -761,44 +750,20 @@ void BatchNormGradFunctor(const Context &ctx,
     if (d_x && d_scale && d_bias) {
 #ifdef PADDLE_WITH_HIP
       if (compute_format == DataLayout::kNCHW) {
-        if (FLAGS_batch_norm_use_miopen == true) {
-          PADDLE_ENFORCE_GPU_SUCCESS(
-              phi::dynload::miopenBatchNormalizationBackward(
-                  ctx.cudnn_handle(),
-                  mode_,
-                  CudnnDataType<T>::kOne(),
-                  CudnnDataType<T>::kZero(),
-                  CudnnDataType<T>::kOne(),
-                  CudnnDataType<T>::kZero(),
-                  data_desc_,
-                  transformed_x.template data<T>(),
-                  data_desc_,
-                  transformed_d_y.template data<T>(),
-                  data_desc_,
-                  ctx.template Alloc<T>(&transformed_d_x),
-                  bn_param_desc_,
-                  new_scale.template data<BatchNormParamType<T>>(),
-                  ctx.template Alloc<BatchNormParamType<T>>(d_scale),
-                  ctx.template Alloc<BatchNormParamType<T>>(d_bias),
-                  epsilon,
-                  saved_mean_data,
-                  saved_var_data));
-        } else {
-          BNBackward<T, block, DataLayout::kNCHW>
-              <<<grid2, block, 0, ctx.stream()>>>(
-                  transformed_d_y.template data<T>(),
-                  transformed_x.template data<T>(),
-                  new_scale.template data<BatchNormParamType<T>>(),
-                  saved_mean_data,
-                  saved_var_data,
-                  C,
-                  N,
-                  H * W * D,
-                  epsilon,
-                  transformed_d_x.template data<T>(),
-                  ctx.template Alloc<BatchNormParamType<T>>(d_scale),
-                  ctx.template Alloc<BatchNormParamType<T>>(d_bias));
-        }
+        BNBackward<T, block, DataLayout::kNCHW>
+            <<<grid2, block, 0, ctx.stream()>>>(
+                transformed_d_y.template data<T>(),
+                transformed_x.template data<T>(),
+                new_scale.template data<BatchNormParamType<T>>(),
+                saved_mean_data,
+                saved_var_data,
+                C,
+                N,
+                H * W * D,
+                epsilon,
+                transformed_d_x.template data<T>(),
+                ctx.template Alloc<BatchNormParamType<T>>(d_scale),
+                ctx.template Alloc<BatchNormParamType<T>>(d_bias));
       } else {
         BNBackward<T, block, DataLayout::kNHWC>
             <<<grid2, block, 0, ctx.stream()>>>(
@@ -816,6 +781,21 @@ void BatchNormGradFunctor(const Context &ctx,
                 ctx.template Alloc<BatchNormParamType<T>>(d_bias));
       }
 
+// TODO(wangran16): wait for MIOpen to improve the performance of BN
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenBatchNormalizationBackward(
+//         dev_ctx.cudnn_handle(), mode_, CudnnDataType<T>::kOne(),
+//         CudnnDataType<T>::kZero(), CudnnDataType<T>::kOne(),
+//         CudnnDataType<T>::kZero(), data_desc_,
+//         transformed_x.template data<T>(), data_desc_,
+//         transformed_d_y.template data<T>(), data_desc_,
+//         transformed_d_x.template mutable_data<T>(ctx.GetPlace()),
+//         bn_param_desc_, scale->template data<BatchNormParamType<T>>(),
+//         d_scale->template mutable_data<BatchNormParamType<T>>(
+//             ctx.GetPlace()),
+//         d_bias->template mutable_data<BatchNormParamType<T>>(
+//             ctx.GetPlace()),
+//         epsilon, saved_mean_data, saved_var_data));
 #else
     }
     // CUDNN only support small batch size
@@ -987,11 +967,7 @@ void BatchNormGradFunctor(const Context &ctx,
         workspace_tensor.Resize({static_cast<int64_t>(workspace_size)});
         workspace_ptr =
             static_cast<void *>(ctx.template Alloc<uint8_t>(&workspace_tensor));
-        uint8_t *reserve_space_ptr = nullptr;
-        if (reserve_space_size != 0) {
-          reserve_space_ptr =
-              const_cast<uint8_t *>(reserve_space->template data<uint8_t>());
-        }
+
         PADDLE_ENFORCE_GPU_SUCCESS(
             phi::dynload::cudnnBatchNormalizationBackwardEx(
                 /*handle=*/ctx.cudnn_handle(),
@@ -1026,9 +1002,7 @@ void BatchNormGradFunctor(const Context &ctx,
                 /*workspace=*/workspace_ptr,
                 /*workSpaceSizeInBytes=*/workspace_size,
                 /*reserveSpace=*/
-                // const_cast<uint8_t *>(reserve_space->template
-                // data<uint8_t>()),
-                reserve_space_ptr,
+                const_cast<uint8_t *>(reserve_space->template data<uint8_t>()),
                 /*reserveSpaceSizeInBytes=*/reserve_space_size));
 #else
         PADDLE_ENFORCE_GPU_SUCCESS(
@@ -1153,12 +1127,12 @@ void BatchNormGradFunctor(const Context &ctx,
     }
 
 #ifdef PADDLE_WITH_HIP
-    // TODO(wangran16): wait for MIOpen to improve the performance of BN
-    // clean when exit.
-    PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::miopenDestroyTensorDescriptor(data_desc_));
-    PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::miopenDestroyTensorDescriptor(bn_param_desc_));
+// TODO(wangran16): wait for MIOpen to improve the performance of BN
+// clean when exit.
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenDestroyTensorDescriptor(data_desc_));
+// PADDLE_ENFORCE_GPU_SUCCESS(
+//     platform::dynload::miopenDestroyTensorDescriptor(bn_param_desc_));
 #else
     // clean when exit.
     PADDLE_ENFORCE_GPU_SUCCESS(

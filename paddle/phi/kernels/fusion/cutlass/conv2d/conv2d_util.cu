@@ -16,6 +16,8 @@
 
 #include "paddle/phi/kernels/fusion/cutlass/conv2d/conv2d_util.h"
 
+#include "glog/logging.h"
+
 namespace phi {
 namespace fusion {
 namespace cutlass_internal {
@@ -26,11 +28,10 @@ struct logical_coord {
   int w;
 };
 
-template <typename T>
-float diff(const T *c, const float *c_baseline, int n) {
+float diff(const half *c, const float *c_baseline, int n) {
   float max_diff = -1.;
   for (int i = 0; i < n; i++) {
-    float c_value = static_cast<float>(c[i]);
+    float c_value = __half2float(c[i]);
     if (std::abs(c_baseline[i] - c_value) > max_diff) {
       max_diff = std::abs(c_baseline[i] - c_value);
     }
@@ -43,10 +44,10 @@ __device__ int gpu_nhwc(struct logical_coord shape,
   return index.n * shape.h * shape.w * shape.c + index.h * shape.w * shape.c +
          index.w * shape.c + index.c;
 }
-template <typename T = half>
-__global__ void naive_conv2d_kernel(const T *input,
-                                    const T *weight,
-                                    const T *bias,
+
+__global__ void naive_conv2d_kernel(const half *input,
+                                    const half *weight,
+                                    const half *bias,
                                     float *output,
                                     int batch,
                                     int ic,
@@ -64,7 +65,7 @@ __global__ void naive_conv2d_kernel(const T *input,
                                     int oh,
                                     int ow,
                                     int groups,
-                                    const T *residual,
+                                    const half *residual,
                                     float alpha,  // for leaky_relu
                                     OpType op_type) {
   int M = batch * oh * ow;
@@ -101,12 +102,12 @@ __global__ void naive_conv2d_kernel(const T *input,
     if (iw_i < 0 || iw_i >= iw) continue;
 
     struct logical_coord input_index = {batch_i, ic_i, ih_i, iw_i};
-    const T *weight_ptr = weight + gpu_nhwc(weight_shape, weight_index);
-    const T *in_ptr = input + gpu_nhwc(input_shape, input_index);
-    sum += static_cast<float>(*in_ptr) * static_cast<float>(*weight_ptr);
+    const half *weight_ptr = weight + gpu_nhwc(weight_shape, weight_index);
+    const half *in_ptr = input + gpu_nhwc(input_shape, input_index);
+    sum += __half2float(*in_ptr) * __half2float(*weight_ptr);
   }
 
-  sum += static_cast<float>(*(bias + oc_i));
+  sum += __half2float(*(bias + oc_i));
   float x = sum;
 
   switch (op_type) {
@@ -122,18 +123,9 @@ __global__ void naive_conv2d_kernel(const T *input,
     case CONV2D_DEPTHWISE_BIAS_SILU:
       *out_ptr = x * (1.f / (1 + exp(-x)));
       break;
-    case CONV2D_BIAS_SILU_ADD:
-      x = x * (1.f / (1 + exp(-x)));
-      x += static_cast<float>(*(residual + out_offset));
-      *out_ptr = x;
-      break;
     case CONV2D_BIAS_ADD_RELU:
-      x += static_cast<float>(*(residual + out_offset));
+      x += __half2float(*(residual + out_offset));
       *out_ptr = x > 0 ? x : 0;
-      break;
-    case CONV2D_BIAS_ADD:
-      x += static_cast<float>(*(residual + out_offset));
-      *out_ptr = x;
       break;
     case CONV2D_BIAS_LEAKY_RELU:
       *out_ptr = x > 0 ? x : (x * alpha);
@@ -146,12 +138,12 @@ __global__ void naive_conv2d_kernel(const T *input,
       break;
   }
 }
-template <typename T>
-float conv2d_diff_gpu(const ConvAllParams &params, OpType op_type, T a) {
-  const T *input = (const T *)(params.input);
-  const T *weight = (const T *)(params.weight);
-  const T *bias = (const T *)(params.bias);
-  T *output = static_cast<T *>(params.output);
+
+float conv2d_diff_gpu(const ConvAllParams &params, OpType op_type) {
+  const half *input = params.input;
+  const half *weight = params.weight;
+  const half *bias = params.bias;
+  half *output = params.output;
   int batch = params.batch;
   int ic = params.ic;
   int ih = params.ih;
@@ -165,7 +157,7 @@ float conv2d_diff_gpu(const ConvAllParams &params, OpType op_type, T a) {
   int stride_w = params.stride_w;
   int dilation_h = params.dilation_h;
   int dilation_w = params.dilation_w;
-  const T *residual = (const T *)(params.residual);
+  const half *residual = params.residual;
   int groups = params.groups;
 
   int oh = params.oh;
@@ -179,11 +171,11 @@ float conv2d_diff_gpu(const ConvAllParams &params, OpType op_type, T a) {
   uint3 block = {blockM, blockN, 1};
 
   int output_size = batch * oc * oh * ow;
-  T *output_from_cutlass =
-      reinterpret_cast<T *>(malloc(sizeof(T) * output_size));
+  half *output_from_cutlass =
+      reinterpret_cast<half *>(malloc(sizeof(half) * output_size));
   cudaMemcpy(output_from_cutlass,
              output,
-             output_size * sizeof(T),
+             output_size * sizeof(half),
              cudaMemcpyDeviceToHost);
 
   float *gpu_output;
@@ -217,13 +209,6 @@ float conv2d_diff_gpu(const ConvAllParams &params, OpType op_type, T a) {
              gpu_output,
              output_size * sizeof(float),
              cudaMemcpyDeviceToHost);
-
-  // cudaMemcpy(output,
-  //            gpu_output,
-  //            output_size * sizeof(T),
-  //            cudaMemcpyDeviceToDevice);
-  // cudaMemset(output, 0, output_size * sizeof(T));
-
   float max_diff = diff(output_from_cutlass, output_from_gpu, output_size);
 
   free(output_from_cutlass);
@@ -249,12 +234,6 @@ std::string OpType2String(OpType op_type) {
     case CONV2D_BIAS_ADD_RELU:
       return "conv2d_bias_add_relu";
       break;
-    case CONV2D_BIAS_ADD:
-      return "conv2d_bias_add";
-      break;
-    case CONV2D_BIAS_SILU_ADD:
-      return "conv2d_bias_silu_add";
-      break;
     case CONV2D_BIAS_LEAKY_RELU:
       return "conv2d_bias_leaky_relu";
     case CONV2D_DEPTHWISE_BIAS:
@@ -276,7 +255,7 @@ int ProfileToGetBestConfig(
     const ConvAllParams &params,
     OpType op_type) {
   constexpr int WARMUP = 10;
-  constexpr int REPEAT = 10;
+  constexpr int REPEAT = 100;
   float min_time = 100000.f;
   int min_time_index = -1;
   for (int i = 0; i < all_func.size(); i++) {
@@ -295,51 +274,31 @@ int ProfileToGetBestConfig(
     }
 
     cudaEvent_t beg, end;
-    (cudaEventCreate(&beg));
-    (cudaEventCreate(&end));
-    (cudaEventRecord(beg));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventCreate(&beg));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventCreate(&end));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(beg));
     for (int ii = 0; ii < REPEAT; ii++) {
       status = func(params);
     }
 
-    (cudaEventRecord(end));
-    (cudaEventSynchronize(end));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventRecord(end));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventSynchronize(end));
     float elapsed_time;
-    (cudaEventElapsedTime(&elapsed_time, beg, end));
+    PADDLE_ENFORCE_GPU_SUCCESS(cudaEventElapsedTime(&elapsed_time, beg, end));
     if (elapsed_time < min_time && status == cutlass::Status::kSuccess) {
       min_time = elapsed_time;
       min_time_index = i;
-
-      if (params.data_type == Conv2dDataType::fp16) {
-        // debug code
-        std::cout << OpType2String(op_type) << ": tactic " << i
-                  << " has max diff "
-                  << conv2d_diff_gpu(params, op_type, (half)(1.0))
-                  << " compared with baseline,"
-                  << "cost_time: " << elapsed_time << "ms." << std::endl;
-      } else if (params.data_type == Conv2dDataType::bf16) {
-        // debug code
-        std::cout << OpType2String(op_type) << ": tactic " << i
-                  << " has max diff "
-                  << conv2d_diff_gpu<float>(
-                         params, op_type, static_cast<float>(1.0))
-                  << " compared with baseline,"
-                  << "cost_time: " << elapsed_time << "ms." << std::endl;
-      } else if (params.data_type == Conv2dDataType::fp32) {
-        // debug code
-        std::cout << OpType2String(op_type) << ": tactic " << i
-                  << " has max diff "
-                  << conv2d_diff_gpu<float>(
-                         params, op_type, static_cast<float>(1.0))
-                  << " compared with baseline,"
-                  << "cost_time: " << elapsed_time << "ms." << std::endl;
-      }
+      // debug code
+      VLOG(3) << OpType2String(op_type) << ": tactic " << i << " has max diff "
+              << conv2d_diff_gpu(params, op_type) << " compared with baseline,"
+              << "cost_time: " << elapsed_time << "ms.";
     }
   }
 
   if (min_time_index < 0) {
-    std::cout << "Can't find any cutlass config for " << OpType2String(op_type)
-              << std::endl;
+    PADDLE_THROW(
+        phi::errors::NotFound("Can't find any cutlass config for this %s op.",
+                              OpType2String(op_type).c_str()));
   }
   return min_time_index;
 }

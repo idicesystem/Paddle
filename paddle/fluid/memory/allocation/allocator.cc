@@ -14,7 +14,9 @@
 
 #include "paddle/fluid/memory/allocation/allocator.h"
 
-namespace paddle::memory::allocation {
+namespace paddle {
+namespace memory {
+namespace allocation {
 
 void Allocator::FreeImpl(phi::Allocation* allocation) {
   static_cast<Allocation*>(allocation)
@@ -22,4 +24,6 @@ void Allocator::FreeImpl(phi::Allocation* allocation) {
       ->Free(allocation);
 }
 
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle

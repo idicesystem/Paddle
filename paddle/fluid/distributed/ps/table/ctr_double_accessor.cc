@@ -15,10 +15,11 @@
 #include "paddle/fluid/distributed/ps/table/ctr_double_accessor.h"
 
 #include "glog/logging.h"
-#include "paddle/common/flags.h"
-#include "paddle/utils/string/string_helper.h"
+#include "paddle/fluid/string/string_helper.h"
+#include "paddle/utils/flags.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 int CtrDoubleAccessor::Initialize() {
   auto name = _config.embed_sgd_param().name();
@@ -384,4 +385,5 @@ int CtrDoubleAccessor::ParseFromString(const std::string& str, float* value) {
   return str_len + 2;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

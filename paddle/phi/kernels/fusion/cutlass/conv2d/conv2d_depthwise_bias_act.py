@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+
+sys.path.append("../")
 import enum
 
 from conv2d_common import (
@@ -57,7 +60,13 @@ cba_kernel_no_alpha = (
         CommonCutlassConv2dDepthwiseKernelDeclare, dict_for_declare_part
     )
     + '''
-      void *filter_workspace = params.workspace;
+size_t filter_size = oc * kh * kw * kc * sizeof(half);
+phi::Allocator::AllocationPtr filter_gpu_ptrs_data =
+    phi::memory_utils::Alloc(
+        params.ctx->GetPlace(),
+        filter_size,
+        phi::Stream(reinterpret_cast<phi::StreamId>(params.ctx->stream())));
+void *filter_workspace = filter_gpu_ptrs_data->ptr();
 
       typename ImplicitGemm::Arguments arguments{
           problem_size,
@@ -114,7 +123,7 @@ def intlist2str(input):
     return return_str
 
 
-# Generate simt conv2d_depthwise code.
+# Generate simt conv2d_depthwsie code.
 
 
 def generate_conv2d_depthwise():
@@ -208,7 +217,6 @@ def generate_conv2d_depthwise():
                         )
         # generate op code
         op_dict["all_kernel_func_name"] = all_kernel_names
-        op_dict["kernel_func_declare"] = ";"
         all_code += SubstituteTemplate(CommonConvFunction, op_dict)
     return all_code
 
@@ -217,6 +225,6 @@ if __name__ == "__main__":
     all_code = cdba_header
     all_code += generate_conv2d_depthwise()
     all_code += CommonTail
-    with open("generated_tmp/conv2d_depthwise_bias_act.cu", "w") as f:
+    with open("generated/conv2d_depthwise_bias_act.cu", "w") as f:
         f.write(all_code)
         f.close()

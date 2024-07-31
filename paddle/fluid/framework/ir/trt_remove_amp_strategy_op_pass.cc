@@ -34,14 +34,15 @@ void CastDataTypeInplace(phi::DenseTensor *tensor) {
   tmp_tensor.set_type(phi::CppTypeToDataType<OutType>::Type());
   tmp_tensor.Resize(tensor->dims());
   auto *cpu_ctx = static_cast<phi::CPUContext *>(
-      phi::DeviceContextPool::Instance().Get(phi::CPUPlace()));
+      platform::DeviceContextPool::Instance().Get(phi::CPUPlace()));
   auto *tmp_data = cpu_ctx->Alloc<OutType>(&tmp_tensor);
   auto *data = tensor->data<InType>();
   for (int i = 0; i < tensor->numel(); i++) {
     tmp_data[i] = static_cast<OutType>(data[i]);
   }
   tensor->clear();
-  paddle::framework::TensorCopySync(tmp_tensor, phi::CPUPlace(), tensor);
+  paddle::framework::TensorCopySync(
+      tmp_tensor, paddle::platform::CPUPlace(), tensor);
 }
 }  // namespace
 
@@ -50,7 +51,7 @@ void CastDataTypeInplace(phi::DenseTensor *tensor) {
 void TrtRemoveAMPStrategyOpPass::ApplyImpl(Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(
       graph,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "During the trt_remove_strategy_op_pass, the graph "
           "should not be null."));
   FusePassBase::Init("trt_remove_strategy_op_pass", graph);
@@ -143,7 +144,7 @@ void TrtRemoveAMPStrategyOpPass::ApplyImpl(Graph *graph) const {
       auto output_dtype = op_node->outputs[0]->Var()->GetDataType();
       if ((input_dtype == DataType::FP32 && output_dtype == DataType::FP16) ||
           (input_dtype == DataType::FP16 && output_dtype == DataType::FP32)) {
-        PADDLE_THROW(common::errors::Fatal(
+        PADDLE_THROW(platform::errors::Fatal(
             "There are cast OPs remaining in the graph."));
       }
     }

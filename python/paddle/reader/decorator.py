@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import itertools
 import logging
 import multiprocessing
@@ -23,26 +21,8 @@ import warnings
 from itertools import zip_longest
 from queue import Queue
 from threading import Thread
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Generator,
-    Sequence,
-    TypedDict,
-    TypeVar,
-    overload,
-)
-
-from typing_extensions import NotRequired, TypeAlias, Unpack
 
 from paddle.base.reader import QUEUE_GET_TIMEOUT
-
-if TYPE_CHECKING:
-
-    class _ComposeOptions(TypedDict):
-        check_alignment: NotRequired[bool]
-
 
 __all__ = []
 
@@ -61,18 +41,8 @@ if sys.version_info >= (3, 8) and sys.platform == 'darwin':
 else:
     fork_context = multiprocessing
 
-_T = TypeVar('_T')
-_T1 = TypeVar('_T1')
-_T2 = TypeVar('_T2')
-_T3 = TypeVar('_T3')
-_T4 = TypeVar('_T4')
-_U = TypeVar('_U')
 
-
-_Reader: TypeAlias = Callable[[], Generator[_T, None, None]]
-
-
-def cache(reader: _Reader[_T]) -> _Reader[_T]:
+def cache(reader):
     """
     Cache the reader data into memory.
 
@@ -107,58 +77,10 @@ def cache(reader: _Reader[_T]) -> _Reader[_T]:
     """
     all_data = tuple(reader())
 
-    def __impl__() -> Generator[_T, None, None]:
+    def __impl__():
         yield from all_data
 
     return __impl__
-
-
-# A temporary solution like builtin map function.
-# `Map` maybe the final solution in the future.
-# See https://github.com/python/typing/issues/1383
-@overload
-def map_readers(
-    func: Callable[[_T1], _U], reader1: _Reader[_T1], /
-) -> _Reader[_U]:
-    ...
-
-
-@overload
-def map_readers(
-    func: Callable[[_T1, _T2], _U],
-    reader1: _Reader[_T1],
-    reader2: _Reader[_T2],
-    /,
-) -> _Reader[_U]:
-    ...
-
-
-@overload
-def map_readers(
-    func: Callable[[_T1, _T2, _T3], _U],
-    reader1: _Reader[_T1],
-    reader2: _Reader[_T2],
-    reader3: _Reader[_T3],
-    /,
-) -> _Reader[_U]:
-    ...
-
-
-@overload
-def map_readers(
-    func: Callable[[_T1, _T2, _T3, _T4], _U],
-    reader1: _Reader[_T1],
-    reader2: _Reader[_T2],
-    reader3: _Reader[_T3],
-    reader4: _Reader[_T4],
-    /,
-) -> _Reader[_U]:
-    ...
-
-
-@overload
-def map_readers(func: Callable[..., _U], *readers: _Reader[Any]) -> _Reader[_U]:
-    ...
 
 
 def map_readers(func, *readers):
@@ -202,7 +124,7 @@ def map_readers(func, *readers):
     return reader
 
 
-def shuffle(reader: _Reader[_T], buf_size: int) -> _Reader[_T]:
+def shuffle(reader, buf_size):
     """
     This API creates a decorated reader that outputs the shuffled data.
 
@@ -229,7 +151,7 @@ def shuffle(reader: _Reader[_T], buf_size: int) -> _Reader[_T]:
             >>> # outputs are 0~4 unordered arrangement
     """
 
-    def data_reader() -> Generator[_T, None, None]:
+    def data_reader():
         buf = []
         for e in reader():
             buf.append(e)
@@ -247,7 +169,7 @@ def shuffle(reader: _Reader[_T], buf_size: int) -> _Reader[_T]:
     return data_reader
 
 
-def chain(*readers: _Reader[_T]) -> _Reader[_T]:
+def chain(*readers):
     """
     Use the input data readers to create a chained data reader. The new created reader
     chains the outputs of input readers together as its output, and it do not change
@@ -296,8 +218,8 @@ def chain(*readers: _Reader[_T]) -> _Reader[_T]:
 
     """
 
-    def reader() -> Generator[_T, None, None]:
-        rs: list[Generator[_T, None, None]] = []
+    def reader():
+        rs = []
         for r in readers:
             rs.append(r())
 
@@ -310,9 +232,7 @@ class ComposeNotAligned(ValueError):
     pass
 
 
-def compose(
-    *readers: _Reader[Any], **kwargs: Unpack[_ComposeOptions]
-) -> _Reader[Any]:
+def compose(*readers, **kwargs):
     """
     Creates a data reader whose output is the combination of input readers.
 
@@ -369,7 +289,7 @@ def compose(
     return reader
 
 
-def buffered(reader: _Reader[_T], size: int) -> _Reader[_T]:
+def buffered(reader, size):
     """
     Creates a buffered data reader.
 
@@ -419,7 +339,10 @@ def buffered(reader: _Reader[_T], size: int) -> _Reader[_T]:
         q = Queue(maxsize=size)
         t = Thread(
             target=read_worker,
-            args=(r, q),
+            args=(
+                r,
+                q,
+            ),
         )
         t.daemon = True
         t.start()
@@ -431,7 +354,7 @@ def buffered(reader: _Reader[_T], size: int) -> _Reader[_T]:
     return data_reader
 
 
-def firstn(reader: _Reader[_T], n: int) -> _Reader[_T]:
+def firstn(reader, n):
     """
 
     This API creates a decorated reader, and limits the max number of
@@ -476,13 +399,7 @@ class XmapEndSignal:
     pass
 
 
-def xmap_readers(
-    mapper: Callable[[_T], _U],
-    reader: _Reader[_T],
-    process_num: int,
-    buffer_size: int,
-    order: bool = False,
-) -> _Reader[_U]:
+def xmap_readers(mapper, reader, process_num, buffer_size, order=False):
     """
     Use multi-threads to map samples from reader by a mapper defined by user.
 
@@ -578,11 +495,7 @@ def xmap_readers(
     return xreader
 
 
-def multiprocess_reader(
-    readers: Sequence[_Reader[_T]],
-    use_pipe: bool = True,
-    queue_size: int = 1000,
-) -> _Reader[list[_T]]:
+def multiprocess_reader(readers, use_pipe=True, queue_size=1000):
     """
     This API use python ``multiprocessing`` to read data from ``readers`` parallelly,
     and then ``multiprocess.Queue`` or ``multiprocess.Pipe`` is used to merge
@@ -595,13 +508,13 @@ def multiprocess_reader(
     in some platforms.
 
     Parameters:
-        readers (list( ``generator`` ) | tuple( ``generator`` )): a python ``generator`` list
-            used to read input data
-        use_pipe (bool, optional): control the inner API used to implement the multi-processing,
-            default True - use ``multiprocess.Pipe`` which is recommended
-        queue_size (int, optional): only useful when ``use_pipe`` is False - ``multiprocess.Queue``
-            is used, default 1000. Increase this value can speed up the data reading, and more memory
-            will be consumed.
+       readers (list( ``generator`` ) | tuple( ``generator`` )): a python ``generator`` list
+           used to read input data
+       use_pipe (bool, optional): control the inner API used to implement the multi-processing,
+           default True - use ``multiprocess.Pipe`` which is recommended
+       queue_size (int, optional): only useful when ``use_pipe`` is False - ``multiprocess.Queue``
+           is used, default 1000. Increase this value can speed up the data reading, and more memory
+           will be consumed.
 
     Returns:
         ``generator``: a new reader which can be run parallelly

@@ -57,9 +57,7 @@ class TestPrimAMPO1(unittest.TestCase):
         )
 
         if use_prim:
-            net = paddle.jit.to_static(
-                net, build_strategy=False, full_graph=True
-            )
+            net = paddle.jit.to_static(net, build_strategy=False)
         with paddle.amp.auto_cast(level='O1'):
             out = net(self.x)
             loss = paddle.mean(out)
@@ -84,17 +82,13 @@ class TestPrimAMPO1(unittest.TestCase):
             net = PrimeNet()
             core._set_prim_all_enabled(False)
             net.eval()
-            static_net = paddle.jit.to_static(
-                net, build_strategy=False, full_graph=True
-            )
+            static_net = paddle.jit.to_static(net, build_strategy=False)
             res = static_net(self.x)
 
             # set prim all enabled
             core._set_prim_all_enabled(True)
             net.eval()
-            static_net = paddle.jit.to_static(
-                net, build_strategy=False, full_graph=True
-            )
+            static_net = paddle.jit.to_static(net, build_strategy=False)
             with paddle.amp.auto_cast(level='O1'):
                 res_amp = static_net(self.x)
 

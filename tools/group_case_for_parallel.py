@@ -29,49 +29,43 @@ def group_case_for_parallel(rootPath):
         'exclusive_card_tests',
         'exclusive_card_tests_mem0',
     ]:
-        OS_NAME = sys.platform
-        if OS_NAME.startswith('win'):
-            os.system(
-                f'cd {rootPath}/tools && wget --no-proxy https://paddle-windows.bj.bcebos.com/pre_test_bak_20230908/{filename} --no-check-certificate'
-            )
-        else:
-            os.system(
-                f'cd {rootPath}/tools && wget --no-proxy https://paddle-docker-tar.bj.bcebos.com/pre_test_bak_20230908/{filename} --no-check-certificate'
-            )
+        os.system(
+            f'cd {rootPath}/tools && wget --no-proxy https://paddle-docker-tar.bj.bcebos.com/pre_test_bak_20230908/{filename} --no-check-certificate'
+        )
 
     # get nightly tests
-    nightly_tests_file = open(f'{rootPath}/tools/nightly_case', 'r')
+    nightly_tests_file = open('%s/tools/nightly_case' % rootPath, 'r')
     nightly_tests = nightly_tests_file.read().strip().split('\n')
     nightly_tests_file.close()
 
     parallel_case_file_list = [
-        f'{rootPath}/tools/single_card_tests_mem0',
-        f'{rootPath}/tools/single_card_tests',
-        f'{rootPath}/tools/multiple_card_tests_mem0',
-        f'{rootPath}/tools/multiple_card_tests',
-        f'{rootPath}/tools/exclusive_card_tests_mem0',
-        f'{rootPath}/tools/exclusive_card_tests',
+        '%s/tools/single_card_tests_mem0' % rootPath,
+        '%s/tools/single_card_tests' % rootPath,
+        '%s/tools/multiple_card_tests_mem0' % rootPath,
+        '%s/tools/multiple_card_tests' % rootPath,
+        '%s/tools/exclusive_card_tests_mem0' % rootPath,
+        '%s/tools/exclusive_card_tests' % rootPath,
     ]
-    case_file = f'{rootPath}/build/ut_list'
+    case_file = '%s/build/ut_list' % rootPath
     if os.path.exists(case_file):
         f = open(case_file, 'r')
         all_need_run_cases = f.read().strip().split('\n')
         if len(all_need_run_cases) == 1 and all_need_run_cases[0] == '':
             f.close()
-            case_file = f'{rootPath}/build/all_ut_list'
+            case_file = '%s/build/all_ut_list' % rootPath
             f = open(case_file, 'r')
             all_need_run_cases = f.read().strip().split('\n')
     else:
-        case_file = f'{rootPath}/build/all_ut_list'
+        case_file = '%s/build/all_ut_list' % rootPath
         f = open(case_file, 'r')
         all_need_run_cases = f.read().strip().split('\n')
 
-    print(f"case_file: {case_file}")
+    print("case_file: %s" % case_file)
 
     all_group_case = []
     for filename in parallel_case_file_list:
         fi = open(filename, 'r')
-        new_f = open(f'{filename}_new', 'w')
+        new_f = open('%s_new' % filename, 'w')
         lines = fi.readlines()
         new_case_file_list = []
         for line in lines:
@@ -88,7 +82,7 @@ def group_case_for_parallel(rootPath):
 
         for line in new_case_file_list:
             cases = '$|^'.join(case for case in line)
-            cases = f'^job$|^{cases}$'
+            cases = '^job$|^%s$' % cases
             new_f.write(cases + '\n')
         fi.close()
         new_f.close()
@@ -98,10 +92,10 @@ def group_case_for_parallel(rootPath):
     if len(all_need_run_cases) != 0:
         for case in all_need_run_cases:
             if case not in nightly_tests:
-                cases = cases + f'$|^{case}'
-        cases = f'{cases}$'
+                cases = cases + '$|^%s' % case
+        cases = '%s$' % cases
 
-    new_f = open(f'{rootPath}/tools/no_parallel_case_file', 'w')
+    new_f = open('%s/tools/no_parallel_case_file' % rootPath, 'w')
     new_f.write(cases + '\n')
     new_f.close()
     f.close()

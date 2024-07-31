@@ -24,12 +24,6 @@ namespace fusion {
 
 #define LN_NUM_COLS 1024
 
-#ifdef PADDLE_WITH_HIP
-#define WARPSIZE 64
-#else
-#define WARPSIZE 32
-#endif
-
 template <typename T>
 using CudnnDataType = phi::backends::gpu::CudnnDataType<T>;
 template <typename T>
@@ -143,9 +137,9 @@ __global__ void FusedLayernormResidualDropoutBias(
   int col_id = threadIdx.x;
   int row_id = blockIdx.x;
   int idx = row_id * cols + col_id;
-  GPURAND(StatePhilox4_32_10_t) state;
+  curandStatePhilox4_32_10_t state;
   if (HasDropout) {
-    GPURAND(_init)(seed, idx, increment, &state);
+    curand_init(seed, idx, increment, &state);
   }
 
   T factor =
@@ -153,13 +147,8 @@ __global__ void FusedLayernormResidualDropoutBias(
 
   __shared__ U mean_share;
   __shared__ U var_share;
-#ifdef PADDLE_WITH_HIP
-  __shared__ U shared_mean[64];
-  __shared__ U shared_var[64];
-#else
   __shared__ U shared_mean[32];
   __shared__ U shared_var[32];
-#endif
 
   phi::funcs::ReluFunctor<T> relu;
   U mean_val = 0;
@@ -342,21 +331,16 @@ __global__ void FusedLayernormResidualDropoutBiasInfer(
   int col_id = threadIdx.x;
   int row_id = blockIdx.x;
   int idx = row_id * cols + col_id;
-  GPURAND(StatePhilox4_32_10_t) state;
-  GPURAND(_init)(seed, idx, increment, &state);
+  curandStatePhilox4_32_10_t state;
+  curand_init(seed, idx, increment, &state);
 
   T factor =
       phi::fusion::GetFactor<T>(dropout_prob, is_upscale_in_train, is_test);
 
   __shared__ U mean_share;
   __shared__ U var_share;
-#ifdef PADDLE_WITH_HIP
-  __shared__ U shared_mean[64];
-  __shared__ U shared_var[64];
-#else
   __shared__ U shared_mean[32];
   __shared__ U shared_var[32];
-#endif
 
   phi::funcs::ReluFunctor<T> relu;
   U mean_val = 0;
@@ -437,7 +421,7 @@ struct FusedLayernormResidualDropoutBiasFunctor {
       T *layernorm_dst,
       LayerNormParamType<T> *mean,
       LayerNormParamType<T> *var,
-      GPU(Stream_t) stream) {
+      cudaStream_t stream) {
     int blockDim = phi::funcs::GetDesiredBlockDim(cols / VecSize);
     if (mean != nullptr && var != nullptr) {
       LaunchFusedLayernormResidualDropoutBiasCUDAKernel<T,
@@ -528,7 +512,7 @@ template <bool HasDropout,
           int WARPS_N = 1,
           int BYTES_PER_LDG = 16,
           int ELTS_PER_ROW = 1024,
-          int THREADS_PER_WARP = WARPSIZE,
+          int THREADS_PER_WARP = 32,
           int THREADS_PER_ROW = WARPS_N *THREADS_PER_WARP,
           int THREADS_PER_CTA = WARPS_M *THREADS_PER_ROW,
           int ROWS_PER_CTA = WARPS_M,
@@ -581,9 +565,9 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
   const int r = bidx * ROWS_PER_CTA + warp_m;      // row id
 
   int idx = r * ELTS_PER_ROW + c;
-  GPURAND(StatePhilox4_32_10_t) state;
+  curandStatePhilox4_32_10_t state;
   if (HasDropout) {
-    GPURAND(_init)(seed, idx, increment, &state);
+    curand_init(seed, idx, increment, &state);
   }
 
   T factor =
@@ -636,9 +620,7 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
         RandVec<VecSize>(&state, rand);
 #pragma unroll
         for (int jt = 0; jt < VecSize; jt++) {
-#ifndef PADDLE_WITH_HIP
 #pragma unroll
-#endif
           mask_vec[it][jt] = static_cast<MaskType>(rand[jt] >= dropout_prob);
         }
       }
@@ -726,11 +708,7 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
 
 #pragma unroll
     for (int it = 1; it < THREADS_PER_WARP; it *= 2) {
-#ifdef PADDLE_WITH_HIP
-      mu_local += __shfl_xor(mu_local, it);
-#else
       mu_local += __shfl_xor_sync(uint32_t(-1), mu_local, it);
-#endif
     }
     if (WARPS_N > 1) {
       if (lane == 0) {
@@ -765,11 +743,7 @@ __global__ __launch_bounds__(THREADS_PER_CTA) void fused_fast_ln_fwd_kernel(
 
 #pragma unroll
     for (int it = 1; it < THREADS_PER_WARP; it *= 2) {
-#ifdef PADDLE_WITH_HIP
-      var_local += __shfl_xor(var_local, it);
-#else
       var_local += __shfl_xor_sync(uint32_t(-1), var_local, it);
-#endif
     }
     if (WARPS_N > 1) {
       if (lane == 0) {
@@ -893,7 +867,7 @@ void LaunchLayernormResidualDropoutBias(
                             rows * cols * sizeof(T),
                             ctx.stream());
     if (mask_data != nullptr) {
-      PADDLE_ENFORCE_GPU_SUCCESS(GPU(MemsetAsync)(
+      PADDLE_ENFORCE_GPU_SUCCESS(cudaMemsetAsync(
           mask_data, 0, rows * cols * sizeof(MaskType), ctx.stream()));
     }
     // call layernorm forward
@@ -922,7 +896,7 @@ void LaunchLayernormResidualDropoutBias(
   case (cols): {                                                               \
     constexpr int WARPS_N = cols < 1024 ? 1 : (cols / 1024);                   \
     constexpr int WARPS_M = 4 / WARPS_N;                                       \
-    const int THREADS_PER_WARP = WARPSIZE;                                     \
+    const int THREADS_PER_WARP = 32;                                           \
     const int BYTES_PER_LDG = 16;                                              \
     const int VecSize = BYTES_PER_LDG / sizeof(T);                             \
     const int THREADS_PER_CTA = WARPS_N * THREADS_PER_WARP * WARPS_M;          \

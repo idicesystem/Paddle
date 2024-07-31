@@ -28,6 +28,7 @@ from .config import QuantConfig
 class Quantization(metaclass=abc.ABCMeta):
     r"""
     Abstract class used to prepares a copy of the model for quantization calibration or quantization-aware training.
+
     Args:
         config(QuantConfig): Quantization configuration
     """
@@ -43,6 +44,7 @@ class Quantization(metaclass=abc.ABCMeta):
     def convert(self, model: Layer, inplace=False, remain_weight=False):
         r"""Convert the quantization model to ONNX style. And the converted
         model can be saved as inference model by calling paddle.jit.save.
+
         Args:
             model(Layer): The quantized model to be converted.
             inplace(bool, optional): Whether to modify the model in-place, default is False.
@@ -74,7 +76,7 @@ class Quantization(metaclass=abc.ABCMeta):
             if isinstance(child, ConvertibleQuantedLayer):
                 if child.converted:
                     continue
-                if hasattr(child, 'weight_quanter') and (
+                if (
                     child.weight_quanter is None
                     or child.weight_quanter.scales() is None
                 ):
@@ -109,12 +111,7 @@ class Quantization(metaclass=abc.ABCMeta):
             if config._need_observe(child):
                 replaced[name] = config._get_observe_wrapper(child)
             else:
-                if (
-                    type(child) not in config._qat_layer_mapping.values()
-                    and type(child)
-                    not in config._customized_qat_layer_mapping.values()
-                ):
-                    self._insert_activation_observers(child, config)
+                self._insert_activation_observers(child, config)
         for key, value in replaced.items():
             model._sub_layers[key] = value
 

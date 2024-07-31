@@ -20,7 +20,8 @@
 #include "paddle/phi/kernels/sparse/empty_kernel.h"
 #include "paddle/phi/kernels/sparse/impl/unary_grad_kernel_impl.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 std::vector<int> get_cpu_grad_perm(std::vector<int> perm) {
   std::vector<int> grad_perm(perm.size());
@@ -47,7 +48,8 @@ void TransposeCsrGradKernel(const Context& dev_ctx,
   std::vector<int> grad_perm = get_cpu_grad_perm(perm);
   TransposeCsrKernel<T, Context>(dev_ctx, dout, grad_perm, dx);
 }
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(transpose_coo_grad,
                    CPU,

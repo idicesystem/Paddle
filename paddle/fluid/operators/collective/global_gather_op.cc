@@ -14,7 +14,8 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/collective/global_gather_op.h"
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class GlobalGatherOp : public framework::OperatorWithKernel {
  public:
@@ -31,7 +32,7 @@ class GlobalGatherOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE_GE(
         ring_id,
         0,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The ring_id (%d) for global gather op must be non-negative.",
             ring_id));
     auto input_dims = ctx->GetInputDim("X");
@@ -39,11 +40,11 @@ class GlobalGatherOp : public framework::OperatorWithKernel {
     // dim check
     PADDLE_ENFORCE_EQ(ndim_input,
                       2,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The input tensor's dimension must be 2. "
                           "But received input's dimension = %d.",
                           ndim_input));
-    phi::DDim out_dims = common::make_ddim({-1, -1});
+    framework::DDim out_dims = common::make_ddim({-1, -1});
     ctx->SetOutputDim("Out", out_dims);
   }
 
@@ -99,10 +100,11 @@ class GlobalGatherOpGradMaker : public framework::SingleGradOpMaker<T> {
   }
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
-
+namespace plat = paddle::platform;
 REGISTER_OPERATOR(global_gather,
                   ops::GlobalGatherOp,
                   ops::GlobalGatherOpMaker,
@@ -117,4 +119,4 @@ PD_REGISTER_STRUCT_KERNEL(global_gather,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

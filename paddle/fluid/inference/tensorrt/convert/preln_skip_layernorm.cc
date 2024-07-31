@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class PrelnSkipLayerNormOpConverter : public OpConverter {
  public:
@@ -24,13 +26,14 @@ class PrelnSkipLayerNormOpConverter : public OpConverter {
 #if IS_TRT_VERSION_GE(7000)
     VLOG(4) << "convert fused preln_skip_layernorm op to tensorrt layer";
     if (!(engine_->use_varseqlen() && engine_->with_interleaved())) {
-      PADDLE_THROW(common::errors::Fatal(
+      PADDLE_THROW(platform::errors::Fatal(
           "PrelnErnie: If you want to use oss, must be with interleaved"));
     }
     framework::OpDesc op_desc(op, nullptr);
     bool enable_int8 = op_desc.HasAttr("enable_int8");
     if (!enable_int8) {
-      PADDLE_THROW(common::errors::Fatal("use with_interleaved must be int8."));
+      PADDLE_THROW(
+          platform::errors::Fatal("use with_interleaved must be int8."));
     }
     // Declare inputs
     auto* input1 = engine_->GetITensor(op_desc.Input("X")[0]);
@@ -40,7 +43,7 @@ class PrelnSkipLayerNormOpConverter : public OpConverter {
     inputs.push_back(input2);
 
     auto get_persistable_data = [&](const std::string& arg_name,
-                                    phi::DDim* dims) -> float* {
+                                    framework::DDim* dims) -> float* {
       std::string var_name = op_desc.Input(arg_name).front();
       auto* temp_var = scope.FindVar(var_name);
       auto* temp_tensor = temp_var->GetMutable<phi::DenseTensor>();
@@ -51,7 +54,7 @@ class PrelnSkipLayerNormOpConverter : public OpConverter {
       return temp_data;
     };
 
-    phi::DDim bias_dims, scale_dims;
+    framework::DDim bias_dims, scale_dims;
     auto* bias = get_persistable_data("Bias", &bias_dims);
     auto* scale = get_persistable_data("Scale", &scale_dims);
     int bias_size = common::product(bias_dims);
@@ -67,7 +70,7 @@ class PrelnSkipLayerNormOpConverter : public OpConverter {
     PADDLE_ENFORCE_NE(
         creator,
         nullptr,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "fail to get creator of CustomPrelnSkipLayerNormPluginDynamic"));
     const std::vector<nvinfer1::PluginField> fields{
         {"beta", bias, nvinfer1::PluginFieldType::kFLOAT32, bias_size},
@@ -90,23 +93,25 @@ class PrelnSkipLayerNormOpConverter : public OpConverter {
     PADDLE_ENFORCE_NE(
         plugin_layer,
         nullptr,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "fail to add CustomPrelnSkipLayerNormPluginDynamic layer"));
     layer = plugin_layer;
 
     std::vector<std::string> output_names;
     output_names.push_back(op_desc.Output("Out_0")[0]);
     output_names.push_back(op_desc.Output("Out_1")[0]);
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "preln_skip_layernorm", {output_names}, test_mode);
 #else
-    PADDLE_THROW(common::errors::Fatal(
+    PADDLE_THROW(platform::errors::Fatal(
         "PreInErnie want to use oss, must be with interleaved, "
         "your TRT version is no less than 7.0"));
 #endif
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(preln_skip_layernorm, PrelnSkipLayerNormOpConverter);

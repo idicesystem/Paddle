@@ -59,17 +59,10 @@ void FcXPUKernelImpl(const Context& ctx,
   auto* scale_max_data = scale_max.get_ptr() == nullptr
                              ? nullptr
                              : scale_max.get_ptr()->data<float>();
-  float* out_max_data = nullptr;
-  // when T_OUT is float and TGEMM is int8_t, out_max_data should better set to
-  // nullptr for better performance
-  if (!(std::is_same<T_OUT, float>::value &&
-        std::is_same<T_GEMM, int8_t>::value)) {
-    out_max_data = ctx.template Alloc<float>(out_max);
-    out_max_data = out_max_in.get_ptr() != nullptr
-                       ? const_cast<float*>(out_max_in.get_ptr()->data<float>())
-                       : out_max_data;
-  }
-
+  auto* out_max_data = ctx.template Alloc<float>(out_max);
+  out_max_data = out_max_in.get_ptr() != nullptr
+                     ? const_cast<float*>(out_max_in.get_ptr()->data<float>())
+                     : out_max_data;
   xpu::Activation_t act(static_cast<xpu::Activation_t::act_enum>(act_type));
   if (act_type == xpu::Activation_t::LEAKY_RELU) {
     act.leaky_alpha = act_alpha;
@@ -172,8 +165,6 @@ void FcXPUKernel(const Context& ctx,
             DataTypeToString(w.dtype()),
             DataTypeToString(out_dtype)));
       }
-    } else if (w.dtype() == DataType::FLOAT32) {
-      FC_XPU_KERNEL_IMPL(float, float, float, int32_t);
     } else {
       PADDLE_THROW(phi::errors::Unimplemented(
           "Not support x_dtype is %s, w_dtype is %s and out_dtype is %s.",

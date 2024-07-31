@@ -14,10 +14,6 @@
 
 # isort: skip_file
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any, Sequence
-
 import os
 import copy
 import re
@@ -65,9 +61,6 @@ from .extension_utils import CLANG_COMPILE_FLAGS, CLANG_LINK_FLAGS
 
 from ...base import core
 
-if TYPE_CHECKING:
-    from types import ModuleType
-
 # Note(zhouwei): On windows, it will export function 'PyInit_[name]' by default,
 # The solution is: 1.User add function PyInit_[name] 2. set not to export
 # refer to https://stackoverflow.com/questions/34689210/error-exporting-symbol-when-building-python-c-extension-in-windows
@@ -83,7 +76,7 @@ if core.is_compiled_with_rocm():
     CUDA_HOME = ROCM_HOME
 
 
-def setup(**attr: Any) -> None:
+def setup(**attr):
     """
     The interface is used to config the process of compiling customized operators,
     mainly includes how to compile shared library, automatically generate python API
@@ -214,7 +207,9 @@ def setup(**attr: Any) -> None:
         ext_modules = [ext_modules]
     assert (
         len(ext_modules) == 1
-    ), f"Required only one Extension, but received {len(ext_modules)}. If you want to compile multi operators, you can include all necessary source files in one Extension."
+    ), "Required only one Extension, but received {}. If you want to compile multi operators, you can include all necessary source files in one Extension.".format(
+        len(ext_modules)
+    )
     # replace Extension.name with attr['name] to keep consistent with Package name.
     for ext_module in ext_modules:
         ext_module.name = attr['name']
@@ -241,9 +236,7 @@ def setup(**attr: Any) -> None:
         setuptools.setup(**attr)
 
 
-def CppExtension(
-    sources: Sequence[str], *args: Any, **kwargs: Any
-) -> setuptools.Extension:
+def CppExtension(sources, *args, **kwargs):
     """
     The interface is used to config source files of customized operators and complies
     Op Kernel only supporting CPU device. Please use ``CUDAExtension`` if you want to
@@ -293,9 +286,7 @@ def CppExtension(
     return setuptools.Extension(name, sources, *args, **kwargs)
 
 
-def CUDAExtension(
-    sources: Sequence[str], *args: Any, **kwargs: Any
-) -> setuptools.Extension:
+def CUDAExtension(sources, *args, **kwargs):
     """
     The interface is used to config source files of customized operators and complies
     Op Kernel supporting both CPU and GPU devices. Please use ``CppExtension`` if you want to
@@ -370,7 +361,7 @@ class BuildExtension(build_ext):
     """
 
     @classmethod
-    def with_options(cls, **options: Any) -> type[BuildExtension]:
+    def with_options(cls, **options):
         """
         Returns a BuildExtension subclass containing use-defined options.
         """
@@ -382,7 +373,7 @@ class BuildExtension(build_ext):
 
         return cls_with_options
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         """
         Attributes is initialized with following order:
 
@@ -399,10 +390,10 @@ class BuildExtension(build_ext):
         # whether containing cuda source file in Extensions
         self.contain_cuda_file = False
 
-    def initialize_options(self) -> None:
+    def initialize_options(self):
         super().initialize_options()
 
-    def finalize_options(self) -> None:
+    def finalize_options(self):
         super().finalize_options()
         # NOTE(Aurelius84): Set location of compiled shared library.
         # Carefully to modify this because `setup.py build/install`
@@ -410,7 +401,7 @@ class BuildExtension(build_ext):
         if self.output_dir is not None:
             self.build_lib = self.output_dir
 
-    def build_extensions(self) -> None:
+    def build_extensions(self):
         if OS_NAME.startswith("darwin"):
             self._valid_clang_compiler()
 
@@ -479,7 +470,7 @@ class BuildExtension(build_ext):
                 # Note(qili93): HIP require some additional flags for CMAKE_C_FLAGS
                 if core.is_compiled_with_rocm():
                     cflags.append('-D__HIP_PLATFORM_HCC__')
-                    # cflags.append('-D__HIP_NO_HALF_CONVERSIONS__=1')
+                    cflags.append('-D__HIP_NO_HALF_CONVERSIONS__=1')
                     cflags.append(
                         '-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_HIP'
                     )
@@ -489,7 +480,7 @@ class BuildExtension(build_ext):
                 # shared library have same ABI suffix with libpaddle.so.
                 # See https://stackoverflow.com/questions/34571583/understanding-gcc-5s-glibcxx-use-cxx11-abi-or-the-new-abi
                 add_compile_flag(cflags, ['-D_GLIBCXX_USE_CXX11_ABI=1'])
-                # Append this macro only when jointly compiling .cc with .cu
+                # Append this macor only when jointly compiling .cc with .cu
                 if not is_cuda_file(src) and self.contain_cuda_file:
                     if core.is_compiled_with_rocm():
                         cflags.append('-DPADDLE_WITH_HIP')
@@ -497,7 +488,7 @@ class BuildExtension(build_ext):
                         cflags.append('-DPADDLE_WITH_CUDA')
 
                 add_std_without_repeat(
-                    cflags, self.compiler.compiler_type, use_std17=True
+                    cflags, self.compiler.compiler_type, use_std14=True
                 )
                 original_compile(obj, src, ext, cc_args, cflags, pp_opts)
             finally:
@@ -598,7 +589,7 @@ class BuildExtension(build_ext):
             finally:
                 self.compiler.spawn = original_spawn
 
-        def object_filenames_with_cuda(original_func, build_directory):
+        def object_filenames_with_cuda(origina_func, build_directory):
             """
             Decorated the function to add customized naming mechanism.
             Originally, both .cc/.cu will have .o object output that will
@@ -607,7 +598,7 @@ class BuildExtension(build_ext):
 
             def wrapper(source_filenames, strip_dir=0, output_dir=''):
                 try:
-                    objects = original_func(
+                    objects = origina_func(
                         source_filenames, strip_dir, output_dir
                     )
                     for i, source in enumerate(source_filenames):
@@ -627,7 +618,7 @@ class BuildExtension(build_ext):
                     # ensure to use abspath
                     objects = [os.path.abspath(obj) for obj in objects]
                 finally:
-                    self.compiler.object_filenames = original_func
+                    self.compiler.object_filenames = origina_func
 
                 return objects
 
@@ -651,7 +642,7 @@ class BuildExtension(build_ext):
         so_path = self.get_ext_fullpath(self.extensions[0]._full_name)
         _reset_so_rpath(so_path)
 
-    def get_ext_filename(self, fullname: str) -> str:
+    def get_ext_filename(self, fullname):
         # for example: customized_extension.cpython-37m-x86_64-linux-gnu.so
         ext_name = super().get_ext_filename(fullname)
         split_str = '.'
@@ -669,7 +660,7 @@ class BuildExtension(build_ext):
             ext_name = split_str.join(name_items)
         return ext_name
 
-    def _valid_clang_compiler(self) -> None:
+    def _valid_clang_compiler(self):
         """
         Make sure to use Clang as compiler on Mac platform
         """
@@ -683,7 +674,7 @@ class BuildExtension(build_ext):
             linker_so=linker_infos,
         )
 
-    def _check_abi(self) -> None:
+    def _check_abi(self):
         """
         Check ABI Compatibility.
         """
@@ -708,7 +699,7 @@ class BuildExtension(build_ext):
             )
             raise UserWarning(msg)
 
-    def _record_op_info(self) -> None:
+    def _record_op_info(self):
         """
         Record custom op information.
         """
@@ -740,11 +731,11 @@ class EasyInstallCommand(easy_install):
                     library file after extracting egg-info into site-packages.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     # NOTE(Aurelius84): Add args and kwargs to make compatible with PY2/PY3
-    def run(self, *args: Any, **kwargs: Any) -> None:
+    def run(self, *args, **kwargs):
         super().run(*args, **kwargs)
         # NOTE: To avoid failing import .so file instead of
         # python file because they have same name, we rename
@@ -762,7 +753,7 @@ class EasyInstallCommand(easy_install):
             if will_rename:
                 new_so_path = filename + "_pd_" + ext
                 if not os.path.exists(new_so_path):
-                    os.rename(rf'{egg_file}', rf'{new_so_path}')
+                    os.rename(r'%s' % egg_file, r'%s' % new_so_path)
                 assert os.path.exists(new_so_path)
 
 
@@ -775,7 +766,7 @@ class BuildCommand(build):
     """
 
     @classmethod
-    def with_options(cls, **options: Any) -> type[BuildCommand]:
+    def with_options(cls, **options):
         """
         Returns a BuildCommand subclass containing use-defined options.
         """
@@ -787,13 +778,13 @@ class BuildCommand(build):
 
         return cls_with_options
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         # Note: shall put before super()
         self._specified_build_base = kwargs.get('build_base', None)
 
         super().__init__(*args, **kwargs)
 
-    def initialize_options(self) -> None:
+    def initialize_options(self):
         """
         build_base is root directory for all sub-command, such as
         build_lib, build_temp. See `distutils.command.build` for details.
@@ -804,16 +795,16 @@ class BuildCommand(build):
 
 
 def load(
-    name: str,
-    sources: Sequence[str],
-    extra_cxx_cflags: Sequence[str] | None = None,
-    extra_cuda_cflags: Sequence[str] | None = None,
-    extra_ldflags: Sequence[str] | None = None,
-    extra_include_paths: Sequence[str] | None = None,
-    extra_library_paths: Sequence[str] | None = None,
-    build_directory: str | None = None,
-    verbose: bool = False,
-) -> ModuleType:
+    name,
+    sources,
+    extra_cxx_cflags=None,
+    extra_cuda_cflags=None,
+    extra_ldflags=None,
+    extra_include_paths=None,
+    extra_library_paths=None,
+    build_directory=None,
+    verbose=False,
+):
     """
     An Interface to automatically compile C++/CUDA source files Just-In-Time
     and return callable python function as other Paddle layers API. It will
@@ -838,7 +829,7 @@ def load(
     If the above conditions are not met, the corresponding warning will be printed, and a fatal error may
     occur because of ABI compatibility.
 
-    Compared with ``setup`` interface, it doesn't need extra ``setup.py`` and execute
+    Compared with ``setup`` interface, it doesn't need extra ``setup.py`` and excute
     ``python setup.py install`` command. The interface contains all compiling and installing
     process underground.
 
@@ -859,7 +850,7 @@ def load(
         from paddle.utils.cpp_extension import load
 
         custom_op_module = load(
-            name="op_shared_library_name",                # name of shared library
+            name="op_shared_libary_name",                # name of shared library
             sources=['relu_op.cc', 'relu_op.cu'],        # source files of customized op
             extra_cxx_cflags=['-g', '-w'],               # optional, specify extra flags to compile .cc/.cpp file
             extra_cuda_cflags=['-O2'],                   # optional, specify extra flags to compile .cu file
@@ -874,22 +865,22 @@ def load(
         name(str): Specify the name of generated shared library file name, not including ``.so`` and ``.dll`` suffix.
         sources(list[str]): Specify source files name of customized operators.  Supporting ``.cc`` , ``.cpp`` for CPP file
                             and ``.cu`` for CUDA file.
-        extra_cxx_cflags(list[str]|None, optional): Specify additional flags used to compile CPP files. By default
+        extra_cxx_cflags(list[str], optional): Specify additional flags used to compile CPP files. By default
                                all basic and framework related flags have been included.
-        extra_cuda_cflags(list[str]|None, optional): Specify additional flags used to compile CUDA files. By default
+        extra_cuda_cflags(list[str], optional): Specify additional flags used to compile CUDA files. By default
                                all basic and framework related flags have been included.
                                See `Cuda Compiler Driver NVCC <https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html>`_
                                for details. Default is None.
-        extra_ldflags(list[str]|None, optional): Specify additional flags used to link shared library. See
+        extra_ldflags(list[str], optional): Specify additional flags used to link shared library. See
                                 `GCC Link Options <https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html>`_ for details.
                                 Default is None.
-        extra_include_paths(list[str]|None, optional): Specify additional include path used to search header files. By default
+        extra_include_paths(list[str], optional): Specify additional include path used to search header files. By default
                                 all basic headers are included implicitly from ``site-package/paddle/include`` .
                                 Default is None.
-        extra_library_paths(list[str]|None, optional): Specify additional library path used to search library files. By default
+        extra_library_paths(list[str], optional): Specify additional library path used to search library files. By default
                                 all basic libraries are included implicitly from ``site-packages/paddle/libs`` .
                                 Default is None.
-        build_directory(str|None, optional): Specify root directory path to put shared library file. If set None,
+        build_directory(str, optional): Specify root directory path to put shared library file. If set None,
                             it will use ``PADDLE_EXTENSION_DIR`` from os.environ. Use
                             ``paddle.utils.cpp_extension.get_build_directory()`` to see the location. Default is None.
         verbose(bool, optional): whether to verbose compiled log information. Default is False.
@@ -919,7 +910,9 @@ def load(
     ), f"Required type(extra_cxx_cflags) == list[str], but received {extra_cxx_cflags}"
     assert isinstance(
         extra_cuda_cflags, list
-    ), f"Required type(extra_cuda_cflags) == list[str], but received {extra_cuda_cflags}"
+    ), "Required type(extra_cuda_cflags) == list[str], but received {}".format(
+        extra_cuda_cflags
+    )
 
     log_v(
         "additional extra_cxx_cflags: [{}], extra_cuda_cflags: [{}]".format(

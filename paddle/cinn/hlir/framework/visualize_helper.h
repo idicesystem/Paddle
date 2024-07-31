@@ -25,6 +25,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "paddle/cinn/frontend/syntax.h"
+#include "paddle/cinn/hlir/framework/graph.h"
 #include "paddle/cinn/utils/dot_lang.h"
 
 namespace cinn {
@@ -42,6 +44,8 @@ class PassPrinter {
   bool PassBegin(const std::string& pass_name,
                  const frontend::Program& program);
   bool PassEnd(const std::string& pass_name, const frontend::Program& program);
+  bool PassBegin(const std::string& pass_name, Graph* g);
+  bool PassEnd(const std::string& pass_name, Graph* g);
   bool End();
 
  private:

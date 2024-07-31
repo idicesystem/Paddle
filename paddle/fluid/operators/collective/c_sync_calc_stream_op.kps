@@ -34,10 +34,11 @@ limitations under the License. */
 #include "paddle/fluid/operators/collective/c_sync_calc_stream_op.h"
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_KERNEL(c_sync_calc_stream,
                    KP,
-                   phi::XPUPlace,
-                   ops::CSyncCalcStreamKernel<float, phi::XPUPlace>);
+                   plat::XPUPlace,
+                   ops::CSyncCalcStreamKernel<float, plat::XPUPlace>);
 
 #endif

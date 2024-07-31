@@ -25,7 +25,8 @@
 #include "paddle/phi/infermeta/spmd_rules/reshape.h"
 #include "paddle/phi/infermeta/spmd_rules/utils.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 
 using phi::distributed::auto_parallel::str_join;
 
@@ -73,7 +74,7 @@ std::vector<std::shared_ptr<DimTrans>> MakeUnsqueezeDimTransReverse(
   ret.resize(x_ndim);
   fill(ret.begin(), ret.end(), std::make_shared<Singleton>());
 
-  for (int64_t i = 0, j = 0; i < out_ndim; i++) {  // NOLINT
+  for (int64_t i = 0, j = 0; i < out_ndim; i++) {
     auto it = find(axis.begin(), axis.end(), i);
 
     if (it == axis.end()) {
@@ -92,9 +93,9 @@ SpmdInfo UnsqueezeInferSpmd(const DistMetaTensor& x,
                             const std::vector<int64_t>& axis) {
   // Step0: Verify input args based on unsqueeze logic
   auto x_shape = common::vectorize(x.dims());
-  int x_ndim = static_cast<int>(x_shape.size());
-  const auto& x_dist_attr_src = x.dist_attr();
-  const std::vector<int64_t>& x_dims_mapping = x_dist_attr_src.dims_mapping();
+  int x_ndim = x_shape.size();
+  auto x_dist_attr_src = x.dist_attr();
+  std::vector<int64_t> x_dims_mapping = x_dist_attr_src.dims_mapping();
   PADDLE_ENFORCE_EQ(
       x_ndim,
       x_dims_mapping.size(),
@@ -109,9 +110,9 @@ SpmdInfo UnsqueezeInferSpmd(const DistMetaTensor& x,
   std::vector<int64_t> out_shape;
   std::vector<int64_t> axis_copy(axis);
 
-  for (auto& i : axis_copy) {
-    if (i < 0) {
-      i += x_ndim + 1;
+  for (int64_t i = 0; i < static_cast<int64_t>(axis_copy.size()); i++) {
+    if (axis_copy[i] < 0) {
+      axis_copy[i] += x_ndim + 1;
     }
   }
 
@@ -125,14 +126,14 @@ SpmdInfo UnsqueezeInferSpmd(const DistMetaTensor& x,
 
   // Step3: Update the dist attributes of input
   // and output with the inferred dims mapping.
-  TensorDistAttr x_dist_attr_dst = CopyTensorDistAttrForOutput(x_dist_attr_src);
+  TensorDistAttr x_dist_attr_dst(x_dist_attr_src);
   x_dist_attr_dst.set_dims_mapping(dims_mapping_vec[0]);
   if (x_dist_attr_dst.dynamic_dims().size() !=
       x_dist_attr_dst.dims_mapping().size()) {
     VLOG(4) << "UnSqueezeInferSPMD change output dist attr dynamic dims";
     x_dist_attr_dst.set_default_dynamic_dims(x_dist_attr_dst.dims_mapping());
   }
-  TensorDistAttr out_dist_attr = CopyTensorDistAttrForOutput(x_dist_attr_src);
+  TensorDistAttr out_dist_attr(x_dist_attr_src);
   out_dist_attr.set_dims_mapping(dims_mapping_vec[1]);
   if (out_dist_attr.dynamic_dims().size() !=
       out_dist_attr.dims_mapping().size()) {
@@ -161,12 +162,11 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
                                    const std::vector<int64_t>& axis) {
   // Step0: Verify input args based on unsqueeze logic
   auto x_shape = common::vectorize(x.dims());
-  int x_ndim = static_cast<int>(x_shape.size());
+  int x_ndim = x_shape.size();
   auto out_shape = common::vectorize(out.dims());
-  int out_ndim = static_cast<int>(out_shape.size());
-  const auto& out_dist_attr_src = out.dist_attr();
-  const std::vector<int64_t>& out_dims_mapping =
-      out_dist_attr_src.dims_mapping();
+  int out_ndim = out_shape.size();
+  auto out_dist_attr_src = out.dist_attr();
+  std::vector<int64_t> out_dims_mapping = out_dist_attr_src.dims_mapping();
   PADDLE_ENFORCE_EQ(
       out_ndim,
       out_dims_mapping.size(),
@@ -183,9 +183,9 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
 
   std::vector<int64_t> axis_copy(axis);
 
-  for (auto& i : axis_copy) {
-    if (i < 0) {
-      i += x_ndim + 1;
+  for (int64_t i = 0; i < static_cast<int64_t>(axis_copy.size()); i++) {
+    if (axis_copy[i] < 0) {
+      axis_copy[i] += x_ndim + 1;
     }
   }
 
@@ -199,8 +199,7 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
 
   // Step3: Update the dist attributes of input
   // and output with the inferred dims mapping
-  TensorDistAttr out_dist_attr_dst =
-      CopyTensorDistAttrForOutput(out_dist_attr_src);
+  TensorDistAttr out_dist_attr_dst(out_dist_attr_src);
   out_dist_attr_dst.set_dims_mapping(dims_mapping_vec[0]);
   if (out_dist_attr_dst.dynamic_dims().size() !=
       out_dist_attr_dst.dims_mapping().size()) {
@@ -208,7 +207,7 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
     out_dist_attr_dst.set_default_dynamic_dims(
         out_dist_attr_dst.dims_mapping());
   }
-  TensorDistAttr x_dist_attr = CopyTensorDistAttrForOutput(x.dist_attr());
+  TensorDistAttr x_dist_attr(x.dist_attr());
   x_dist_attr.set_dims_mapping(dims_mapping_vec[1]);
   if (x_dist_attr.dynamic_dims().size() != x_dist_attr.dims_mapping().size()) {
     VLOG(4) << "UnSqueezeInferSPMDReverse change x dist attr dynamic dims";
@@ -217,7 +216,7 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
   VLOG(4) << "UnsqueezeInferSpmdReverse: Out shape: [" << str_join(out_shape)
           << "] X shape: [" << str_join(x_shape) << "]";
   VLOG(4) << "Transformation from output to input:";
-  for (int64_t i = 0, n = static_cast<int64_t>(trans.size()); i < n; i++) {
+  for (int64_t i = 0, n = trans.size(); i < n; i++) {
     std::shared_ptr<DimTrans> t = trans[i];
     VLOG(4) << "\tX axis[" << i << "]: " << t->to_string();
   }
@@ -225,8 +224,7 @@ SpmdInfo UnsqueezeInferSpmdReverse(const DistMetaTensor& x,
           << "dims_mapping_dst: [" << str_join(dims_mapping_vec[0]) << "]";
   VLOG(4) << "X dims_mapping: [" << str_join(dims_mapping_vec[1]) << "]\n\n";
 
-  return {{x_dist_attr},
-          {out_dist_attr_dst, CreateUnsqueezeXshape(x_dist_attr)}};
+  return {{x_dist_attr}, {out_dist_attr_dst}};
 }
 
 SpmdInfo UnsqueezeGradInferSpmd(const DistMetaTensor& xshape,
@@ -238,4 +236,5 @@ SpmdInfo UnsqueezeGradInferSpmd(const DistMetaTensor& xshape,
   return {{xshape.dist_attr(), spmd.first[0]}, {spmd.second[0]}};
 }
 
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

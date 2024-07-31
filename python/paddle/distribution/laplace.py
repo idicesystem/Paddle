@@ -11,19 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import numbers
-from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
 
 import paddle
 from paddle.base import framework
 from paddle.distribution import distribution
-
-if TYPE_CHECKING:
-    from paddle import Tensor
 
 
 class Laplace(distribution.Distribution):
@@ -57,20 +52,14 @@ class Laplace(distribution.Distribution):
                 1.31554604)
 
     """
-    loc: Tensor
-    scale: Tensor
 
-    def __init__(self, loc: float | Tensor, scale: float | Tensor) -> None:
-        if not isinstance(
-            loc, (numbers.Real, framework.Variable, paddle.pir.Value)
-        ):
+    def __init__(self, loc, scale):
+        if not isinstance(loc, (numbers.Real, framework.Variable)):
             raise TypeError(
                 f"Expected type of loc is Real|Variable, but got {type(loc)}"
             )
 
-        if not isinstance(
-            scale, (numbers.Real, framework.Variable, paddle.pir.Value)
-        ):
+        if not isinstance(scale, (numbers.Real, framework.Variable)):
             raise TypeError(
                 f"Expected type of scale is Real|Variable, but got {type(scale)}"
             )
@@ -91,7 +80,7 @@ class Laplace(distribution.Distribution):
         super().__init__(self.loc.shape)
 
     @property
-    def mean(self) -> Tensor:
+    def mean(self):
         """Mean of distribution.
 
         Returns:
@@ -100,7 +89,7 @@ class Laplace(distribution.Distribution):
         return self.loc
 
     @property
-    def stddev(self) -> Tensor:
+    def stddev(self):
         r"""Standard deviation.
 
         The stddev is
@@ -118,7 +107,7 @@ class Laplace(distribution.Distribution):
         return (2**0.5) * self.scale
 
     @property
-    def variance(self) -> Tensor:
+    def variance(self):
         r"""Variance of distribution.
 
         The variance is
@@ -135,9 +124,7 @@ class Laplace(distribution.Distribution):
         """
         return self.stddev.pow(2)
 
-    def _validate_value(
-        self, value: float | Tensor
-    ) -> tuple[Tensor, Tensor, Tensor]:
+    def _validate_value(self, value):
         """Argument dimension check for distribution methods such as `log_prob`,
         `cdf` and `icdf`.
 
@@ -164,7 +151,7 @@ class Laplace(distribution.Distribution):
 
         return loc, scale, value
 
-    def log_prob(self, value: float | Tensor) -> Tensor:
+    def log_prob(self, value):
         r"""Log probability density/mass function.
 
         The log_prob is
@@ -200,7 +187,7 @@ class Laplace(distribution.Distribution):
 
         return log_scale - paddle.abs(value - loc) / scale
 
-    def entropy(self) -> Tensor:
+    def entropy(self):
         r"""Entropy of Laplace distribution.
 
         The entropy is:
@@ -227,7 +214,7 @@ class Laplace(distribution.Distribution):
         """
         return 1 + paddle.log(2 * self.scale)
 
-    def cdf(self, value: float | Tensor) -> Tensor:
+    def cdf(self, value):
         r"""Cumulative distribution function.
 
         The cdf is
@@ -266,7 +253,7 @@ class Laplace(distribution.Distribution):
 
         return 0.5 - iterm
 
-    def icdf(self, value: float | Tensor) -> Tensor:
+    def icdf(self, value):
         r"""Inverse Cumulative distribution function.
 
         The icdf is
@@ -300,7 +287,7 @@ class Laplace(distribution.Distribution):
 
         return loc - scale * (term).sign() * paddle.log1p(-2 * term.abs())
 
-    def sample(self, shape: Sequence[int] = ()) -> Tensor:
+    def sample(self, shape=()):
         r"""Generate samples of the specified shape.
 
         Args:
@@ -323,7 +310,7 @@ class Laplace(distribution.Distribution):
         with paddle.no_grad():
             return self.rsample(shape)
 
-    def rsample(self, shape: Sequence[int]) -> Tensor:
+    def rsample(self, shape):
         r"""Reparameterized sample.
 
         Args:
@@ -355,7 +342,7 @@ class Laplace(distribution.Distribution):
             -uniform.abs()
         )
 
-    def _get_eps(self) -> float:
+    def _get_eps(self):
         """
         Get the eps of certain data type.
 
@@ -375,7 +362,7 @@ class Laplace(distribution.Distribution):
 
         return eps
 
-    def kl_divergence(self, other: Laplace) -> Tensor:
+    def kl_divergence(self, other):
         r"""Calculate the KL divergence KL(self || other) with two Laplace instances.
 
         The kl_divergence between two Laplace distribution is

@@ -14,12 +14,12 @@
 
 import unittest
 
-from test_parallel_dygraph_dataparallel import TestMultipleAccelerators
+from test_parallel_dygraph_dataparallel import TestMultipleGpus
 
 
-class TestDygraphFleetApi(TestMultipleAccelerators):
+class TestDygraphFleetApi(TestMultipleGpus):
     def test_dygraph_fleet_api(self):
-        self.run_mnist_2accelerators('dygraph_fleet_api.py')
+        self.run_mnist_2gpu('dygraph_fleet_api.py')
 
 
 if __name__ == "__main__":

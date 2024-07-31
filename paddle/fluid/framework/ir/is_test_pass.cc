@@ -16,12 +16,14 @@ limitations under the License. */
 
 #include "glog/logging.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Graph;
 
 void IsTestPass::ApplyImpl(ir::Graph* graph) const {
-  VLOG(3) << "Sets is_test attribute to true and if it is missing, inserts it "
+  VLOG(3) << "Sets is_test attrbiute to true and if it is missing, inserts it "
              "for activations and pooling.";
   auto op_list = {"pool2d",      "sigmoid",      "logsigmoid",
                   "softshrink",  "exp",          "brelu",
@@ -50,6 +52,8 @@ void IsTestPass::ApplyImpl(ir::Graph* graph) const {
   }
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(is_test_pass, paddle::framework::ir::IsTestPass);

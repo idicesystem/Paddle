@@ -15,13 +15,13 @@ limitations under the License. */
 #pragma once
 
 #include <hip/hip_runtime.h>
-#include <rocblas/rocblas.h>
+#include <rocblas.h>
 
 #include <mutex>  // NOLINT
 #include <type_traits>
 
 #include "paddle/phi/backends/dynload/dynamic_loader.h"
-#include "paddle/phi/common/port.h"
+#include "paddle/phi/backends/dynload/port.h"
 
 namespace phi {
 namespace dynload {

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -73,13 +72,13 @@ class TestSvdOp(OpTest):
         paddle.enable_static()
 
     def check_S_grad(self):
-        self.check_grad(['X'], ['S'], numeric_grad_delta=0.001, check_pir=True)
+        self.check_grad(['X'], ['S'], numeric_grad_delta=0.001)
 
     def check_U_grad(self):
-        self.check_grad(['X'], ['U'], numeric_grad_delta=0.001, check_pir=True)
+        self.check_grad(['X'], ['U'], numeric_grad_delta=0.001)
 
     def check_V_grad(self):
-        self.check_grad(['X'], ['VH'], numeric_grad_delta=0.001, check_pir=True)
+        self.check_grad(['X'], ['VH'], numeric_grad_delta=0.001)
 
     def test_check_grad(self):
         """
@@ -91,7 +90,7 @@ class TestSvdOp(OpTest):
 
 
 class TestSvdCheckGrad2(TestSvdOp):
-    # NOTE(xiongkun03): because we want to construct some full rank matrices,
+    # NOTE(xiongkun03): because we want to construct some full rank matrics,
     #                   so we can't specifize matrices which numel() > 100
 
     no_need_check_grad = True
@@ -298,13 +297,7 @@ class TestSvdAPI(unittest.TestCase):
     @test_with_pir_api
     def test_static(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for place in places:

@@ -20,7 +20,7 @@ namespace framework {
 
 BuiltinCombineInstruction::BuiltinCombineInstruction(
     size_t id,
-    const phi::Place& place,
+    const platform::Place& place,
     ::pir::Operation* op,
     ValueExecutionInfo* value_exe_info)
     : InstructionBase(id, place) {

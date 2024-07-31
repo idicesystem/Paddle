@@ -26,12 +26,12 @@ limitations under the License. */
 #include "paddle/fluid/framework/scope.h"
 #include "paddle/fluid/framework/variable_helper.h"
 #ifdef PADDLE_WITH_NCCL
-#include "paddle/phi/backends/dynload/nccl.h"
+#include "paddle/fluid/platform/dynload/nccl.h"
 #endif
 #ifdef PADDLE_WITH_RCCL
-#include "paddle/phi/backends/dynload/rccl.h"
+#include "paddle/fluid/platform/dynload/rccl.h"
 #endif
-#include "paddle/common/macros.h"  // for DISABLE_COPY_AND_ASSIGN
+#include "paddle/fluid/platform/macros.h"  // for DISABLE_COPY_AND_ASSIGN
 
 namespace paddle {
 namespace framework {

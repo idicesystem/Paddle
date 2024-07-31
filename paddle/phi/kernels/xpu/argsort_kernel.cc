@@ -28,16 +28,9 @@ static inline void xpu_argsort(xpu::Context* ctx,
                                TID* indices_data,
                                int m,
                                int n,
-                               bool descending,
-                               bool stable) {
-  int ret;
-  if (stable) {
-    ret = xpu::stable_sort(
-        ctx, input_data, output_data, indices_data, m, n, descending);
-  } else {
-    ret =
-        xpu::sort(ctx, input_data, output_data, indices_data, m, n, descending);
-  }
+                               bool descending) {
+  int ret =
+      xpu::sort(ctx, input_data, output_data, indices_data, m, n, descending);
   PADDLE_ENFORCE_XDNN_SUCCESS(ret, "sort");
 }
 
@@ -67,8 +60,7 @@ struct XPUArgsort {
                   int64_t* indices_data,
                   const std::vector<int>& data_shape,
                   const std::vector<int>& permute,
-                  bool descending,
-                  bool stable) {
+                  bool descending) {
     xpu::ctx_guard RAII_GUARD(ctx);
     int m = data_shape[0] * data_shape[2];
     int n = data_shape[1];
@@ -87,8 +79,7 @@ struct XPUArgsort {
                 indices_data_trans,
                 m,
                 n,
-                descending,
-                stable);
+                descending);
     xpu_transpose(
         ctx, output_data_trans, output_data, trans_data_shape, permute);
     xpu_transpose(
@@ -104,8 +95,7 @@ struct XPUArgsort<T, false, true> {
                   int64_t* indices_data,
                   const std::vector<int>& data_shape,
                   const std::vector<int>& permute,
-                  bool descending,
-                  bool stable) {
+                  bool descending) {
     xpu::ctx_guard RAII_GUARD(ctx);
     int m = data_shape[0] * data_shape[2];
     int n = data_shape[1];
@@ -125,8 +115,7 @@ struct XPUArgsort<T, false, true> {
                 indices_data_trans,
                 m,
                 n,
-                descending,
-                stable);
+                descending);
     xpu_transpose(
         ctx, output_data_trans, output_data, trans_data_shape, permute);
     xpu_cast(ctx, indices_data_trans, cast_data_int64, len);
@@ -143,8 +132,7 @@ struct XPUArgsort<int64_t, true, true> {
                   int64_t* indices_data,
                   const std::vector<int>& data_shape,
                   const std::vector<int>& permute,
-                  bool descending,
-                  bool stable) {
+                  bool descending) {
     xpu::ctx_guard RAII_GUARD(ctx);
     int m = data_shape[0] * data_shape[2];
     int n = data_shape[1];
@@ -166,8 +154,7 @@ struct XPUArgsort<int64_t, true, true> {
                 indices_data_trans,
                 m,
                 n,
-                descending,
-                stable);
+                descending);
 
     xpu_cast(ctx, output_data_trans, cast_data_int64, len);
     xpu_transpose(ctx, cast_data_int64, output_data, trans_data_shape, permute);
@@ -182,7 +169,6 @@ void ArgsortKernel(const Context& dev_ctx,
                    const DenseTensor& input,
                    int axis,
                    bool descending,
-                   bool stable,
                    DenseTensor* output,
                    DenseTensor* indices) {
   auto in_dims = input.dims();
@@ -231,8 +217,7 @@ void ArgsortKernel(const Context& dev_ctx,
         indices_data,
         data_shape,
         permute_vec,
-        descending,
-        stable);
+        descending);
   } else if (index_need_cast) {
     XPUArgsort<XPUType, false, true>()(
         dev_ctx.x_context(),
@@ -241,8 +226,7 @@ void ArgsortKernel(const Context& dev_ctx,
         indices_data,
         data_shape,
         permute_vec,
-        descending,
-        stable);
+        descending);
   } else {
     XPUArgsort<XPUType, false, false>()(
         dev_ctx.x_context(),
@@ -251,8 +235,7 @@ void ArgsortKernel(const Context& dev_ctx,
         indices_data,
         data_shape,
         permute_vec,
-        descending,
-        stable);
+        descending);
   }
 }
 

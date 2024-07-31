@@ -18,9 +18,10 @@
 #include "paddle/fluid/memory/memcpy.h"
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/common/float16.h"
+#include "paddle/fluid/platform/float16.h"
 
-namespace paddle_infer::contrib {
+namespace paddle_infer {
+namespace contrib {
 
 using paddle::PaddleDType;
 
@@ -49,11 +50,11 @@ void TensorUtils::CopyTensorImpl(Tensor* p_dst,
   dst.Reshape(src.shape());
   PADDLE_ENFORCE(
       src.place() == PlaceType::kCPU || src.place() == PlaceType::kGPU,
-      common::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "CopyTensor only support PlaceType kCPU/kGPU now."));
   PADDLE_ENFORCE(
       dst.place() == PlaceType::kCPU || dst.place() == PlaceType::kGPU,
-      common::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "CopyTensor only support PlaceType kCPU/kGPU now."));
   // copy to cpu, gpu => cpu or cpu => cpu
   if (dst.place() == PlaceType::kCPU) {
@@ -102,20 +103,20 @@ void TensorUtils::CopyTensorImpl(Tensor* p_dst,
         break;
       case PaddleDType::FLOAT16:
         src.CopyToCpuImpl(
-            dst.mutable_data<phi::dtype::float16>(PlaceType::kCPU),
+            dst.mutable_data<paddle::platform::float16>(PlaceType::kCPU),
             exec_stream,
             cb,
             cb_params);
         break;
       case PaddleDType::BFLOAT16:
         src.CopyToCpuImpl(
-            dst.mutable_data<phi::dtype::bfloat16>(PlaceType::kCPU),
+            dst.mutable_data<paddle::platform::bfloat16>(PlaceType::kCPU),
             exec_stream,
             cb,
             cb_params);
         break;
       default:
-        PADDLE_THROW(common::errors::Unimplemented(
+        PADDLE_THROW(paddle::platform::errors::Unimplemented(
             "Only INT32, INT64, UINT8, INT8, BOOL, FLOAT16, BFLOAT16, FLOAT32 "
             "and "
             "FLOAT64 is supported in Tensor. Others not implements"));
@@ -174,40 +175,41 @@ void TensorUtils::CopyTensorImpl(Tensor* p_dst,
         break;
       case PaddleDType::FLOAT16:
         dst_data = static_cast<void*>(
-            dst.mutable_data<phi::dtype::float16>(PlaceType::kGPU));
+            dst.mutable_data<paddle::platform::float16>(PlaceType::kGPU));
         src_data = static_cast<void*>(
-            src.data<phi::dtype::float16>(&src_place, &data_size));
+            src.data<paddle::platform::float16>(&src_place, &data_size));
         data_len = data_size * 2;
         break;
       case PaddleDType::BFLOAT16:
         dst_data = static_cast<void*>(
-            dst.mutable_data<phi::dtype::bfloat16>(PlaceType::kGPU));
+            dst.mutable_data<paddle::platform::bfloat16>(PlaceType::kGPU));
         src_data = static_cast<void*>(
-            src.data<phi::dtype::bfloat16>(&src_place, &data_size));
+            src.data<paddle::platform::bfloat16>(&src_place, &data_size));
         data_len = data_size * 2;
         break;
       default:
-        PADDLE_THROW(common::errors::Unimplemented(
+        PADDLE_THROW(paddle::platform::errors::Unimplemented(
             "Only INT32, INT64, UINT8, INT8, BOOL, FLOAT16, BFLOAT16, FLOAT32 "
             "and "
             "FLOAT64 is supported in Tensor. Others not implements"));
     }
 
-    phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
-    phi::GPUPlace gpu_place(dst.device_);
+    paddle::platform::DeviceContextPool& pool =
+        paddle::platform::DeviceContextPool::Instance();
+    paddle::platform::CUDAPlace gpu_place(dst.device_);
     auto* dev_ctx = static_cast<const phi::GPUContext*>(pool.Get(gpu_place));
 
     if (src.place() == PlaceType::kCPU) {
       paddle::memory::Copy(gpu_place,
                            static_cast<void*>(dst_data),
-                           phi::CPUPlace(),
+                           paddle::platform::CPUPlace(),
                            src_data,
                            data_len,
                            dev_ctx->stream());
     } else {
       paddle::memory::Copy(gpu_place,
                            static_cast<void*>(dst_data),
-                           phi::GPUPlace(),
+                           paddle::platform::CUDAPlace(),
                            src_data,
                            data_len,
                            dev_ctx->stream());
@@ -221,7 +223,7 @@ void TensorUtils::CopyTensorImpl(Tensor* p_dst,
       cudaStreamSynchronize(dev_ctx->stream());
     }
 #else
-    PADDLE_THROW(common::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "Can not copy tensor to GPU CUDA place because paddle is not compiled "
         "with CUDA."));
 #endif
@@ -288,4 +290,5 @@ bool Status::operator!=(const Status& x) const noexcept {
   return !(*this == x);
 }
 
-}  // namespace paddle_infer::contrib
+}  // namespace contrib
+}  // namespace paddle_infer

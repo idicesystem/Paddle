@@ -32,7 +32,7 @@ namespace operators {
 class MemcpyD2HFunctor {
  public:
   MemcpyD2HFunctor(framework::Variable *out,
-                   const phi::DeviceContext &dev_ctx,
+                   const platform::DeviceContext &dev_ctx,
                    const int dst_place_type)
       : out_(out), dev_ctx_(dev_ctx), dst_place_type_(dst_place_type) {}
 
@@ -53,7 +53,7 @@ class MemcpyD2HFunctor {
 
   void operator()(const phi::SelectedRows &rows) const {
     // (JZ-LIANG) to support SelectedRows
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(platform::errors::Unimplemented(
         "Memcpy for SelectedRows is NOT support yet."));
   }
 
@@ -62,7 +62,7 @@ class MemcpyD2HFunctor {
     PADDLE_ENFORCE_EQ(
         true,
         false,
-        common::errors::PermissionDenied(
+        platform::errors::PermissionDenied(
             "Not support type for Memcpy  op with type %s", typeid(T).name()));
   }
 
@@ -71,12 +71,12 @@ class MemcpyD2HFunctor {
   void CopyLoDTensor(const phi::DenseTensor &src,
                      phi::DenseTensor &dst) const {  // NOLINT
     if (dst_place_type_ == 1) {
-      framework::TensorCopy(src, phi::GPUPinnedPlace(), dev_ctx_, &dst);
+      framework::TensorCopy(src, platform::CUDAPinnedPlace(), dev_ctx_, &dst);
       dev_ctx_.Wait();
     } else if (dst_place_type_ == 0) {
-      framework::TensorCopy(src, phi::CPUPlace(), dev_ctx_, &dst);
+      framework::TensorCopy(src, platform::CPUPlace(), dev_ctx_, &dst);
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "memcpy dst_place_type: %d is not supported yet.", dst_place_type_));
     }
     // NOTE(Aurelius84): host <-> device memory copies of a memory block of 64
@@ -90,7 +90,7 @@ class MemcpyD2HFunctor {
   }
 
   framework::Variable *out_;
-  const phi::DeviceContext &dev_ctx_;
+  const platform::DeviceContext &dev_ctx_;
   const int dst_place_type_;
 };
 

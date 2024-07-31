@@ -47,159 +47,139 @@ void SetKernelArgsDef(const std::vector<std::type_index>& args_type,
     ) {
 #endif
       // do nothing, skip context arg now
-    } else if (arg_type ==
-               std::type_index(typeid(const DenseTensor&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const DenseTensor&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
     } else if (arg_type ==
-               std::type_index(
-                   typeid(const paddle::optional<DenseTensor>&))) {  // NOLINT
-      args_def->AppendInput(default_key.backend(),
-                            default_tensor_layout,
-                            default_key.dtype(),
-                            arg_type);
-    } else if (arg_type ==
-               std::type_index(
-                   typeid(const paddle::optional<
-                          std::vector<const DenseTensor*>>&))) {  // NOLINT
-      args_def->AppendInput(default_key.backend(),
-                            default_tensor_layout,
-                            default_key.dtype(),
-                            arg_type);
-    } else if (arg_type ==
-               std::type_index(
-                   typeid(const paddle::optional<SelectedRows>&))) {  // NOLINT
-      args_def->AppendInput(default_key.backend(),
-                            default_tensor_layout,
-                            default_key.dtype(),
-                            arg_type);
-    } else if (arg_type ==
-               std::type_index(
-                   typeid(const std::vector<const DenseTensor*>&))) {  // NOLINT
-      args_def->AppendInput(default_key.backend(),
-                            default_tensor_layout,
-                            default_key.dtype(),
-                            arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const phi::ExtendedTensor&))) {  // NOLINT
+               std::type_index(typeid(const paddle::optional<DenseTensor>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
     } else if (arg_type ==
                std::type_index(typeid(
-                   const std::vector<const ExtendedTensor*>&))) {  // NOLINT
+                   const paddle::optional<std::vector<const DenseTensor*>>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
     } else if (arg_type ==
-               std::type_index(typeid(
-                   const std::vector<const SelectedRows*>&))) {  // NOLINT
+               std::type_index(typeid(const paddle::optional<SelectedRows>&))) {
+      args_def->AppendInput(default_key.backend(),
+                            default_tensor_layout,
+                            default_key.dtype(),
+                            arg_type);
+    } else if (arg_type == std::type_index(typeid(
+                               const std::vector<const DenseTensor*>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
     } else if (arg_type ==
-               std::type_index(
-                   typeid(const std::vector<const TensorBase*>&))) {  // NOLINT
+               std::type_index(typeid(const phi::ExtendedTensor&))) {
+      args_def->AppendInput(default_key.backend(),
+                            default_tensor_layout,
+                            default_key.dtype(),
+                            arg_type);
+    } else if (arg_type == std::type_index(typeid(
+                               const std::vector<const ExtendedTensor*>&))) {
+      args_def->AppendInput(default_key.backend(),
+                            default_tensor_layout,
+                            default_key.dtype(),
+                            arg_type);
+    } else if (arg_type == std::type_index(typeid(
+                               const std::vector<const SelectedRows*>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
     } else if (arg_type ==
-               std::type_index(
-                   typeid(const std::vector<const TensorArray*>&))) {  // NOLINT
+               std::type_index(typeid(const std::vector<const TensorBase*>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const SelectedRows&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(
+                               const std::vector<const TensorArray*>&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const StringTensor&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const SelectedRows&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const SparseCooTensor&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const StringTensor&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(
-                   paddle::optional<const SparseCooTensor&>))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const SparseCooTensor&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const SparseCsrTensor&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(
+                               paddle::optional<const SparseCooTensor&>))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(
-                   paddle::optional<const SparseCsrTensor&>))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const SparseCsrTensor&))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(const TensorArray&))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(
+                               paddle::optional<const SparseCsrTensor&>))) {
       args_def->AppendInput(default_key.backend(),
                             default_tensor_layout,
                             default_key.dtype(),
                             arg_type);
-    } else if (arg_type == std::type_index(typeid(DenseTensor*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(const TensorArray&))) {
+      args_def->AppendInput(default_key.backend(),
+                            default_tensor_layout,
+                            default_key.dtype(),
+                            arg_type);
+    } else if (arg_type == std::type_index(typeid(DenseTensor*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(std::vector<DenseTensor*>))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(std::vector<DenseTensor*>))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type == std::type_index(typeid(SelectedRows*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(SelectedRows*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type == std::type_index(typeid(TensorArray*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(TensorArray*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(SparseCooTensor*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(SparseCooTensor*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(SparseCsrTensor*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(SparseCsrTensor*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type == std::type_index(typeid(StringTensor*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(StringTensor*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),
                              arg_type);
-    } else if (arg_type ==
-               std::type_index(typeid(ExtendedTensor*))) {  // NOLINT
+    } else if (arg_type == std::type_index(typeid(ExtendedTensor*))) {
       args_def->AppendOutput(default_key.backend(),
                              default_tensor_layout,
                              default_key.dtype(),

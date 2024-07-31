@@ -82,14 +82,14 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
     int hidden_out = weight_dims[2];  // channels_out
     int m = hidden_in;
     int n = three * hidden_out;
-    auto transpose_weight = [](const float* src, float* dst, int m, int n) {
+    auto tranpose_weight = [](const float* src, float* dst, int m, int n) {
       for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
           dst[j * m + i] = src[i * n + j];
         }
       }
     };
-    transpose_weight(weight_data_tmp.data(), weight_data, m, n);
+    tranpose_weight(weight_data_tmp.data(), weight_data, m, n);
 
     int head_number = PADDLE_GET_CONST(int, op_desc.GetAttr("head_number"));
     bool with_fp16 = engine_->WithFp16() && !engine_->disable_trt_plugin_fp16();
@@ -102,7 +102,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
     if (engine_->with_dynamic_shape()) {
       if (flag_varseqlen) {
         if (engine_->precision() == phi::DataType::FLOAT32) {
-          PADDLE_THROW(common::errors::Fatal(
+          PADDLE_THROW(platform::errors::Fatal(
               "use use_varseqlen must be int8 or half, not float32."));
         }
         nvinfer1::Weights weight{nvinfer1::DataType::kFLOAT,
@@ -118,7 +118,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
                      "with_interleaved";
           if (!op_desc.HasAttr("Input_scale")) {
             PADDLE_THROW(
-                common::errors::Fatal("use with_interleaved must be int8."));
+                platform::errors::Fatal("use with_interleaved must be int8."));
           }
           nvinfer1::ILayer* fc_layer = nullptr;
           float dp_probs = 1.0 / 127.0;
@@ -132,7 +132,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
           PADDLE_ENFORCE_EQ(
               op_desc.HasAttr("fc_out_threshold"),
               true,
-              common::errors::InvalidArgument(
+              platform::errors::InvalidArgument(
                   "must have out_threshold in multihead layers in int8 mode"));
           float out_scale =
               PADDLE_GET_CONST(float, op_desc.GetAttr("fc_out_threshold"));
@@ -242,7 +242,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
           if (op_desc.HasAttr("fc_out_threshold")) {
             PADDLE_ENFORCE_EQ(op_desc.HasAttr("fc_out_threshold"),
                               true,
-                              common::errors::InvalidArgument(
+                              platform::errors::InvalidArgument(
                                   "must have out threshold in multihead layers "
                                   "in int8 mode"));
             float out_scale =
@@ -307,7 +307,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
         PADDLE_ENFORCE_EQ(
             input->getDimensions().nbDims,
             3,
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "The Input dim of the SparseMultiheadMatMul should be 3, "
                 "but it's (%d) now.",
                 input->getDimensions().nbDims));
@@ -366,7 +366,7 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
         }
         reshape_before_fc_layer->setReshapeDimensions(reshape_before_fc_dim);
         reshape_before_fc_layer->setName(
-            ("shuffle_before_sparse_multihead_matmul(Output: " + output_name +
+            ("shuffle_before_sparse_multihead_mamul(Output: " + output_name +
              ")")
                 .c_str());
 
@@ -396,15 +396,14 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
           PADDLE_ENFORCE_EQ(
               op_desc.HasAttr("fc_out_threshold"),
               true,
-              common::errors::InvalidArgument(
+              platform::errors::InvalidArgument(
                   "must have out threshold in multihead layers in int8 mode"));
           float out_scale =
               PADDLE_GET_CONST(float, op_desc.GetAttr("fc_out_threshold"));
           engine_->SetTensorDynamicRange(fc_layer->getOutput(0), out_scale);
         }
         fc_layer->setName(
-            ("sparse_multihead_matmul_fc(Output: " + output_name + ")")
-                .c_str());
+            ("sparse_multihead_mamul_fc(Output: " + output_name + ")").c_str());
 
         // no need to add shuffle after fc, just change it in
         // QkvToContextPluginDynamic
@@ -426,13 +425,13 @@ class SparseMultiheadMatMulOpConverter : public OpConverter {
         layer = engine_->AddDynamicPlugin(plugin_inputs.data(), 2, plugin);
       }
     } else {
-      PADDLE_THROW(common::errors::Fatal(
+      PADDLE_THROW(platform::errors::Fatal(
           "You are running the Ernie(Bert) model in static shape mode, which "
           "is not supported for the time being.\n"
           "You can use the config.SetTRTDynamicShapeInfo(...) interface to set "
           "the shape information to run the dynamic shape mode."));
     }
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "multihead_matmul", {output_name}, test_mode);
   }
 };

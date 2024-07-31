@@ -26,7 +26,8 @@
 #include "paddle/fluid/memory/allocation/mmap_allocator.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::imperative {
+namespace paddle {
+namespace imperative {
 
 static std::map<int64_t, std::set<pid_t>> load_process_pids;
 
@@ -44,7 +45,7 @@ void EraseLoadProcessPIDs(int64_t key) {
             << ")";
     load_process_pids.erase(it);
   } else {
-    VLOG(3) << "Dygraph Data Loader: The dygraph loader (id: " << key
+    VLOG(3) << "Dygraph Data Loader: The dygrph loader (id: " << key
             << ") you want erase does not exist.";
   }
 }
@@ -60,7 +61,7 @@ void EraseLoadProcessPIDs(int64_t key) {
 #define SIGNAL_HANDLE(SIGNAL)                               \
   do {                                                      \
     memory::allocation::MemoryMapFdSet::Instance().Clear(); \
-    struct sigaction sa = {};                               \
+    struct sigaction sa;                                    \
     sa.sa_handler = SIG_DFL;                                \
     sa.sa_flags = 0;                                        \
     if (sigemptyset(&sa.sa_mask) != 0 ||                    \
@@ -113,7 +114,7 @@ static inline void setSignalHandler(int signal,
   sa.sa_flags = SA_RESTART | SA_SIGINFO | SA_NOCLDSTOP | SA_NODEFER;
   if (sigemptyset(&sa.sa_mask) != 0 ||
       sigaction(signal, &sa, old_sa_ptr) != 0) {
-    PADDLE_THROW(phi::errors::Fatal(
+    PADDLE_THROW(platform::errors::Fatal(
         "An error occurred while setting handler for %s.", strsignal(signal)));
   }
 }
@@ -147,7 +148,7 @@ void ThrowErrorIfLoadProcessFailed() {
       if (infop.si_code == CLD_EXITED &&
           infop.si_status != EXIT_SUCCESS) {  // exit with error
         pids_set->clear();
-        PADDLE_THROW(phi::errors::Fatal(
+        PADDLE_THROW(platform::errors::Fatal(
             "DataLoader process (pid %ld) exited unexpectedly with code %d. "
             "Error detailed are lost due to multiprocessing. Rerunning with:\n"
             "  1. If run DataLoader by DataLoader.from_generator(...), run "
@@ -163,7 +164,7 @@ void ThrowErrorIfLoadProcessFailed() {
                  infop.si_code == CLD_DUMPED) {  // killed by signal
         if (infop.si_status == SIGBUS) {
           pids_set->clear();
-          PADDLE_THROW(phi::errors::Fatal(
+          PADDLE_THROW(platform::errors::Fatal(
               "DataLoader process (pid %ld) exited is killed by signal: %s.\n"
               "  It may be caused by insufficient shared storage space. This "
               "problem usually occurs when using docker as a development "
@@ -182,7 +183,7 @@ void ThrowErrorIfLoadProcessFailed() {
               process_pid,
               strsignal(infop.si_status)));
         } else {
-          PADDLE_THROW(phi::errors::Fatal(
+          PADDLE_THROW(platform::errors::Fatal(
               "DataLoader process (pid %ld) exited is killed by signal: %s.",
               process_pid,
               strsignal(infop.si_status)));
@@ -192,6 +193,7 @@ void ThrowErrorIfLoadProcessFailed() {
   }
 }
 
-}  // namespace paddle::imperative
+}  // namespace imperative
+}  // namespace paddle
 
 #endif

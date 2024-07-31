@@ -14,18 +14,21 @@ limitations under the License. */
 #include <string>
 
 #include "paddle/fluid/framework/op_registry.h"
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Scope;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class CWaitComputeOp : public framework::OperatorBase {
  public:
@@ -36,11 +39,11 @@ class CWaitComputeOp : public framework::OperatorBase {
       : OperatorBase(type, inputs, outputs, attrs) {}
 
   void RunImpl(const framework::Scope& scope,
-               const phi::Place& place) const override {
+               const platform::Place& place) const override {
     PADDLE_ENFORCE_EQ(
-        place.GetType() == phi::AllocationType::GPU,
+        platform::is_gpu_place(place),
         true,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "wait_compute op can run on gpu place only for now, but got %s",
             place.DebugString()));
 
@@ -49,7 +52,7 @@ class CWaitComputeOp : public framework::OperatorBase {
 
     gpuStream_t compute_stream =
         static_cast<phi::GPUContext*>(
-            phi::DeviceContextPool::Instance().Get(place))
+            platform::DeviceContextPool::Instance().Get(place))
             ->stream();
     gpuStream_t comm_stream = nullptr;
     gpuEvent_t event = nullptr;
@@ -59,7 +62,7 @@ class CWaitComputeOp : public framework::OperatorBase {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(ring_id)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -91,7 +94,7 @@ class CWaitComputeOp : public framework::OperatorBase {
     PADDLE_ENFORCE_GPU_SUCCESS(cudaStreamWaitEvent(comm_stream, event, 0));
 #endif
 #else
-    PADDLE_THROW(common::errors::PreconditionNotMet(
+    PADDLE_THROW(platform::errors::PreconditionNotMet(
         "PaddlePaddle should compile with GPU."));
 #endif
   }
@@ -113,7 +116,8 @@ Comm stream wait Compute Stream with async event.
   }
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 

@@ -51,7 +51,7 @@ class TestCommOpCost(unittest.TestCase):
         cluster = Cluster()
         cluster.build_from_file(cluster_json_path)
 
-        # Build CommContext
+        # Build CommConetxt
         CommContext._has_instance = None
         CommContext._instance = None
         comm_context = CommContext(cluster)
@@ -67,11 +67,9 @@ class TestCommOpCost(unittest.TestCase):
             op_desc=allreduce_sum_op_desc, comm_context=comm_context
         )
 
-        self.assertTrue(allreduce_sum_op_cost.time > 0)
-
         # Check AllgatherOpCost cost
         allgather_op_desc = build_comm_desc(
-            "all_gather",
+            "c_allgather",
             [0, 1, 2, 3, 4, 5, 6, 7],
             paddle.float32,
             [1, 32 * (10**6)],
@@ -131,7 +129,7 @@ class TestCommOpCost(unittest.TestCase):
         cluster = Cluster()
         cluster.build_from_file(cluster_json_path)
 
-        # Build CommContext
+        # Build CommConetxt
         CommContext._has_instance = None
         CommContext._instance = None
         comm_context = CommContext(cluster)
@@ -149,7 +147,7 @@ class TestCommOpCost(unittest.TestCase):
 
         # Check AllgatherOpCost cost
         allgather_op_desc = build_comm_desc(
-            "all_gather",
+            "c_allgather",
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
             paddle.float32,
             [1, 32 * (10**6)],

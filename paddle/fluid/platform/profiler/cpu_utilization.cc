@@ -24,7 +24,6 @@
 // limitations under the License.
 
 #include "paddle/fluid/platform/profiler/cpu_utilization.h"
-#include <array>
 
 namespace paddle {
 namespace platform {
@@ -54,16 +53,16 @@ void CpuUtilization::RecordBeginTimeInfo() {
 #elif defined(__linux__)
   start_ = times(&process_tms_start_);
 #define proc_path_size 1024
-  static char proc_stat_path[proc_path_size] = "/proc/stat";  // NOLINT
+  static char proc_stat_path[proc_path_size] = "/proc/stat";
   FILE *stat_file = fopen(proc_stat_path, "r");
   if (stat_file != nullptr) {
-    std::array<char, 200> temp_str = {};
+    char temp_str[200];
     uint64_t temp_lu;
     int retval =
         fscanf(stat_file,
                "%s %" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64
                "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64,
-               temp_str.data(),
+               temp_str,
                &system_tms_start_.tms_utime,
                &nice_time_start_,
                &system_tms_start_.tms_stime,
@@ -99,16 +98,16 @@ void CpuUtilization::RecordEndTimeInfo() {
 #elif defined(__linux__)
   end_ = times(&process_tms_end_);
 #define proc_path_size 1024
-  static char proc_stat_path[proc_path_size] = "/proc/stat";  // NOLINT
+  static char proc_stat_path[proc_path_size] = "/proc/stat";
   FILE *stat_file = fopen(proc_stat_path, "r");
   if (stat_file != nullptr) {
-    std::array<char, 200> temp_str = {};
+    char temp_str[200];
     uint64_t temp_lu;
     int retval =
         fscanf(stat_file,
                "%s %" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64
                "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64 "%" PRIu64,
-               temp_str.data(),
+               temp_str,
                &system_tms_end_.tms_utime,
                &nice_time_end_,
                &system_tms_end_.tms_stime,
@@ -152,7 +151,7 @@ float CpuUtilization::GetCpuUtilization() {
                     (system_tms_end_.tms_stime - system_tms_start_.tms_stime) +
                     (nice_time_end_ - nice_time_start_) +
                     (irq_end_ - irq_start_) + (softirq_end_ - softirq_start_) +
-                    (steal_end_ - steal_start_);  // NOLINT
+                    (steal_end_ - steal_start_);
   float idle_time = (idle_end_ - idle_start_) + (iowait_end_ - iowait_start_);
   if (busy_time + idle_time != 0) {
     cpu_utilization = busy_time / (busy_time + idle_time);
@@ -183,7 +182,7 @@ float CpuUtilization::GetCpuCurProcessUtilization() {
 #elif defined(__linux__)
   float busy_time =
       (process_tms_end_.tms_utime - process_tms_start_.tms_utime) +
-      (process_tms_end_.tms_stime - process_tms_start_.tms_stime);  // NOLINT
+      (process_tms_end_.tms_stime - process_tms_start_.tms_stime);
   if (end_ - start_ != 0) {
     cpu_process_utilization = busy_time / (end_ - start_);
   }

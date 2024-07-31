@@ -27,7 +27,7 @@
 
 #include "paddle/fluid/framework/tensor.h"
 #include "paddle/fluid/inference/tensorrt/engine.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace inference {
@@ -40,7 +40,7 @@ class TRTInt8Calibrator : public nvinfer1::IInt8EntropyCalibrator2 {
   TRTInt8Calibrator(const std::unordered_map<std::string, size_t>& buffers,
                     int batch_size,
                     std::string engine_name,
-                    const phi::Place place);
+                    const platform::Place place);
 
   explicit TRTInt8Calibrator(const std::string& calibration_data);
   ~TRTInt8Calibrator() override;
@@ -87,7 +87,7 @@ class TRTCalibratorEngine {
   std::unique_ptr<TensorRTEngine> engine_;
 };
 /*
- * Manager to control the TensorRT Int8 calibration creation and deletion.
+ * Manager to control the TensorRT Int8 calibration creation and deltetion.
  */
 class TRTCalibratorEngineManager {
  public:

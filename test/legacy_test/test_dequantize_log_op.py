@@ -20,7 +20,7 @@ from op_test import OpTest
 
 def dequantize_log(x, dict_data):
     output_data = np.zeros_like(x).astype('float32')
-    x_f = x.flatten().astype(np.int16)
+    x_f = x.flatten()
     output_data_f = output_data.flatten()
     for i in range(x_f.size):
         if x_f[i] < 0:
@@ -44,7 +44,7 @@ class TestDequantizeLogOp(OpTest):
         self.outputs = {'Out': xdq}
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False)
+        self.check_output()
 
 
 if __name__ == "__main__":

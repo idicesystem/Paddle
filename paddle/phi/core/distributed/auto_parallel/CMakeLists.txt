@@ -9,7 +9,6 @@ collect_srcs(
   dist_mapper.cc
   dist_tensor.cc
   dist_meta_tensor.cc
-  proto_helper.cc
   placement_types.cc
   inferspmd_utils.cc)
 

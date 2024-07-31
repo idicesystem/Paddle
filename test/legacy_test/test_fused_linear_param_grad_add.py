@@ -70,12 +70,7 @@ def run_ground_truth(x, dy, dweight, dbias, multi_precision, has_bias):
         dweight += dweight_tmp
 
     if has_bias:
-        if multi_precision:
-            dbias_tmp = (
-                promote_dtype(dy).reshape([-1, dy.shape[-1]]).sum(axis=0)
-            )
-        else:
-            dbias_tmp = dy.reshape([-1, dy.shape[-1]]).sum(axis=0)
+        dbias_tmp = dy.reshape([-1, dy.shape[-1]]).sum(axis=0)
         if dbias is None:
             dbias = dbias_tmp
         else:
@@ -96,10 +91,6 @@ def run_fused_linear_param_grad_add(
     )
     if dweight is not None:
         assert dweight_new.data_ptr() == dweight.data_ptr()
-    if has_bias and dbias is not None:
-        assert (
-            dbias_new.data_ptr() == dbias.data_ptr()
-        ), f"multi_precision={multi_precision}, has_bias={has_bias}, dbias.dtype={dbias.dtype}."
     if has_bias:
         return (
             promote_dtype(dweight_new).numpy(),
@@ -161,11 +152,7 @@ class TestMainClassBase(unittest.TestCase):
         self.assertEqual(len(res1), len(res2))
         for r1, r2 in zip(res1, res2):
             max_diff = np.max(np.abs(r1 - r2))
-            self.assertLess(
-                max_diff,
-                1e-10,
-                f"Check failed when: has_dweight={has_dweight}, has_dbias={has_dbias}, multi_precision={multi_precision}, has_bias={has_bias}",
-            )
+            self.assertLess(max_diff, 1e-10)
 
     def test_main(self):
         if not paddle.is_compiled_with_cuda() or paddle.is_compiled_with_rocm():

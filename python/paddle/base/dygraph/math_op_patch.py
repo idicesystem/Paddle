@@ -12,20 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import numpy as np
 
-from paddle import _C_ops
+from paddle import _C_ops, _legacy_C_ops
 
-from .. import core
+from .. import core, framework
 from ..framework import convert_np_dtype_to_dtype_
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import DTypeLike
 
 _supported_int_dtype_ = [
     core.VarDesc.VarType.UINT8,
@@ -71,7 +63,7 @@ def monkey_patch_math_tensor():
     The difference is, in dygraph mode, use auto-generated op functions for better performance.
     """
 
-    def astype(self: Tensor, dtype: DTypeLike) -> Tensor:
+    def astype(self, dtype):
         """
 
         Cast a Tensor to a specified data type.
@@ -95,54 +87,49 @@ def monkey_patch_math_tensor():
                 >>> print("new tensor's dtype is: {}".format(new_tensor.dtype))
                 new tensor's dtype is: paddle.float32
         """
-        if not isinstance(dtype, (core.VarDesc.VarType, core.DataType)):
+        if not isinstance(dtype, core.VarDesc.VarType):
             dtype = convert_np_dtype_to_dtype_(dtype)
         return _C_ops.cast(self, dtype)
 
-    def _scalar_elementwise_op_(
-        var: Tensor, scale: float, bias: float
-    ) -> Tensor:
-        return _C_ops.scale(var, float(scale), bias, True)
+    def _scalar_elementwise_op_(var, scale, bias):
+        if framework.in_dygraph_mode():
+            return _C_ops.scale(var, float(scale), bias, True)
+        else:
+            return _legacy_C_ops.scale(var, 'scale', scale, 'bias', bias)
 
-    def _neg_(var: Tensor) -> Tensor:
+    def _neg_(var):
         return _scalar_elementwise_op_(var, -1.0, 0.0)
 
-    def _float_(var: Tensor) -> float:
+    def _float_(var):
         numel = np.prod(var.shape)
         assert (
             numel == 1
         ), "only one element variable can be converted to float."
-        assert var._is_initialized(), "variable's tensor is not initialized"
-        if (
-            var.dtype == core.VarDesc.VarType.BF16
-            or var.dtype == core.DataType.BFLOAT16
-        ):
+        tensor = var.value().get_tensor()
+        assert tensor._is_initialized(), "variable's tensor is not initialized"
+        if var.dtype == core.VarDesc.VarType.BF16:
             var = var.astype('float32')
         return float(np.array(var))
 
-    def _long_(var: Tensor) -> int:
+    def _long_(var):
         numel = np.prod(var.shape)
         assert numel == 1, "only one element variable can be converted to long."
-        assert var._is_initialized(), "variable's tensor is not initialized"
-        if (
-            var.dtype == core.VarDesc.VarType.BF16
-            or var.dtype == core.DataType.BFLOAT16
-        ):
+        tensor = var.value().get_tensor()
+        assert tensor._is_initialized(), "variable's tensor is not initialized"
+        if var.dtype == core.VarDesc.VarType.BF16:
             var = var.astype('float32')
         return int(np.array(var))
 
-    def _int_(var: Tensor) -> int:
+    def _int_(var):
         numel = np.prod(var.shape)
         assert numel == 1, "only one element variable can be converted to int."
-        assert var._is_initialized(), "variable's tensor is not initialized"
-        if (
-            var.dtype == core.VarDesc.VarType.BF16
-            or var.dtype == core.DataType.BFLOAT16
-        ):
+        tensor = var.value().get_tensor()
+        assert tensor._is_initialized(), "variable's tensor is not initialized"
+        if var.dtype == core.VarDesc.VarType.BF16:
             var = var.astype('float32')
         return int(np.array(var))
 
-    def _len_(var: Tensor) -> int:
+    def _len_(var):
         assert var.ndim > 0, "len() of a 0-D tensor is wrong"
         if var.type == core.VarDesc.VarType.VOCAB:
             return len(var.value().get_map_tensor())
@@ -151,38 +138,38 @@ def monkey_patch_math_tensor():
         else:
             return var.shape[0]
 
-    def _index_(var: Tensor) -> int:
+    def _index_(var):
         numel = np.prod(var.shape)
         assert (
             numel == 1
         ), "only one element variable can be converted to python index."
-        assert var._is_initialized(), "variable's tensor is not initialized"
-        if (
-            var.dtype == core.VarDesc.VarType.BF16
-            or var.dtype == core.DataType.BFLOAT16
-        ):
+        tensor = var.value().get_tensor()
+        assert tensor._is_initialized(), "variable's tensor is not initialized"
+        if var.dtype == core.VarDesc.VarType.BF16:
             var = var.astype('float32')
         return int(np.array(var))
 
     @property
-    def _ndim(var: Tensor) -> int:
+    def _ndim(var):
         return len(var.shape)
 
-    def ndimension(var: Tensor) -> int:
+    def ndimension(var):
         return len(var.shape)
 
-    def dim(var: Tensor) -> int:
+    def dim(var):
         return len(var.shape)
 
     @property
-    def _size_(var: Tensor) -> int:
+    def _size_(var):
         return int(np.prod(var.shape))
 
     @property
-    def _T_(var: Tensor) -> Tensor:
+    def _T_(var):
         if len(var.shape) == 1:
             return var
-        perm = list(reversed(range(len(var.shape))))
+        perm = []
+        for i in range(len(var.shape)):
+            perm.insert(0, i)
         out = _C_ops.transpose(var, perm)
         return out
 

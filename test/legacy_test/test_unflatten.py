@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -38,11 +37,15 @@ def numpy_unflatten(x, axis, shape):
                 sizes = np.prod(shape)
                 if sizes != x.shape[axis]:
                     raise ValueError(
-                        f"The product of the elements in shape{shape} is not equal to {x.shape[axis]}."
+                        "The product of the elements in shape{} is not equal to {}.".format(
+                            shape, x.shape[axis]
+                        )
                     )
     else:
         raise TypeError(
-            f"The data type of x should be one of ['List', 'Tuple', 'Tensor'], but got {type(shape)}"
+            "The data type of x should be one of ['List', 'Tuple', 'Tensor'], but got {}".format(
+                type(shape)
+            )
         )
     length = len(x.shape)
     if axis < 0:
@@ -70,13 +73,7 @@ class TestUnflattenAPI(unittest.TestCase):
         self.set_api()
         self.set_args()
         self.get_output()
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.device.is_compiled_with_cuda()
-        ):
-            self.places.append(paddle.CPUPlace())
+        self.places = [paddle.CPUPlace()]
         if paddle.device.is_compiled_with_cuda():
             self.places.append(paddle.CUDAPlace(0))
 
@@ -98,13 +95,7 @@ class TestUnflattenAPI(unittest.TestCase):
     @test_with_pir_api
     def test_static(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.device.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.device.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for place in places:
@@ -275,24 +266,12 @@ class TestLayer(unittest.TestCase):
 
     def setUp(self):
         self.set_args()
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.device.is_compiled_with_cuda()
-        ):
-            self.places.append(paddle.CPUPlace())
+        self.places = [paddle.CPUPlace()]
         if paddle.device.is_compiled_with_cuda():
             self.places.append(paddle.CUDAPlace(0))
 
     def test_layer(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.device.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.device.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for place in places:

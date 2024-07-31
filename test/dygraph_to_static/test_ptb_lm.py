@@ -17,11 +17,7 @@ import time
 import unittest
 
 import numpy as np
-from dygraph_to_static_utils import (
-    Dy2StTestBase,
-    enable_to_static_guard,
-    test_legacy_and_pt_and_pir,
-)
+from dygraph_to_static_utils import Dy2StTestBase, test_legacy_and_pt_and_pir
 
 import paddle
 from paddle.base.framework import unique_name
@@ -213,8 +209,8 @@ class PtbModel(paddle.nn.Layer):
         projection = paddle.matmul(rnn_out, self.softmax_weight)
         projection = paddle.add(projection, self.softmax_bias)
 
-        loss = paddle.nn.functional.cross_entropy(
-            input=projection, label=label, soft_label=False, reduction="none"
+        loss = paddle.nn.functional.softmax_with_cross_entropy(
+            logits=projection, label=label, soft_label=False
         )
         loss = paddle.reshape(loss, shape=[-1, self.num_steps])
         loss = paddle.mean(loss, axis=[0])
@@ -314,19 +310,20 @@ def train():
 
 
 def train_dygraph():
-    with enable_to_static_guard(False):
-        return train()
+    paddle.jit.enable_to_static(False)
+    return train()
 
 
 def train_static():
+    paddle.jit.enable_to_static(True)
     return train()
 
 
 class TestPtb(Dy2StTestBase):
     @test_legacy_and_pt_and_pir
     def test_check_result(self):
-        loss_1, hidden_1, cell_1 = train_dygraph()
-        loss_2, hidden_2, cell_2 = train_static()
+        loss_1, hidden_1, cell_1 = train_static()
+        loss_2, hidden_2, cell_2 = train_dygraph()
 
         np.testing.assert_allclose(loss_1, loss_2, rtol=1e-05)
         np.testing.assert_allclose(hidden_1, hidden_2, rtol=1e-05)

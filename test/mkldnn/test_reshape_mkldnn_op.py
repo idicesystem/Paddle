@@ -55,19 +55,10 @@ class TestReshape2OneDNNOp(OpTest):
         pass
 
     def test_check_output(self):
-        self.check_output(
-            no_check_set=['XShape'],
-            check_dygraph=False,
-            check_pir_onednn=(self.op_type == "reshape2"),
-        )
+        self.check_output(no_check_set=['XShape'], check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ["X"],
-            "Out",
-            check_dygraph=False,
-            check_pir_onednn=(self.op_type == "reshape2"),
-        )
+        self.check_grad(["X"], "Out", check_dygraph=False)
 
 
 class TestReshape2OneDNNOpZeroDim(TestReshape2OneDNNOp):
@@ -221,10 +212,7 @@ def create_reshape_bf16_test_classes(parent):
 
         def test_check_output(self):
             self.check_output_with_place(
-                core.CPUPlace(),
-                no_check_set=["XShape"],
-                check_dygraph=False,
-                check_pir_onednn=(self.op_type == "reshape2"),
+                core.CPUPlace(), no_check_set=["XShape"], check_dygraph=False
             )
 
         def test_check_grad(self):
@@ -236,7 +224,6 @@ def create_reshape_bf16_test_classes(parent):
                 user_defined_grads=[self.dx],
                 user_defined_grad_outputs=[self.dout],
                 check_dygraph=False,
-                check_pir_onednn=(self.op_type == "reshape2"),
             )
 
     cls_name = "{}_{}".format(parent.__name__, "Reshape2_BF16")
@@ -252,11 +239,7 @@ def create_reshape_bf16_test_classes(parent):
             self.outputs = {"Out": self.x.reshape(self.new_shape)}
 
         def test_check_output(self):
-            self.check_output_with_place(
-                core.CPUPlace(),
-                check_dygraph=False,
-                check_pir_onednn=(self.op_type == "reshape2"),
-            )
+            self.check_output_with_place(core.CPUPlace(), check_dygraph=False)
 
         def test_check_grad(self):
             self.calculate_grads()
@@ -267,7 +250,6 @@ def create_reshape_bf16_test_classes(parent):
                 user_defined_grads=[self.dx],
                 user_defined_grad_outputs=[convert_float_to_uint16(self.dout)],
                 check_dygraph=False,
-                check_pir_onednn=(self.op_type == "reshape2"),
             )
 
     cls_name = "{}_{}".format(parent.__name__, "Reshape_BF16")

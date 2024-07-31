@@ -12,17 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import Sequence
-
+# TODO: define random api
 import paddle
+from paddle import base
 from paddle.base import core
 
 __all__ = []
 
 
-def seed(seed: int) -> paddle.base.core.Generator:
+def seed(seed):
     """
 
     Sets the seed for global default generator, which manages the random number generation.
@@ -45,14 +43,14 @@ def seed(seed: int) -> paddle.base.core.Generator:
 
     seed = int(seed)
 
-    if paddle.is_compiled_with_cuda():
+    if core.is_compiled_with_cuda():
         for i in range(core.get_cuda_device_count()):
             core.default_cuda_generator(i).manual_seed(seed)
-    elif paddle.is_compiled_with_xpu():
+    elif core.is_compiled_with_xpu():
         for i in range(core.get_xpu_device_count()):
             core.default_xpu_generator(i).manual_seed(seed)
-    place = paddle.framework._current_expected_place()
-    if isinstance(place, paddle.CustomPlace):
+    place = base.framework._current_expected_place()
+    if isinstance(place, core.CustomPlace):
         dev_cnt = sum(
             [
                 place.get_device_type() == s.split(':')[0]
@@ -61,14 +59,12 @@ def seed(seed: int) -> paddle.base.core.Generator:
         )
         for i in range(dev_cnt):
             core.default_custom_device_generator(
-                paddle.CustomPlace(place.get_device_type(), i)
+                core.CustomPlace(place.get_device_type(), i)
             ).manual_seed(seed)
     return core.default_cpu_generator().manual_seed(seed)
 
 
-def get_rng_state(
-    device: str | None = None,
-) -> list[paddle.base.core.GeneratorState]:
+def get_rng_state(device=None):
     """
     Get all random states of random generators of specified device.
 
@@ -78,7 +74,7 @@ def get_rng_state(
             If None, return the generators of current device (specified by ``set_device``).
 
     Returns:
-        list[GeneratorState], object.
+        GeneratorState:  object.
 
     Examples:
         .. code-block:: python
@@ -88,19 +84,19 @@ def get_rng_state(
     """
     state_list = []
     if device is None:
-        place = paddle.framework._current_expected_place()
+        place = base.framework._current_expected_place()
     else:
         place = paddle.device._convert_to_place(device)
 
-    if isinstance(place, paddle.CPUPlace):
+    if isinstance(place, core.CPUPlace):
         state_list.append(core.default_cpu_generator().get_state())
-    elif isinstance(place, paddle.CUDAPlace):
+    elif isinstance(place, core.CUDAPlace):
         for i in range(core.get_cuda_device_count()):
             state_list.append(core.default_cuda_generator(i).get_state())
-    elif isinstance(place, paddle.XPUPlace):
+    elif isinstance(place, core.XPUPlace):
         for i in range(core.get_xpu_device_count()):
             state_list.append(core.default_xpu_generator(i).get_state())
-    elif isinstance(place, paddle.CustomPlace):
+    elif isinstance(place, core.CustomPlace):
         dev_cnt = sum(
             [
                 place.get_device_type() == s.split(':')[0]
@@ -121,7 +117,7 @@ def get_rng_state(
     return state_list
 
 
-def get_cuda_rng_state() -> list[paddle.base.core.GeneratorState]:
+def get_cuda_rng_state():
     """
 
     Get random state of cuda generators.
@@ -140,17 +136,14 @@ def get_cuda_rng_state() -> list[paddle.base.core.GeneratorState]:
 
     """
     state_list = []
-    if paddle.is_compiled_with_cuda():
+    if core.is_compiled_with_cuda():
         for i in range(core.get_cuda_device_count()):
             state_list.append(core.default_cuda_generator(i).get_state())
 
     return state_list
 
 
-def set_rng_state(
-    state_list: Sequence[paddle.base.core.GeneratorState],
-    device: str | None = None,
-) -> None:
+def set_rng_state(state_list, device=None):
     """
 
     Sets generator state for all device generators.
@@ -173,25 +166,25 @@ def set_rng_state(
 
     """
     if device is None:
-        place = paddle.framework._current_expected_place()
+        place = base.framework._current_expected_place()
     else:
         place = device._convert_to_place(device)
 
-    if isinstance(place, paddle.CUDAPlace):
+    if isinstance(place, core.CUDAPlace):
         if not len(state_list) == core.get_cuda_device_count():
             raise ValueError(
-                "Length of gpu state list should be equal to the gpu device count"
+                "Length of gpu state list shoule be equal to the gpu device count"
             )
         for i in range(core.get_cuda_device_count()):
             core.default_cuda_generator(i).set_state(state_list[i])
-    elif isinstance(place, paddle.XPUPlace):
+    elif isinstance(place, core.XPUPlace):
         if not len(state_list) == core.get_xpu_device_count():
             raise ValueError(
-                "Length of xpu state list should be equal to the xpu device count"
+                "Length of xpu state list shoule be equal to the xpu device count"
             )
         for i in range(core.get_xpu_device_count()):
             core.default_xpu_generator(i).set_state(state_list[i])
-    elif isinstance(place, paddle.CustomPlace):
+    elif isinstance(place, core.CustomPlace):
         dev_cnt = sum(
             [
                 place.get_device_type() == s.split(':')[0]
@@ -200,15 +193,15 @@ def set_rng_state(
         )
         if not len(state_list) == dev_cnt:
             raise ValueError(
-                f"Length of custom device state list should be equal to the {place.get_dtype_type()} device count"
+                f"Length of custom device state list shoule be equal to the {place.get_dtype_type()} device count"
             )
         for i in range(dev_cnt):
             core.default_custom_device_generator(
-                paddle.CustomPlace(place.get_device_type(), i)
+                core.CustomPlace(place.get_device_type(), i)
             ).set_state(state_list[i])
     elif isinstance(place, core.CPUPlace):
         if not len(state_list) == 1:
-            raise ValueError("Length of cpu state list should be equal to 1")
+            raise ValueError("Length of cpu state list shoule be equal to 1")
         core.default_cpu_generator().set_state(state_list[0])
     else:
         raise ValueError(
@@ -216,9 +209,7 @@ def set_rng_state(
         )
 
 
-def set_cuda_rng_state(
-    state_list: Sequence[paddle.base.core.GeneratorState],
-) -> None:
+def set_cuda_rng_state(state_list):
     """
 
     Sets generator state for all cuda generators.
@@ -237,20 +228,20 @@ def set_cuda_rng_state(
             >>> paddle.set_cuda_rng_state(sts)
 
     """
-    if paddle.is_compiled_with_cuda():
+    if core.is_compiled_with_cuda():
         if not len(state_list) == core.get_cuda_device_count():
             raise ValueError(
-                "Length of cuda state list should be equal to the cuda device count"
+                "Length of cuda state list shoule be equal to the cuda device count"
             )
         for i in range(core.get_cuda_device_count()):
             core.default_cuda_generator(i).set_state(state_list[i])
 
 
-def _manual_program_seed(seed: int) -> None:
+def _manual_program_seed(seed):
     """
     Sets global seed for generating random numbers.
 
-    NOTE(zhiqiu): This is the original implementation of seed. Keeps it temporally
+    NOTE(zhiqiu): This is the original implemention of seed. Keeps it temporally
     since CUDA generator is not developed, so we need it in the unittest.
 
     Args:
@@ -265,9 +256,9 @@ def _manual_program_seed(seed: int) -> None:
     program.global_seed(seed)
 
 
-def set_random_seed_generator(name: str, seed: int) -> None:
+def set_random_seed_generator(name, seed):
     core.set_random_seed_generator(name, seed)
 
 
-def get_random_seed_generator(name: str) -> paddle.base.core.Generator:
+def get_random_seed_generator(name):
     return core.get_random_seed_generator(name)

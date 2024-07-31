@@ -25,6 +25,7 @@
 #include "paddle/fluid/framework/var_desc.h"
 #include "paddle/fluid/operators/controlflow/conditional_block_op_helper.h"
 #include "paddle/fluid/operators/controlflow/pylayer_op_helper.h"
+#include "paddle/fluid/operators/controlflow/recurrent_op_helper.h"
 #include "paddle/fluid/operators/controlflow/while_op_helper.h"
 #include "paddle/fluid/platform/enforce.h"
 
@@ -203,7 +204,7 @@ void DeleteUnusedTensors(const Scope &scope,
       lod_tensor_arr->clear();
     } else if (var->IsType<Strings>()) {
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "Type %s of variable %s is not supported eager deletion.",
           framework::ToTypeName(var->Type()),
           var_name));
@@ -255,7 +256,7 @@ GetEagerDeletionCleanVarsForPartial(const ProgramDesc &origin_program,
   size_t block_num = program.Size();
   PADDLE_ENFORCE_GE(block_num,
                     1,
-                    common::errors::PermissionDenied(
+                    platform::errors::PermissionDenied(
                         "Program should have at least one block"));
   // Note(zhangbo): For dygraph2static inplace policy, origin_program is a
   // partial program(only include forward or backward), and control flow op's
@@ -269,6 +270,8 @@ GetEagerDeletionCleanVarsForPartial(const ProgramDesc &origin_program,
     operators::PrepareSafeEagerDeletionOnPyLayerOpAndPyLayerGradOp(
         program, 0, global_block_ops);
     operators::PrepareSafeEagerDeletionOnWhileOpAndWhileGradOp(
+        program, 0, global_block_ops);
+    operators::PrepareSafeEagerDeletionOnRecurrentOpAndRecurrentGradOp(
         program, 0, global_block_ops);
   }
 
@@ -309,16 +312,16 @@ GetEagerDeletionCleanVarsForPartial(const ProgramDesc &origin_program,
       for (auto sub_block_id : sub_block_ids) {
         PADDLE_ENFORCE_GE(sub_block_id,
                           0,
-                          common::errors::PermissionDenied(
+                          platform::errors::PermissionDenied(
                               "sub_block id must be non-negative number"));
         PADDLE_ENFORCE_LT(sub_block_id,
                           block_num,
-                          common::errors::PermissionDenied(
+                          platform::errors::PermissionDenied(
                               "sub_block id exceeds max block num"));
         PADDLE_ENFORCE_EQ(
             found_skip_vars[sub_block_id],
             false,
-            common::errors::PermissionDenied(
+            platform::errors::PermissionDenied(
                 "there are 2 ops which refer to the same sub_block %d",
                 sub_block_id));
 

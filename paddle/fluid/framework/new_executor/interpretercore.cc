@@ -16,44 +16,43 @@
 
 #include "paddle/fluid/framework/new_executor/pir_interpreter.h"
 #include "paddle/fluid/framework/new_executor/program_interpreter.h"
-#include "paddle/pir/include/core/program.h"
-#include "paddle/pir/include/core/value.h"
+#include "paddle/pir/core/program.h"
+#include "paddle/pir/core/value.h"
 
-PHI_DEFINE_EXPORTED_bool(
+PADDLE_DEFINE_EXPORTED_bool(
     new_executor_serial_run,
     false,
     "Enable serial execution for standalone executor, used for debug.");
-PHI_DEFINE_EXPORTED_bool(
+PADDLE_DEFINE_EXPORTED_bool(
     new_executor_static_build,
     false,
     "Build the interpreterCore statically without running kernels.");
-PHI_DEFINE_EXPORTED_bool(new_executor_use_inplace,
-                         false,
-                         "Use inplace in new executor");
-PHI_DEFINE_EXPORTED_bool(new_executor_use_local_scope,
-                         true,
-                         "Use local_scope in new executor(especially used "
-                         "in UT), can turn off for better performance");
+PADDLE_DEFINE_EXPORTED_bool(new_executor_use_inplace,
+                            false,
+                            "Use inplace in new executor");
+PADDLE_DEFINE_EXPORTED_bool(new_executor_use_local_scope,
+                            true,
+                            "Use local_scope in new executor(especially used "
+                            "in UT), can turn off for better performance");
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
-InterpreterCore::InterpreterCore(const phi::Place& place,
+InterpreterCore::InterpreterCore(const platform::Place& place,
                                  const BlockDesc& block,
                                  framework::Scope* scope,
-                                 const ExecutionConfig& execution_config)
-    : impl_(nullptr), fetch_var_names_() {
+                                 const ExecutionConfig& execution_config) {
   VLOG(4) << "InterpreterCore(): " << this << " on " << place;
   impl_ = std::make_unique<ProgramInterpreter>(
       place, block, scope, execution_config);
 }
 
 InterpreterCore::InterpreterCore(
-    const phi::Place& place,
+    const platform::Place& place,
     const std::vector<std::string>& fetch_var_names,
     const ::pir::Block* ir_block,
     framework::Scope* scope,
-    const ExecutionConfig& execution_config)
-    : impl_(nullptr), fetch_var_names_() {
+    const ExecutionConfig& execution_config) {
   VLOG(4) << "InterpreterCore(): " << this << " on " << place;
   impl_ = std::make_unique<PirInterpreter>(
       place, fetch_var_names, ir_block, scope, execution_config);
@@ -68,25 +67,19 @@ FetchList InterpreterCore::Run(
     const std::vector<std::string>& feed_names,
     const std::vector<phi::DenseTensor>& feed_tensors,
     bool need_fetch,
-    bool enable_job_schedule_profiler,
-    bool switch_stream) {
-  return impl_->Run(feed_names,
-                    feed_tensors,
-                    need_fetch,
-                    enable_job_schedule_profiler,
-                    switch_stream);
+    bool enable_job_schedule_profiler) {
+  return impl_->Run(
+      feed_names, feed_tensors, need_fetch, enable_job_schedule_profiler);
 }
 
 FetchList InterpreterCore::Run(const std::vector<std::string>& feed_names,
                                bool need_fetch,
                                bool enable_job_schedule_profiler,
-                               bool enable_op_profiling,
-                               bool switch_stream) {
+                               bool enable_op_profiling) {
   return impl_->Run(feed_names,
                     need_fetch,
                     enable_job_schedule_profiler,
-                    enable_op_profiling,
-                    switch_stream);
+                    enable_op_profiling);
 }
 
 void InterpreterCore::ShareWorkQueueFrom(std::shared_ptr<InterpreterCore> src) {
@@ -128,7 +121,7 @@ const Scope* InterpreterCore::local_scope() const {
   return impl_->local_scope();
 }
 
-const phi::Place& InterpreterCore::GetPlace() const {
+const platform::Place& InterpreterCore::GetPlace() const {
   return impl_->GetPlace();
 }
 
@@ -137,15 +130,6 @@ void InterpreterCore::SetInputHooks(const std::vector<HookFunc>& hookfuncs) {
 }
 
 void InterpreterCore::SetOutputHooks(const std::vector<HookFunc>& hookfuncs) {
-  impl_->SetOutputHooks(hookfuncs);
-}
-
-void InterpreterCore::SetInputHooks(const std::vector<PirHookFunc>& hookfuncs) {
-  impl_->SetInputHooks(hookfuncs);
-}
-
-void InterpreterCore::SetOutputHooks(
-    const std::vector<PirHookFunc>& hookfuncs) {
   impl_->SetOutputHooks(hookfuncs);
 }
 
@@ -169,4 +153,5 @@ Variable* InterpreterCore::DebugVar(const std::string& name) const {
   return impl_->DebugVar(name);
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

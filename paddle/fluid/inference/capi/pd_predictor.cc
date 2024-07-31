@@ -51,7 +51,8 @@ inline void VisitDataType(PD_DataType type, Visitor visitor) {
 
   _DataType_(VisitDataTypeCallback);
 #undef VisitDataTypeCallback
-  PADDLE_THROW(common::errors::InvalidArgument("Unsupported data type."));
+  PADDLE_THROW(
+      paddle::platform::errors::InvalidArgument("Unsupported data type."));
 }
 
 struct PD_ZeroCopyFunctor {
@@ -89,9 +90,9 @@ bool PD_PredictorRun(const PD_AnalysisConfig* config,
                      int batch_size) {
   PADDLE_ENFORCE_NOT_NULL(
       config,
-      common::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "The pointer of analysis configuration shouldn't be nullptr"));
-  VLOG(3) << "Predictor: PD_PredictorRun. ";
+  VLOG(3) << "Predoctor: PD_PredictorRun. ";
   static std::map<std::string, std::unique_ptr<paddle::PaddlePredictor>>
       predictors;
   if (!predictors.count(config->config.model_dir())) {
@@ -124,7 +125,7 @@ bool PD_PredictorZeroCopyRun(const PD_AnalysisConfig* config,
                              int* out_size) {
   PADDLE_ENFORCE_NOT_NULL(
       config,
-      common::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "The pointer of analysis configuration shouldn't be nullptr"));
   static std::map<std::string, std::unique_ptr<paddle::PaddlePredictor>>
       predictors;
@@ -138,7 +139,7 @@ bool PD_PredictorZeroCopyRun(const PD_AnalysisConfig* config,
   PADDLE_ENFORCE_EQ(
       input_names.size(),
       in_size,
-      common::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "The number of input and the number of model's input must match. The "
           "number of input is %d, the number of model's input is %d.",
           input_names.size(),
@@ -163,7 +164,8 @@ bool PD_PredictorZeroCopyRun(const PD_AnalysisConfig* config,
         input_t->copy_from_cpu(static_cast<uint8_t*>(inputs[i].data));
         break;
       default:
-        PADDLE_THROW(common::errors::InvalidArgument("Unsupported data type."));
+        PADDLE_THROW(paddle::platform::errors::InvalidArgument(
+            "Unsupported data type."));
         break;
     }
   }
@@ -252,7 +254,8 @@ void PD_SetZeroCopyInput(PD_Predictor* predictor,
       input->copy_from_cpu(static_cast<uint8_t*>(tensor->data.data));
       break;
     default:
-      PADDLE_THROW(common::errors::InvalidArgument("Unsupported data type."));
+      PADDLE_THROW(
+          paddle::platform::errors::InvalidArgument("Unsupported data type."));
       break;
   }
 
@@ -322,7 +325,8 @@ void PD_GetZeroCopyOutput(PD_Predictor* predictor, PD_ZeroCopyTensor* tensor) {
       output->copy_to_cpu(reinterpret_cast<uint8_t*>(tensor->data.data));
       break;
     default:
-      PADDLE_THROW(common::errors::InvalidArgument("Unsupported data type."));
+      PADDLE_THROW(
+          paddle::platform::errors::InvalidArgument("Unsupported data type."));
       break;
   }
 }

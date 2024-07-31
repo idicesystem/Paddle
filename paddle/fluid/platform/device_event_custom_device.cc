@@ -16,22 +16,22 @@
 
 #include "paddle/fluid/platform/device/custom/custom_device_resource_pool.h"
 #include "paddle/fluid/platform/device_event_base.h"
-#include "paddle/phi/api/profiler/event.h"
+#include "paddle/fluid/platform/event.h"
 namespace paddle {
 namespace platform {
 struct CustomDeviceEventWrapper {
-  explicit CustomDeviceEventWrapper(const phi::Place& place) {
+  explicit CustomDeviceEventWrapper(const platform::Place& place) {
     PADDLE_ENFORCE_EQ(
-        phi::is_custom_place(place),
+        platform::is_custom_place(place),
         true,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "Required device shall be CustomPlace, but received %d. ", place));
 
     device_id_ = place.device;  // NOLINT
     PADDLE_ENFORCE_GT(
         device_id_,
         -1,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "Required DeviceOption.device_id > -1, but received %d. ",
             device_id_));
     inner_event_ =
@@ -42,7 +42,7 @@ struct CustomDeviceEventWrapper {
 };
 
 void DeviceEventCreateCustomDevice(DeviceEvent* event,
-                                   const phi::Place& place,
+                                   const platform::Place& place,
                                    unsigned int) {
   event->InitEvent(std::make_shared<CustomDeviceEventWrapper>(place));
 }
@@ -51,10 +51,11 @@ void DeviceEventRecordCustomDevice(DeviceEvent* event,
                                    const DeviceContext* context) {
   auto* wrapper =
       static_cast<CustomDeviceEventWrapper*>(event->GetEvent().get());
-  auto* custom_device_ctx = dynamic_cast<const phi::CustomContext*>(context);
+  auto* custom_device_ctx =
+      dynamic_cast<const platform::CustomDeviceContext*>(context);
   PADDLE_ENFORCE_NOT_NULL(
       custom_device_ctx,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast context into NPUDeviceContext."));
 
   phi::stream::Stream stream_wrapper(custom_device_ctx->GetPlace(),
@@ -67,7 +68,7 @@ bool DeviceEventQueryCustomDevice(const DeviceEvent* event) {
       static_cast<CustomDeviceEventWrapper*>(event->GetEvent().get());
   PADDLE_ENFORCE_NOT_NULL(
       wrapper,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast event into CustomDeviceEventWrapper."));
   return wrapper->inner_event_->Query();
 }
@@ -82,10 +83,11 @@ void DeviceEventCustomDeviceWaitCustomDevice(const DeviceEvent* event,
                                              const DeviceContext* context) {
   auto* wrapper =
       static_cast<CustomDeviceEventWrapper*>(event->GetEvent().get());
-  auto* custom_device_ctx = dynamic_cast<const phi::CustomContext*>(context);
+  auto* custom_device_ctx =
+      dynamic_cast<const platform::CustomDeviceContext*>(context);
   PADDLE_ENFORCE_NOT_NULL(
       custom_device_ctx,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast context into NPUDeviceContext."));
   phi::stream::Stream stream_wrapper(custom_device_ctx->GetPlace(),
                                      custom_device_ctx->stream());

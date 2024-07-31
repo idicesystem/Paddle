@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
 import unittest
 
@@ -108,7 +107,7 @@ class TestTakeAlongAxisOp(OpTest):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestTakeAlongAxisBF16Op(OpTest):
     def setUp(self):
@@ -176,14 +175,8 @@ class TestTakeAlongAxisAPI(unittest.TestCase):
         self.index_shape = [1, 3]
         self.index_np = np.array([[0, 1, 2]]).astype('int64')
         self.x_np = np.random.random(self.shape).astype(np.float32)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.axis = 0
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -218,7 +211,7 @@ class TestTakeAlongAxisAPI(unittest.TestCase):
     def test_api_dygraph_dtype(self):
         if sys.platform == 'darwin' or sys.platform == 'win32':
             return
-        paddle.disable_static(paddle.CPUPlace())
+        paddle.disable_static(self.place[0])
         with self.assertRaises(AssertionError):
             x_tensor = paddle.to_tensor(self.x_np)
             self.index = paddle.to_tensor(self.index_np).astype("float32")
@@ -239,14 +232,8 @@ class TestTakeAlongAxisAPICase1(TestTakeAlongAxisAPI):
             'int64'
         )
         self.x_np = np.random.random(self.shape).astype(np.float32)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.axis = 0
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -258,14 +245,8 @@ class TestTakeAlongAxisAPICase2(unittest.TestCase):
         self.index_shape = [1, 3]
         self.index_np = np.array([[0, 1, 2]]).astype('int64')
         self.x_np = np.random.random(self.shape).astype(np.float32)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.axis = 0
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 

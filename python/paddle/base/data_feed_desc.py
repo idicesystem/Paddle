@@ -23,7 +23,9 @@ class DataFeedDesc:
     r"""
     :api_attr: Static Graph
 
-    Datafeed descriptor, describing input training data format.
+    Datafeed descriptor, describing input training data format. This class is
+    currently only used for AsyncExecutor (See comments for class AsyncExecutor
+    for a brief introduction)
 
     DataFeedDesc shall be initialized from a valid protobuf message from disk.
 
@@ -56,7 +58,7 @@ class DataFeedDesc:
         However, users usually shouldn't care about the message format; instead,
         they are encouraged to use :code:`Data Generator` as a tool to generate a
         valid data description, in the process of converting their raw log files to
-        training files acceptable to Executor.
+        training files acceptable to AsyncExecutor.
 
         DataFeedDesc can also be changed during runtime. Once you got familiar with
         what each field mean, you can modify it to better suit your need. E.g.:

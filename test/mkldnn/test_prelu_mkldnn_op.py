@@ -65,12 +65,10 @@ class TestPReluModeChannelOneDNNOp(OpTest):
         self.outputs = {'Out': ref_prelu(self.x, self.alpha, self.mode)}
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        self.check_output(check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X', 'Alpha'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X', 'Alpha'], 'Out', check_dygraph=False)
 
 
 class TestPReluModeAllOneDNNOp(TestPReluModeChannelOneDNNOp):
@@ -81,9 +79,7 @@ class TestPReluModeAllOneDNNOp(TestPReluModeChannelOneDNNOp):
     # Skip 'Alpha' input check because in mode = 'all' it has to be a single
     # 1D value so checking if it has at least 100 values will cause an error
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X'], 'Out', check_dygraph=False)
 
 
 class TestPReluModeElementOneDNNOp(TestPReluModeChannelOneDNNOp):
@@ -173,9 +169,7 @@ def create_bf16_test_class(parent):
             self.dout = dout
 
         def test_check_output(self):
-            self.check_output_with_place(
-                core.CPUPlace(), check_dygraph=False, check_pir_onednn=True
-            )
+            self.check_output_with_place(core.CPUPlace(), check_dygraph=False)
 
         def test_check_grad(self):
             self.calculate_grads()
@@ -186,7 +180,6 @@ def create_bf16_test_class(parent):
                 user_defined_grads=[self.dx, self.dalpha],
                 user_defined_grad_outputs=[convert_float_to_uint16(self.dout)],
                 check_dygraph=False,
-                check_pir_onednn=True,
             )
 
     cls_name = "{}_{}".format(parent.__name__, "BF16")

@@ -16,7 +16,8 @@ limitations under the License. */
 
 #include "paddle/phi/backends/cpu/cpu_context.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 // All tensors are in NCHW or NHWC format, and the groups must be greater than 1
 template <typename DeviceContext, typename T>
@@ -115,4 +116,5 @@ template class MaxOutGradFunctor<phi::CPUContext, double>;
 template class MaxOutFunctor<phi::CPUContext, float>;
 template class MaxOutFunctor<phi::CPUContext, double>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

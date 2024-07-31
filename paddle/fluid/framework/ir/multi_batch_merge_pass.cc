@@ -19,7 +19,9 @@
 #include "paddle/fluid/framework/ir/graph_helper.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 static const char kNumRepeats[] = "num_repeats";  // NOLINT
 typedef std::unordered_map<std::string, std::vector<ir::Node*>> SSAVarList;
@@ -83,8 +85,8 @@ void BatchMergePass::ApplyImpl(ir::Graph* graph) const {
     if (!node->IsOp()) continue;
     PADDLE_ENFORCE_NOT_NULL(
         node->Op(),
-        common::errors::InvalidArgument("Node(%s) must hold op description.",
-                                        node->Name()));
+        platform::errors::InvalidArgument("Node(%s) must hold op description.",
+                                          node->Name()));
     int op_role = PADDLE_GET_CONST(
         int,
         node->Op()->GetAttr(
@@ -109,9 +111,9 @@ void BatchMergePass::ApplyImpl(ir::Graph* graph) const {
       lr_ops.push_back(node);
     } else {  // NOLINT
       PADDLE_THROW(
-          common::errors::InvalidArgument("Invalid op role(%d), in node(%s).",
-                                          static_cast<int>(op_role),
-                                          node->Name()));
+          platform::errors::InvalidArgument("Invalid op role(%d), in node(%s).",
+                                            static_cast<int>(op_role),
+                                            node->Name()));
     }
   }
 
@@ -333,7 +335,9 @@ void BatchMergePass::ApplyImpl(ir::Graph* graph) const {
   }
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(multi_batch_merge_pass, paddle::framework::ir::BatchMergePass)
     .RequirePassAttr(paddle::framework::ir::kNumRepeats);

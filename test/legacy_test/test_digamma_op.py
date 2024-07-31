@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -103,13 +102,7 @@ class TestDigammaAPI(unittest.TestCase):
         paddle.enable_static()
         # prepare test attrs
         self.dtypes = ["float32", "float64"]
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.places.append(paddle.CPUPlace())
+        self.places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             self.places.append(paddle.CUDAPlace(0))
         self._shape = [8, 3, 32, 32]
@@ -141,6 +134,12 @@ class TestDigammaAPI(unittest.TestCase):
                     input_t = paddle.to_tensor(input)
                     res = paddle.digamma(input_t).numpy()
                     np.testing.assert_allclose(res, sc_res, rtol=1e-05)
+
+    def test_name_argument(self):
+        with static.program_guard(static.Program()):
+            x = static.data(name="x", shape=self._shape, dtype=self.dtypes[0])
+            out = paddle.digamma(x, name="digamma_res")
+            self.assertTrue("digamma_res" in out.name)
 
     def test_dtype_error(self):
         # in static graph mode

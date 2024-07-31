@@ -19,8 +19,7 @@ import numpy as np
 from test_attribute_var import UnittestBase
 
 import paddle
-from paddle.base import core
-from paddle.framework import in_pir_mode
+from paddle.base import Program, core, program_guard
 from paddle.pir_utils import test_with_pir_api
 
 
@@ -351,12 +350,11 @@ class TestOutputSizeTensor(UnittestBase):
         self.shapes = [[1, 3, 6, 6]]
         self.save_path = os.path.join(self.temp_dir.name, self.path_prefix())
 
-    @test_with_pir_api
     def test_static(self):
         paddle.enable_static()
-        main_prog = paddle.static.Program()
-        startup_prog = paddle.static.Program()
-        with paddle.static.program_guard(main_prog, startup_prog):
+        main_prog = Program()
+        starup_prog = Program()
+        with program_guard(main_prog, starup_prog):
             fc = paddle.nn.Linear(6, 6)
             x = paddle.randn(self.shapes[0])
             x.stop_gradient = False
@@ -366,11 +364,10 @@ class TestOutputSizeTensor(UnittestBase):
 
             sgd = paddle.optimizer.SGD()
             sgd.minimize(paddle.mean(out1 + out2))
-            if not in_pir_mode():
-                self.assertTrue(self.var_prefix() in str(main_prog))
+            self.assertTrue(self.var_prefix() in str(main_prog))
 
             exe = paddle.static.Executor()
-            exe.run(startup_prog)
+            exe.run(starup_prog)
             res = exe.run(fetch_list=[out1, out2])
             np.testing.assert_allclose(res[0], res[1])
             paddle.static.save_inference_model(

@@ -14,7 +14,8 @@
 
 #include "paddle/fluid/distributed/ps/table/memory_sparse_geo_table.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 int32_t MemorySparseGeoTable::Pull(TableContext& context) {
   CHECK(context.value_type == Sparse);
@@ -241,4 +242,5 @@ int32_t MemorySparseGeoTable::_PushSparse(const uint64_t* keys,
   return 0;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

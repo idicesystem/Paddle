@@ -19,7 +19,7 @@ limitations under the License. */
 TEST(OpKernelType, ToString) {
   using OpKernelType = paddle::framework::OpKernelType;
   using DataType = paddle::framework::proto::VarType;
-  using CPUPlace = phi::CPUPlace;
+  using CPUPlace = paddle::platform::CPUPlace;
   using DataLayout = phi::DataLayout;
   using LibraryType = paddle::framework::LibraryType;
 
@@ -30,19 +30,19 @@ TEST(OpKernelType, ToString) {
             "{data_type[float]; data_layout[NCHW]; place[Place(cpu)]; "
             "library_type[CUDNN]}");
 
-  using CUDAPlace = phi::GPUPlace;
+  using CUDAPlace = paddle::platform::CUDAPlace;
   OpKernelType op_kernel_type2(
       DataType::FP16, CUDAPlace(0), DataLayout::kNCHW, LibraryType::kCUDNN);
   ASSERT_EQ(paddle::framework::KernelTypeToString(op_kernel_type2),
-            "{data_type[::phi::dtype::float16]; data_layout[NCHW]; "
+            "{data_type[::paddle::platform::float16]; data_layout[NCHW]; "
             "place[Place(gpu:0)]; library_type[CUDNN]}");
 }
 
 TEST(OpKernelType, Hash) {
   using OpKernelType = paddle::framework::OpKernelType;
   using DataType = paddle::framework::proto::VarType;
-  using CPUPlace = phi::CPUPlace;
-  using CUDAPlace = phi::GPUPlace;
+  using CPUPlace = paddle::platform::CPUPlace;
+  using CUDAPlace = paddle::platform::CUDAPlace;
   using DataLayout = phi::DataLayout;
   using LibraryType = paddle::framework::LibraryType;
 

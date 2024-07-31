@@ -14,16 +14,19 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/collective/c_allreduce_op.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class OpDesc;
 template <typename T>
 class EmptyGradOpMaker;
-}  // namespace paddle::framework
-namespace paddle::imperative {
+}  // namespace framework
+namespace imperative {
 class OpBase;
-}  // namespace paddle::imperative
+}  // namespace imperative
+}  // namespace paddle
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class CAllReduceMaxOpMaker : public CAllReduceOpMaker {
  protected:
@@ -34,9 +37,11 @@ DECLARE_INPLACE_OP_INFERER(AllreduceMaxInplaceInferer, {"X", "Out"});
 
 DEFINE_C_ALLREDUCE_CPU_KERNEL(CAllReduceMax, kRedMax)
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_WITHOUT_GRADIENT(c_allreduce_max,
                              ops::CAllReduceOp,
@@ -50,4 +55,4 @@ PD_REGISTER_STRUCT_KERNEL(c_allreduce_max,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

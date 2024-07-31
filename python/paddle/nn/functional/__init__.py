@@ -61,7 +61,6 @@ from .common import (
     dropout,
     dropout2d,
     dropout3d,
-    feature_alpha_dropout,
     fold,
     interpolate,
     label_smooth,
@@ -79,27 +78,19 @@ from .conv import (
     conv3d,
     conv3d_transpose,
 )
-from .distance import pairwise_distance, pdist  # noqa: F401
+from .distance import pairwise_distance
 from .extension import (
     diag_embed,  # noqa: F401
     gather_tree,
     sequence_mask,
     temporal_shift,
 )
-from .flash_attention import (
-    flash_attention_with_sparse_mask,
-    flash_attn_qkvpacked,
-    flash_attn_varlen_qkvpacked,
+from .flash_attention import (  # noqa: F401
     scaled_dot_product_attention,
-    sdp_kernel,  # noqa: F401
+    sdp_kernel,
 )
-from .input import (
-    embedding,
-    embedding_renorm_,  # noqa: F401
-    one_hot,
-)
+from .input import embedding, one_hot
 from .loss import (
-    adaptive_log_softmax_with_loss,
     binary_cross_entropy,
     binary_cross_entropy_with_logits,
     cosine_embedding_loss,
@@ -131,7 +122,6 @@ from .loss import (
 )
 from .norm import (
     batch_norm,
-    group_norm,
     instance_norm,
     layer_norm,
     local_response_norm,
@@ -147,10 +137,6 @@ from .pooling import (
     avg_pool1d,
     avg_pool2d,
     avg_pool3d,
-    fractional_max_pool2d,
-    fractional_max_pool3d,
-    lp_pool1d,
-    lp_pool2d,
     max_pool1d,
     max_pool2d,
     max_pool3d,
@@ -215,7 +201,6 @@ __all__ = [
     'dropout2d',
     'dropout3d',
     'alpha_dropout',
-    'feature_alpha_dropout',
     'label_smooth',
     'linear',
     'pad',
@@ -228,8 +213,6 @@ __all__ = [
     'avg_pool1d',
     'avg_pool2d',
     'avg_pool3d',
-    'lp_pool1d',
-    'lp_pool2d',
     'max_pool1d',
     'max_pool2d',
     'max_pool3d',
@@ -242,8 +225,6 @@ __all__ = [
     'adaptive_max_pool1d',
     'adaptive_max_pool2d',
     'adaptive_max_pool3d',
-    'fractional_max_pool2d',
-    'fractional_max_pool3d',
     'binary_cross_entropy',
     'binary_cross_entropy_with_logits',
     'cross_entropy',
@@ -287,13 +268,8 @@ __all__ = [
     'rrelu',
     'triplet_margin_with_distance_loss',
     'triplet_margin_loss',
-    'adaptive_log_softmax_with_loss',
     'multi_margin_loss',
     'soft_margin_loss',
     'gaussian_nll_loss',
     'scaled_dot_product_attention',
-    'flash_attention_with_sparse_mask',
-    'flash_attn_qkvpacked',
-    'flash_attn_varlen_qkvpacked',
-    'group_norm',
 ]

@@ -318,10 +318,10 @@ class MultiSlotDataGenerator(DataGenerator):
             for item in line:
                 name, elements = item
                 if not isinstance(name, str):
-                    raise ValueError(f"name{type(name)} must be in str type")
+                    raise ValueError("name%s must be in str type" % type(name))
                 if not isinstance(elements, list):
                     raise ValueError(
-                        f"elements{type(elements)} must be in list type"
+                        "elements%s must be in list type" % type(elements)
                     )
                 if not elements:
                     raise ValueError(
@@ -336,7 +336,8 @@ class MultiSlotDataGenerator(DataGenerator):
                         self._proto_info[-1] = (name, "float")
                     elif not isinstance(elem, int):
                         raise ValueError(
-                            f"the type of element{type(elem)} must be in int or float"
+                            "the type of element%s must be in int or float"
+                            % type(elem)
                         )
                     output += " " + str(elem)
         else:
@@ -347,10 +348,10 @@ class MultiSlotDataGenerator(DataGenerator):
             for index, item in enumerate(line):
                 name, elements = item
                 if not isinstance(name, str):
-                    raise ValueError(f"name{type(name)} must be in str type")
+                    raise ValueError("name%s must be in str type" % type(name))
                 if not isinstance(elements, list):
                     raise ValueError(
-                        f"elements{type(elements)} must be in list type"
+                        "elements%s must be in list type" % type(elements)
                     )
                 if not elements:
                     raise ValueError(
@@ -369,7 +370,8 @@ class MultiSlotDataGenerator(DataGenerator):
                             self._proto_info[index] = (name, "float")
                         elif not isinstance(elem, int):
                             raise ValueError(
-                                f"the type of element{type(elem)} must be in int or float"
+                                "the type of element%s must be in int or float"
+                                % type(elem)
                             )
                     output += " " + str(elem)
         return output + "\n"

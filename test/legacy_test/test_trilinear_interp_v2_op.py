@@ -362,9 +362,7 @@ class TestTrilinearInterpOp(OpTest):
         self.outputs = {'Out': output_np}
 
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)
@@ -456,9 +454,7 @@ class TestTrilinearInterpDatalayout(TestTrilinearInterpOp):
 
 class TestTrilinearInterpOpFP16(TestTrilinearInterpOp):
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)
@@ -729,10 +725,7 @@ class TestTrilinearInterpOpUint8(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=core.CPUPlace(),
-            atol=1,
-            check_pir=True,
-            check_symbol_infer=(self.out_size is None),
+            place=core.CPUPlace(), atol=1, check_pir=True
         )
 
     def init_test_case(self):
@@ -911,9 +904,7 @@ class TestTrilinearInterpOp_attr_tensor(OpTest):
         self.outputs = {'Out': output_np}
 
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)
@@ -1028,54 +1019,6 @@ class TestTrilinearInterpDatalayoutForFloat16(TestTrilinearInterpOpForFloat16):
         self.align_corners = True
         self.align_mode = 1
         self.data_layout = "NDHWC"
-
-
-class TestTrilinearInterpOpAPI(unittest.TestCase):
-    def test_case(self):
-        import paddle
-
-        if core.is_compiled_with_cuda():
-            place = core.CUDAPlace(0)
-        else:
-            place = core.CPUPlace()
-        with base.dygraph.guard(place):
-            input_data = np.random.random((2, 3, 6, 6, 6)).astype("float32")
-            scale_np = np.array([2, 2, 2]).astype("int64")
-            input_x = paddle.to_tensor(input_data)
-            scale = paddle.to_tensor(scale_np)
-            expect_res = trilinear_interp_np(
-                input_data, out_d=12, out_h=12, out_w=12, align_corners=False
-            )
-            up_layer = paddle.nn.Upsample(
-                scale_factor=scale, mode="trilinear", align_corners=False
-            )
-            out = up_layer(input_x)
-            np.testing.assert_allclose(out.numpy(), expect_res, rtol=1e-05)
-
-
-class TestTrilinearInterpOpAPI2(unittest.TestCase):
-    def test_case(self):
-        import paddle
-
-        if core.is_compiled_with_cuda():
-            place = core.CUDAPlace(0)
-        else:
-            place = core.CPUPlace()
-        with base.dygraph.guard(place):
-            input_data = np.random.random((2, 3, 6, 6, 6)).astype("float32")
-            scale_np = np.array([2, 2, 2]).astype("int64")
-            input_x = paddle.to_tensor(input_data)
-            scale = paddle.to_tensor(scale_np)
-            expect_res = trilinear_interp_np(
-                input_data, out_d=12, out_h=12, out_w=12, align_corners=False
-            )
-            out = interpolate(
-                x=input_x,
-                scale_factor=scale,
-                mode="trilinear",
-                align_corners=False,
-            )
-            np.testing.assert_allclose(out.numpy(), expect_res, rtol=1e-05)
 
 
 if __name__ == "__main__":

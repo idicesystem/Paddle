@@ -50,11 +50,35 @@ void StreamSafeCustomDeviceAllocation::RecordStream(
     outstanding_event_map_[stream]->Init(place());
     VLOG(9) << "Create a new event "
             << outstanding_event_map_[stream]->raw_event();
+    auto stream_wrapper = phi::stream::Stream(place(), stream);
+    VLOG(8) << "Record event " << outstanding_event_map_[stream]->raw_event()
+            << " to stream " << stream;
+    outstanding_event_map_[stream]->Record(&stream_wrapper);
   }
-  auto stream_wrapper = phi::stream::Stream(place(), stream);
-  VLOG(8) << "Record event " << outstanding_event_map_[stream]->raw_event()
-          << " to stream " << stream;
-  outstanding_event_map_[stream]->Record(&stream_wrapper);
+}
+
+void StreamSafeCustomDeviceAllocation::MarkAsWillBeFreed() {
+  std::lock_guard<SpinLock> lock_guard(outstanding_event_map_lock_);
+  if (!will_be_freed_) {
+    will_be_freed_ = false;
+    VLOG(8) << "ptr: " << ptr() << " will be freed";
+    if (phi::DeviceManager::HasDeviceType(place_.GetDeviceType()) &&
+        outstanding_event_map_.find(owning_stream_) ==
+            outstanding_event_map_.end()) {
+      std::call_once(once_flag_,
+                     [this] { phi::DeviceManager::SetDevice(place_); });
+      outstanding_event_map_.insert(
+          {owning_stream_, std::make_shared<phi::event::Event>()});
+      outstanding_event_map_[owning_stream_]->Init(place_);
+      VLOG(9) << "Create a new event "
+              << outstanding_event_map_[owning_stream_]->raw_event();
+      auto stream_wrapper = phi::stream::Stream(place_, owning_stream_);
+      VLOG(8) << "Record event "
+              << outstanding_event_map_[owning_stream_]->raw_event()
+              << " to stream " << owning_stream_;
+      outstanding_event_map_[owning_stream_]->Record(&stream_wrapper);
+    }
+  }
 }
 
 bool StreamSafeCustomDeviceAllocation::CanBeFreed() {
@@ -91,7 +115,7 @@ void StreamSafeCustomDeviceAllocation::SetOwningStream(
 
 StreamSafeCustomDeviceAllocator::StreamSafeCustomDeviceAllocator(
     std::shared_ptr<Allocator> underlying_allocator,
-    phi::CustomPlace place,
+    platform::CustomPlace place,
     phi::stream::stream_t default_stream)
     : underlying_allocator_(std::move(underlying_allocator)),
       place_(std::move(place)),
@@ -166,6 +190,7 @@ void StreamSafeCustomDeviceAllocator::FreeImpl(phi::Allocation* allocation) {
                               phi::DeviceContextPool::Instance().Get(place_))
                               ->stream());
   }
+  stream_safe_cuda_allocation->MarkAsWillBeFreed();
   if (stream_safe_cuda_allocation->CanBeFreed()) {
     VLOG(9) << "Directly delete allocation";
     delete stream_safe_cuda_allocation;
@@ -176,7 +201,8 @@ void StreamSafeCustomDeviceAllocator::FreeImpl(phi::Allocation* allocation) {
   }
 }
 
-uint64_t StreamSafeCustomDeviceAllocator::ReleaseImpl(const phi::Place& place) {
+uint64_t StreamSafeCustomDeviceAllocator::ReleaseImpl(
+    const platform::Place& place) {
   std::lock_guard<SpinLock> lock_guard(allocator_map_lock_);
   std::vector<StreamSafeCustomDeviceAllocator*>& allocators =
       allocator_map_[place];
@@ -189,8 +215,8 @@ uint64_t StreamSafeCustomDeviceAllocator::ReleaseImpl(const phi::Place& place) {
 }
 
 void StreamSafeCustomDeviceAllocator::ProcessUnfreedAllocations() {
-  // NOTE(Ruibiao): This condition is to reduce lock completion. It does not
-  // need to be thread-safe since here occasional misjudgments are permissible.
+  // NOTE(Ruibiao): This condition is to reduce lock competion. It does not need
+  // to be thread-safe since here occasional misjudgments are permissible.
   if (unfreed_allocations_.empty()) {
     return;
   }
@@ -215,7 +241,7 @@ StreamSafeCustomDeviceAllocator::ProcessUnfreedAllocationsAndRelease() {
 
 thread_local std::once_flag StreamSafeCustomDeviceAllocation::once_flag_;
 
-std::map<phi::Place, std::vector<StreamSafeCustomDeviceAllocator*>>
+std::map<platform::Place, std::vector<StreamSafeCustomDeviceAllocator*>>
     StreamSafeCustomDeviceAllocator::allocator_map_;
 SpinLock StreamSafeCustomDeviceAllocator::allocator_map_lock_;
 

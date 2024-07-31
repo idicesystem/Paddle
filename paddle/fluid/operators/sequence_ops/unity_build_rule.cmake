@@ -6,6 +6,7 @@
 # in combination rule, you can remove the source file from the following rules.
 register_unity_group(
   cc
+  sequence_concat_op.cc
   sequence_conv_op.cc
   sequence_enumerate_op.cc
   sequence_erase_op.cc

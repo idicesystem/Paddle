@@ -15,12 +15,12 @@ limitations under the License. */
 #include "paddle/phi/infermeta/spmd_rules/full_like.h"
 #include "paddle/phi/infermeta/spmd_rules/elementwise.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 SpmdInfo FullLikeInferSpmd(const DistMetaTensor& x,
                            const Scalar& y,
                            phi::DataType dtype) {
-  TensorDistAttr out_dist_attr = x.dist_attr();
-  out_dist_attr.clean_partial_status();
-  return {{x.dist_attr()}, {out_dist_attr}};
+  return ElementwiseUnaryInferSpmd(x);
 }
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

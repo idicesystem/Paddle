@@ -19,11 +19,18 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/graph_pattern_detector.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 class Node;
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 //  input_x  input_y, input_x and input_y are both (n,h*w,c)
 //    |        |
 //  elementwise_add (n,h*w,c)
@@ -72,13 +79,12 @@ void ElementwiseAddTransposePattern::operator()(PDNode *x, PDNode *y) {
                             ->AsOutput();
   transpose->LinksFrom({reshape_out}).LinksTo({transpose_out});
 }
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 int ElementwiseAddTransposeFusePass::ApplyEleTransPattern(
     ir::Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::PreconditionNotMet("graph should not be null."));
+      graph, platform::errors::PreconditionNotMet("graph should not be null."));
   FusePassBase::Init("eleadd_transpose_fuse", graph);
   int found_subgraph_count = 0;
   GraphPatternDetector gpd;
@@ -183,14 +189,16 @@ int ElementwiseAddTransposeFusePass::ApplyEleTransPattern(
 }
 void ElementwiseAddTransposeFusePass::ApplyImpl(ir::Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(graph,
-                          common::errors::InvalidArgument(
+                          platform::errors::InvalidArgument(
                               "Pointer to graph argument should not be NULL."));
   FusePassBase::Init("elementwiseadd_transpose_fuse_pass", graph);
   int found_subgraph_count = ApplyEleTransPattern(graph);
   AddStatis(found_subgraph_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(elementwiseadd_transpose_pass,
               paddle::framework::ir::ElementwiseAddTransposeFusePass);

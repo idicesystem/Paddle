@@ -26,7 +26,7 @@
 #include "paddle/fluid/framework/raw_tensor.h"
 #include "paddle/fluid/framework/string_array.h"
 #include "paddle/fluid/framework/tensor_ref_array.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 #include "paddle/utils/test_macros.h"
 #ifdef PADDLE_WITH_CUDA
 #include <cudnn.h>
@@ -37,7 +37,7 @@
 #ifdef PADDLE_WITH_HIP
 #include <miopen/miopen.h>
 #ifdef PADDLE_WITH_RCCL
-#include <rccl/rccl.h>
+#include <rccl.h>
 #endif
 #endif
 
@@ -54,9 +54,6 @@ class DenseTensor;
 class SelectedRows;
 class SparseCooTensor;
 class SparseCsrTensor;
-namespace funcs {
-class CudnnRNNCache;
-}
 }  // namespace phi
 
 // Users should add forward declarations here
@@ -84,6 +81,8 @@ class Scope;
 
 namespace operators {
 
+class CudnnRNNCache;
+
 class CUDAGraphWithInOuts;
 
 namespace reader {
@@ -98,8 +97,8 @@ namespace paddle {
 namespace framework {
 
 TEST_API const char *ToTypeName(int var_id);
-TEST_API const std::type_index &VarTraitIdToTypeIndex(int var_id);
-TEST_API int TypeIndexToVarTraitId(const std::type_index &type);
+const std::type_index &VarTraitIdToTypeIndex(int var_id);
+int TypeIndexToVarTraitId(const std::type_index &type);
 
 namespace detail {
 
@@ -183,7 +182,7 @@ using VarTypeRegistry = detail::VarTypeRegistryImpl<
     LoDRankTable,
     Strings,
     LoDTensorArray,
-    phi::PlaceList,
+    platform::PlaceList,
     ReaderHolder,
     String,
     Scope *,
@@ -197,7 +196,7 @@ using VarTypeRegistry = detail::VarTypeRegistryImpl<
     platform::Communicator,
     platform::NCCLCommunicator,
 #endif
-    phi::funcs::CudnnRNNCache,
+    operators::CudnnRNNCache,
 #endif
 #if defined(PADDLE_WITH_XPU_BKCL)
     BKCLUniqueId,
@@ -242,7 +241,7 @@ REG_PROTO_VAR_TYPE_TRAIT(phi::SelectedRows, proto::VarType::SELECTED_ROWS);
 REG_PROTO_VAR_TYPE_TRAIT(std::vector<Scope *>, proto::VarType::STEP_SCOPES);
 REG_PROTO_VAR_TYPE_TRAIT(LoDRankTable, proto::VarType::LOD_RANK_TABLE);
 REG_PROTO_VAR_TYPE_TRAIT(LoDTensorArray, proto::VarType::LOD_TENSOR_ARRAY);
-REG_PROTO_VAR_TYPE_TRAIT(phi::PlaceList, proto::VarType::PLACE_LIST);
+REG_PROTO_VAR_TYPE_TRAIT(platform::PlaceList, proto::VarType::PLACE_LIST);
 REG_PROTO_VAR_TYPE_TRAIT(ReaderHolder, proto::VarType::READER);
 REG_PROTO_VAR_TYPE_TRAIT(FeedList, proto::VarType::FEED_LIST);
 REG_PROTO_VAR_TYPE_TRAIT(FetchList, proto::VarType::FETCH_LIST);

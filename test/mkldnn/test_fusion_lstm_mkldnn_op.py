@@ -20,16 +20,11 @@ from test_fusion_lstm_op import TestFusionLSTMOp
 class TestFusionLSTMONEDNNOp(TestFusionLSTMOp):
     def set_conf(self):
         self.use_mkldnn = True
-        self.check_pir_onednn = True
 
     def test_check_output(self):
         for use_seq in {True, False}:
             self.attrs['use_seq'] = use_seq
-            self.check_output(
-                check_dygraph=False,
-                no_check_set=["Cell"],
-                check_pir_onednn=True,
-            )
+            self.check_output(check_dygraph=False, no_check_set=["Cell"])
 
 
 class TestFusionLSTMONEDNNOpReverse(TestFusionLSTMONEDNNOp):

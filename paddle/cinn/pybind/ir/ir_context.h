@@ -21,7 +21,7 @@
 #include "paddle/cinn/ir/ir.h"
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/lowered_func.h"
-#include "paddle/common/enforce.h"
+#include "paddle/cinn/utils/error.h"
 
 namespace cinn {
 namespace pybind {
@@ -73,7 +73,7 @@ class IRContext {
       err_msg << "TypeConvertError: convert " << data_.get()->type_info()
               << " to " << TIRContextNode::__type_info__;
 
-      PADDLE_THROW(::common::errors::InvalidArgument(err_msg.str()));
+      CINN_THROW(err_msg.str());
     }
     return ctx_node;
   }
@@ -82,10 +82,8 @@ class IRContext {
     CHECK(data_.get()) << "IrContext holds null";
     auto* ctx_node = data_.get()->safe_as<TIRContextNode>();
     if (!ctx_node) {
-      std::stringstream ss;
-      ss << "TypeConvertError: convert " << data_.get()->type_info() << " to "
-         << TIRContextNode::__type_info__;
-      PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+      LOG(FATAL) << "TypeConvertError: convert " << data_.get()->type_info()
+                 << " to " << TIRContextNode::__type_info__;
     }
     return ctx_node;
   }
@@ -237,10 +235,8 @@ void LinkToParentContext(ir::Expr);
 template <typename TIRContextNode>
 IRContext IRBuilderNode::GetLastContext() const {
   if (!(contexts.back().As<TIRContextNode>())) {
-    std::stringstream ss;
-    ss << "TypeError: The last context is not "
-       << TIRContextNode::__type_info__;
-    PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+    LOG(FATAL) << "TypeError: The last context is not "
+               << TIRContextNode::__type_info__;
   }
   return contexts.back();
 }

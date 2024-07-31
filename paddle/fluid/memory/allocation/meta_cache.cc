@@ -16,7 +16,9 @@ limitations under the License. */
 #include "paddle/fluid/memory/allocation/memory_block.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::memory::detail {
+namespace paddle {
+namespace memory {
+namespace detail {
 
 MetadataCache::MetadataCache(bool uses_gpu) : uses_gpu_(uses_gpu) {}
 
@@ -26,12 +28,12 @@ MemoryBlock::Desc* MetadataCache::LoadDesc(MemoryBlock* block) {
     PADDLE_ENFORCE_NE(
         iter,
         cache_.end(),
-        common::errors::NotFound("The memory block is not found in cache"));
+        platform::errors::NotFound("The memory block is not found in cache"));
     auto* desc = &(iter->second);
     PADDLE_ENFORCE_EQ(
         desc->CheckGuards(),
         true,
-        common::errors::InvalidArgument("Invalid CPU memory access"));
+        platform::errors::InvalidArgument("Invalid CPU memory access"));
     return desc;
   } else {
     auto* desc = reinterpret_cast<MemoryBlock::Desc*>(block);
@@ -39,7 +41,7 @@ MemoryBlock::Desc* MetadataCache::LoadDesc(MemoryBlock* block) {
     PADDLE_ENFORCE_EQ(
         desc->CheckGuards(),
         true,
-        common::errors::InvalidArgument("Invalid CPU memory access"));
+        platform::errors::InvalidArgument("Invalid CPU memory access"));
     return reinterpret_cast<MemoryBlock::Desc*>(block);
   }
 }
@@ -62,4 +64,6 @@ void MetadataCache::Invalidate(MemoryBlock* block) {
   }
 }
 
-}  // namespace paddle::memory::detail
+}  // namespace detail
+}  // namespace memory
+}  // namespace paddle

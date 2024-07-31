@@ -19,13 +19,6 @@
 
 namespace phi {
 
-bool SplitCheckIfOneDNNSupport(const KernelContext* ctx) {
-  if (ctx->InputAt<phi::DenseTensor>(0).mem_desc().get_inner_nblks() == 0) {
-    return true;
-  }
-  return false;
-}
-
 const std::vector<int64_t> get_slice_strides(
     const std::vector<int64_t>& out_vec_dims,
     const dnnl::memory::desc& full_md,
@@ -111,9 +104,7 @@ PD_REGISTER_KERNEL(split,
                    float,
                    phi::dtype::bfloat16,
                    int8_t,
-                   uint8_t) {
-  kernel->check_if_onednn_kernel_support_ = phi::SplitCheckIfOneDNNSupport;
-}
+                   uint8_t) {}
 
 PD_REGISTER_KERNEL(split_with_num,
                    OneDNN,
@@ -122,6 +113,4 @@ PD_REGISTER_KERNEL(split_with_num,
                    float,
                    phi::dtype::bfloat16,
                    int8_t,
-                   uint8_t) {
-  kernel->check_if_onednn_kernel_support_ = phi::SplitCheckIfOneDNNSupport;
-}
+                   uint8_t) {}

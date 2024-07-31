@@ -14,14 +14,16 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class QkMultiheadMatMulOpConverter : public OpConverter {
  public:
   void operator()(const framework::proto::OpDesc& op,
                   const framework::Scope& scope,
                   bool test_mode) override {
-    VLOG(3) << "convert a qk_multihead_matmul op to a corresponding tensorrt "
+    VLOG(3) << "convert a qk_multihead_mamul op to a corresponding tensorrt "
                "network structure";
 
     framework::OpDesc op_desc(op, nullptr);
@@ -140,7 +142,7 @@ class QkMultiheadMatMulOpConverter : public OpConverter {
                                                   *bias_qk_tensor,
                                                   elementwise_operation);
     merge_qk_element_layer->setName(
-        ("multihead_matmul_fc_qk(Output: " + output_name + ")").c_str());
+        ("multihead_mamul_fc_qk(Output: " + output_name + ")").c_str());
 
     auto* reshape_after_fc_qk_layer = TRT_ENGINE_ADD_LAYER(
         engine_, Shuffle, *merge_qk_element_layer->getOutput(0));
@@ -230,7 +232,7 @@ class QkMultiheadMatMulOpConverter : public OpConverter {
                                                  *bias_v_tensor,
                                                  elementwise_operation);
     merge_v_element_layer->setName(
-        ("multihead_matmul_fc_v(Output: " + output_name + ")").c_str());
+        ("multihead_mamul_fc_v(Output: " + output_name + ")").c_str());
 
     // add shuffle for fc layer
     auto* reshape_after_fc_v_layer = TRT_ENGINE_ADD_LAYER(
@@ -256,12 +258,16 @@ class QkMultiheadMatMulOpConverter : public OpConverter {
     auto creator = GetPluginRegistry()->getPluginCreator("fMHA_V2", "1");
     assert(creator != nullptr);
     std::vector<nvinfer1::PluginField> fields{};
-    std::unique_ptr<nvinfer1::PluginFieldCollection> plugin_collection(
-        new nvinfer1::PluginFieldCollection);
+    nvinfer1::PluginFieldCollection* plugin_collection =
+        static_cast<nvinfer1::PluginFieldCollection*>(
+            malloc(sizeof(*plugin_collection) +
+                   fields.size() *
+                       sizeof(nvinfer1::PluginField)));  // remember to free
+
     plugin_collection->nbFields = static_cast<int>(fields.size());
     plugin_collection->fields = fields.data();
-    auto plugin = creator->createPlugin("fMHA_V2", plugin_collection.get());
-    plugin_collection.reset();
+    auto plugin = creator->createPlugin("fMHA_V2", plugin_collection);
+    free(plugin_collection);
     std::vector<nvinfer1::ITensor*> plugin_inputs;
     plugin_inputs.emplace_back(mha_input_tensor);
     auto plugin_layer = engine_->network()->addPluginV2(
@@ -283,11 +289,13 @@ class QkMultiheadMatMulOpConverter : public OpConverter {
         ("shuffle_last_multihead_matmul(Output: " + output_name + ")").c_str());
     nvinfer1::ILayer* layer = nullptr;
     layer = reshape_after_mha_layer;
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "qk_multihead_matmul", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(qk_multihead_matmul, QkMultiheadMatMulOpConverter);

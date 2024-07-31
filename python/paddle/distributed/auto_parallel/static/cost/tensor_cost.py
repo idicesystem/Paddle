@@ -61,7 +61,9 @@ class TensorCost:
             assert tensor is None and shape is None
             if not isinstance(dist_tensor, DistributedTensor):
                 raise TypeError(
-                    f"Please check dist_tensor type is DistributedTensor, but got {type(dist_tensor)}"
+                    "Please check dist_tensor type is DistributedTensor, but got {}".format(
+                        type(dist_tensor)
+                    )
                 )
 
         elif shape is not None:

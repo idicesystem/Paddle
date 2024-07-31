@@ -59,7 +59,7 @@ def test_op(
     c = tvm.nd.array(numpy.zeros(out_shape, dtype=dtype[len(dtype) - 1]), ctx)
 
     evaluator = func.time_evaluator(func.entry_name, ctx, number=repeat)
-    print(f"repeat: {repeat:f}")
+    print("repeat: %f" % repeat)
     if len(input_shapes) == 1:
         print("Baseline: %f" % (evaluator(a, c).mean * 1000))
         print(tvm.lower(s, [A, C], simple_mode=True))

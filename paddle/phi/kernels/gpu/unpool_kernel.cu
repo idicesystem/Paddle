@@ -173,13 +173,7 @@ void Unpool3dKernel(const Context& dev_ctx,
 }  // namespace phi
 
 PD_REGISTER_KERNEL(
-    unpool, GPU, ALL_LAYOUT, phi::UnpoolKernel, int, float, double, int64_t) {}
+    unpool, GPU, ALL_LAYOUT, phi::UnpoolKernel, int, float, double) {}
 
-PD_REGISTER_KERNEL(unpool3d,
-                   GPU,
-                   ALL_LAYOUT,
-                   phi::Unpool3dKernel,
-                   int,
-                   float,
-                   double,
-                   int64_t) {}
+PD_REGISTER_KERNEL(
+    unpool3d, GPU, ALL_LAYOUT, phi::Unpool3dKernel, int, float, double) {}

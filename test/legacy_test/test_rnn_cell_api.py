@@ -17,9 +17,7 @@ import unittest
 
 import numpy as np
 
-from paddle.base.layer_helper_base import LayerHelperBase
-
-sys.path.append("../rnn")
+sys.path.append("../../test/rnn")
 from rnn_numpy import (
     LSTMCell,
     rnn as numpy_rnn,
@@ -27,7 +25,7 @@ from rnn_numpy import (
 
 import paddle
 from paddle import base
-from paddle.base import core
+from paddle.base import core, framework
 from paddle.base.executor import Executor
 from paddle.base.framework import Program, program_guard
 from paddle.nn.layer.rnn import rnn as dynamic_rnn
@@ -148,7 +146,6 @@ class TestRnn(unittest.TestCase):
 
     def test_run(self):
         numpy_cell = LSTMCell(self.input_size, self.hidden_size)
-        LayerHelperBase.set_default_dtype("float64")
         dynamic_cell = paddle.nn.LSTMCell(self.input_size, self.hidden_size)
 
         if core.is_compiled_with_cuda():
@@ -156,7 +153,7 @@ class TestRnn(unittest.TestCase):
         else:
             place = core.CPUPlace()
         exe = Executor(place)
-        exe.run(paddle.static.default_startup_program())
+        exe.run(framework.default_startup_program())
 
         state = numpy_cell.parameters
         for k, v in dynamic_cell.named_parameters():

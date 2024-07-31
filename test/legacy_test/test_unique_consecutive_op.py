@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -95,13 +94,13 @@ class TestUniqueConsecutiveOp(OpTest):
             'X': x,
         }
         self.python_out_sig = ["Out"]
-        self.attrs = {'dtype': paddle.int32}
+        self.attrs = {'dtype': int(core.VarDesc.VarType.INT32)}
         self.outputs = {
             'Out': out,
         }
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output()
 
 
 class TestUniqueConsecutiveOp2(TestUniqueConsecutiveOp):
@@ -129,9 +128,9 @@ class TestUniqueConsecutiveOp2(TestUniqueConsecutiveOp):
         }
         self.attrs = {
             'return_inverse': self.return_inverse,
-            'dtype': paddle.int32,
+            'dtype': int(core.VarDesc.VarType.INT32),
         }
-        self.python_out_sig = ["Out", "Index"]
+        self.python_out_sig = ["Out"]
         self.outputs = {'Out': result, 'Index': inverse}
 
 
@@ -160,9 +159,9 @@ class TestUniqueConsecutiveOp3(TestUniqueConsecutiveOp):
         }
         self.attrs = {
             'return_counts': self.return_counts,
-            'dtype': paddle.int32,
+            'dtype': int(core.VarDesc.VarType.INT32),
         }
-        self.python_out_sig = ["Out", "Counts"]
+        self.python_out_sig = ["Out"]
         self.outputs = {'Out': result, 'Counts': counts}
 
 
@@ -193,28 +192,21 @@ class TestUniqueConsecutiveOp4(TestUniqueConsecutiveOp):
         self.attrs = {
             'return_inverse': self.return_inverse,
             'return_counts': self.return_counts,
-            'dtype': paddle.int32,
+            'dtype': int(core.VarDesc.VarType.INT32),
         }
-        self.python_out_sig = ["Out", "Index", "Counts"]
+        self.python_out_sig = ["Out"]
         self.outputs = {'Out': result, 'Index': inverse, 'Counts': counts}
 
 
 class TestUniqueConsecutiveAPI(unittest.TestCase):
     def setUp(self):
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 
+    @test_with_pir_api
     def check_static_result(self, place):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with base.program_guard(base.Program(), base.Program()):
             paddle.enable_static()
             input_x = paddle.static.data(
                 name="input_x",
@@ -231,7 +223,6 @@ class TestUniqueConsecutiveAPI(unittest.TestCase):
                 fetch_list=[result],
             )
 
-    @test_with_pir_api
     def test_static(self):
         for place in self.places:
             self.check_static_result(place=place)
@@ -246,20 +237,13 @@ class TestUniqueConsecutiveAPI(unittest.TestCase):
 
 class TestUniqueConsecutiveCase2API(unittest.TestCase):
     def setUp(self):
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 
+    @test_with_pir_api
     def check_static_result(self, place):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with base.program_guard(base.Program(), base.Program()):
             paddle.enable_static()
             input_x = paddle.static.data(
                 name="input_x",
@@ -278,7 +262,6 @@ class TestUniqueConsecutiveCase2API(unittest.TestCase):
                 fetch_list=[result],
             )
 
-    @test_with_pir_api
     def test_static(self):
         for place in self.places:
             self.check_static_result(place=place)
@@ -295,20 +278,13 @@ class TestUniqueConsecutiveCase2API(unittest.TestCase):
 
 class TestUniqueConsecutiveCase3API(unittest.TestCase):
     def setUp(self):
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 
+    @test_with_pir_api
     def check_static_result(self, place):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with base.program_guard(base.Program(), base.Program()):
             paddle.enable_static()
             input_x = paddle.static.data(
                 name="input_x",
@@ -327,7 +303,6 @@ class TestUniqueConsecutiveCase3API(unittest.TestCase):
                 fetch_list=[result],
             )
 
-    @test_with_pir_api
     def test_static(self):
         for place in self.places:
             self.check_static_result(place=place)
@@ -367,13 +342,13 @@ class TestUniqueConsecutiveEmptyInput(OpTest):
             'X': x,
         }
         self.python_out_sig = ["Out"]
-        self.attrs = {'dtype': paddle.int32}
+        self.attrs = {'dtype': int(core.VarDesc.VarType.INT32)}
         self.outputs = {
             'Out': out,
         }
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 if __name__ == "__main__":

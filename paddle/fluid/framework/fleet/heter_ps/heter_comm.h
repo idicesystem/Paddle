@@ -20,13 +20,13 @@ limitations under the License. */
 #if defined(PADDLE_WITH_CUDA)
 #include "paddle/fluid/framework/fleet/heter_ps/optimizer.cuh.h"
 #include "paddle/fluid/platform/cuda_device_guard.h"
+#include "paddle/fluid/platform/dynload/nccl.h"
 #include "paddle/fluid/platform/timer.h"
-#include "paddle/phi/backends/dynload/nccl.h"
 #include "thrust/pair.h"
 #elif defined(PADDLE_WITH_XPU_KP)
 #include <xpu/runtime.h>
 
-#include "paddle/phi/backends/xpu/enforce_xpu.h"
+#include "paddle/fluid/platform/device/xpu/enforce_xpu.h"
 #endif
 
 #include "paddle/fluid/framework/barrier.h"
@@ -35,7 +35,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/fleet/heter_ps/heter_resource.h"
 #include "paddle/fluid/memory/allocation/allocator.h"
 #include "paddle/fluid/memory/memory.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 #ifdef PADDLE_WITH_HETERPS
 
@@ -278,7 +278,7 @@ class HeterComm {
       h_push_fea_sizes.resize(node_size * node_size);
     }
   };
-  // pull partition shard key by devices
+  // pull parition shard key by devices
   struct PullResource {
     size_t h_recv_fea_num = 0;
     uint32_t* d_restore_keys_idx = nullptr;
@@ -287,7 +287,7 @@ class HeterComm {
   struct LocalStorage {
     LocalStorage() { sem_wait = std::make_unique<Semaphore>(); }
     void init(int device_num, int dev_id, phi::Stream stream) {
-      place_ = phi::GPUPlace(dev_id);
+      place_ = platform::CUDAPlace(dev_id);
       h_recv_offsets.resize(device_num);
       h_fea_sizes.resize(device_num);
       stream_ = stream;
@@ -376,10 +376,10 @@ class HeterComm {
     }
 
 #if defined(PADDLE_WITH_CUDA)
-    phi::GPUPlace place_;
+    platform::CUDAPlace place_;
 
 #elif defined(PADDLE_WITH_XPU_KP)
-    phi::XPUPlace place_;
+    platform::XPUPlace place_;
 #endif
     phi::Stream stream_;
     std::shared_ptr<memory::Allocation> all_keys_mem = nullptr;

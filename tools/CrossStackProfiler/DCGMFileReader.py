@@ -88,7 +88,7 @@ class dcgmFileReader(FileReader):
     def _parseTask(self, taskList, q=None):
         is_first = True
         for fileName in taskList:
-            self._logger.info(f"I am processing {fileName}!")
+            self._logger.info("I am processing %s!" % fileName)
             tmp_data = self._parseSingleFile(fileName)
             if tmp_data is None:
                 continue
@@ -103,7 +103,7 @@ class dcgmFileReader(FileReader):
         dcgm_data = dcgm_data.dropna()
         if q is not None:
             q.put(dcgm_data)
-        self._logger.info(f"I finish processing {fileName}!")
+        self._logger.info("I finish processing %s!" % fileName)
         return dcgm_data
 
     def _parseSingleFile(self, fileName):
@@ -192,7 +192,7 @@ class dcgmFileReader(FileReader):
 
                 di = {}
                 # name = "%s_%d" % (metric, trainerId)
-                name = f"{metric}"
+                name = "%s" % (metric)
                 di['name'] = name
                 di['pid'] = pid_map[metric]
                 di['ts'] = self._align_ts(int(row['ts']))

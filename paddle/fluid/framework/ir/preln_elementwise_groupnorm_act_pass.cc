@@ -18,11 +18,18 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/graph_pattern_detector.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 class Node;
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 
 struct PrelnGroupNormAct : public PatternBase {
   PrelnGroupNormAct(PDPattern *pattern, const std::string &name_scope)
@@ -85,13 +92,12 @@ void PrelnGroupNormAct::operator()(PDNode *x, PDNode *y, bool with_act) {
   }
 }
 
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 int PrelnGroupNormActFusePass::ApplyAddGNPattern(ir::Graph *graph,
                                                  bool with_act) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::PreconditionNotMet("graph should not be null."));
+      graph, platform::errors::PreconditionNotMet("graph should not be null."));
   FusePassBase::Init("preln_groupnorm_silu_fuse", graph);
 
   int found_subgraph_count = 0;
@@ -197,7 +203,9 @@ void PrelnGroupNormActFusePass::ApplyImpl(ir::Graph *graph) const {
   AddStatis(found_subgraph_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(preln_elementwise_groupnorm_act_pass,
               paddle::framework::ir::PrelnGroupNormActFusePass);

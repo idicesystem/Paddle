@@ -13,14 +13,11 @@
 // limitations under the License.
 
 #include "paddle/phi/kernels/index_select_grad_kernel.h"
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/strided_utils.h"
+#include "paddle/phi/kernels/fill_kernel.h"
 #include "paddle/phi/kernels/index_select_kernel.h"
-
-COMMON_DECLARE_bool(use_stride_kernel);
-
+#include "paddle/phi/kernels/strided_copy_kernel.h"
 namespace phi {
 
 template <typename Context>
@@ -30,15 +27,11 @@ void IndexSelectGradStridedKernel(const Context& dev_ctx,
                                   int64_t index,
                                   int dim,
                                   DenseTensor* x_grad) {
-  if (!FLAGS_use_stride_kernel) {
-    PADDLE_THROW(
-        phi::errors::Fatal("FLAGS_use_stride_kernel is closed. Strided kernel "
-                           "be called, something wrong has happened!"));
-  }
   dev_ctx.Alloc(x_grad, x_grad->dtype());
   x_grad->set_strides(DenseTensorMeta::calc_strides(x_grad->dims()));
   PD_VISIT_ALL_TYPES(x_grad->dtype(), "IndexSelectGradStridedKernel", ([&] {
-                       phi::StridedTensorFill<data_t>(*x_grad, 0, x_grad);
+                       phi::FillKernel<data_t, Context>(
+                           dev_ctx, *x_grad, 0, x_grad);
                      }));
   DenseTensor tmp;
   tmp.set_layout(out_grad.layout());
@@ -48,7 +41,8 @@ void IndexSelectGradStridedKernel(const Context& dev_ctx,
 
   IndexSelectStridedKernel<Context>(dev_ctx, *x_grad, index, dim, &tmp);
   PD_VISIT_ALL_TYPES(out_grad.dtype(), "IndexSelectGradStridedKernel", ([&] {
-                       phi::StridedTensorCopy<data_t>(
+                       phi::StridedCopyKernel<data_t, Context>(
+                           dev_ctx,
                            out_grad,
                            common::vectorize<int64_t>(tmp.dims()),
                            common::vectorize<int64_t>(tmp.strides()),
@@ -58,7 +52,5 @@ void IndexSelectGradStridedKernel(const Context& dev_ctx,
 }
 
 }  // namespace phi
-
-PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE(index_select_strided_grad,
-                                         STRIDED,
-                                         phi::IndexSelectGradStridedKernel) {}
+PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE_EXCEPT_CUSTOM(
+    index_select_grad_strided, STRIDED, phi::IndexSelectGradStridedKernel) {}

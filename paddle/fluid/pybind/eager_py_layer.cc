@@ -119,12 +119,9 @@ PyObject* new_tensor_with_impl(paddle::Tensor* tensor) {
     new (&(v->tensor)) paddle::Tensor();
     v->tensor.set_impl(tensor->impl());
     v->tensor.set_name(egr::Controller::Instance().GenerateUniqueName());
-    egr::EagerUtils::autograd_meta(&v->tensor)
-        ->SetStopGradient(
-            egr::EagerUtils::autograd_meta(tensor)->StopGradient());
   } else {
-    PADDLE_THROW(
-        common::errors::Fatal("tp_alloc return null, can not new a PyObject."));
+    PADDLE_THROW(platform::errors::Fatal(
+        "tp_alloc return null, can not new a PyObject."));
   }
   return obj;
 }
@@ -137,14 +134,14 @@ PyObject* pylayer_method_apply(PyObject* cls,
   PyObject* backward_function =
       PyObject_GetAttrString(cls, "_backward_function");
   if (!backward_function) {
-    PADDLE_THROW(
-        common::errors::InvalidArgument("Get _backward_function failed."));
+    PADDLE_THROW(paddle::platform::errors::InvalidArgument(
+        "Get _backward_function failed."));
   }
   PyLayerObject* ctx = reinterpret_cast<PyLayerObject*>(
       PyObject_CallFunctionObjArgs(backward_function, nullptr));
   if (!ctx) {
-    PADDLE_THROW(
-        common::errors::External(pybind11::detail::error_string().c_str()));
+    PADDLE_THROW(paddle::platform::errors::External(
+        pybind11::detail::error_string().c_str()));
     return nullptr;
   }
   VLOG(6) << "PyLayer construct PyLayerContext finish...";
@@ -315,8 +312,8 @@ PyObject* pylayer_method_apply(PyObject* cls,
   // call forward
   auto forward_fn = PyObject_GetAttrString(cls, "forward");
   if (!forward_fn) {
-    PADDLE_THROW(
-        common::errors::InvalidArgument("Get forward function failed."));
+    PADDLE_THROW(paddle::platform::errors::InvalidArgument(
+        "Get forward function failed."));
   }
   bool trace_backward = egr::Controller::Instance().HasGrad();
   egr::Controller::Instance().SetHasGrad(false);
@@ -436,7 +433,7 @@ PyObject* pylayer_method_apply(PyObject* cls,
   }
 
   if (outputs_tensor.empty()) {
-    PADDLE_THROW(common::errors::InvalidArgument(
+    PADDLE_THROW(platform::errors::InvalidArgument(
         "At least one output of `PyLayer.forward` is a `Tensor`."));
   }
   VLOG(6) << "PyLayer forward function finish...";
@@ -460,7 +457,7 @@ PyObject* pylayer_method_apply(PyObject* cls,
       PADDLE_ENFORCE_EQ(!inplace_tensor_autograd_meta->StopGradient() &&
                             egr::EagerUtils::IsLeafTensor(*inplace_tensor),
                         false,
-                        common::errors::InvalidArgument(
+                        paddle::platform::errors::InvalidArgument(
                             "Leaf Var (%s) that doesn't stop gradient "
                             "can't use inplace strategy.",
                             inplace_tensor->name()));
@@ -481,11 +478,9 @@ PyObject* pylayer_method_apply(PyObject* cls,
 
     for (size_t i = 0; i < inputs_autograd_meta.size(); i++) {
       if (ctx->forward_input_tensor_is_duplicable[i]) {
-        std::vector<const paddle::Tensor*> tmp;
         for (auto t : inputs_tensor[i]) {
-          tmp.push_back(t);
+          grad_node->SetGradOutMeta(*t, i);
         }
-        grad_node->SetGradOutMeta(tmp, i);
       } else {
         grad_node->SetGradOutMeta(*inputs_tensor[i][0], i);
       }
@@ -495,7 +490,9 @@ PyObject* pylayer_method_apply(PyObject* cls,
       if (ctx->forward_output_tensor_is_duplicable[i]) {
         egr::EagerUtils::SetOutRankWithSlot(&outputs_autograd_meta[i], i);
         egr::EagerUtils::SetHistory(&outputs_autograd_meta[i], grad_node);
-        grad_node->SetGradInMeta(outputs_tensor[i], i);
+        for (auto t : outputs_tensor[i]) {
+          grad_node->SetGradInMeta(*t, i);
+        }
       } else {
         egr::EagerUtils::SetOutRankWithSlot(outputs_autograd_meta[i][0], i);
         egr::EagerUtils::SetHistory(outputs_autograd_meta[i][0], grad_node);
@@ -619,13 +616,8 @@ void call_pack_hook(PyLayerObject* self, PyObject* value) {
                            j,
                            reinterpret_cast<PyObject*>(
                                (*pack_hook)(reinterpret_cast<void*>(o))));
-        } else if (o == Py_None) {
-          PyTuple_SET_ITEM(tmp_list,
-                           j,
-                           reinterpret_cast<PyObject*>(
-                               (*pack_hook)(reinterpret_cast<void*>(o))));
         } else {
-          PADDLE_THROW(common::errors::InvalidArgument(
+          PADDLE_THROW(platform::errors::InvalidArgument(
               "save_for_backward only support Tensor, list of Tensor, tuple of "
               "Tensor."));
         }
@@ -641,25 +633,15 @@ void call_pack_hook(PyLayerObject* self, PyObject* value) {
                            j,
                            reinterpret_cast<PyObject*>(
                                (*pack_hook)(reinterpret_cast<void*>(o))));
-        } else if (o == Py_None) {
-          PyTuple_SET_ITEM(tmp_tuple,
-                           j,
-                           reinterpret_cast<PyObject*>(
-                               (*pack_hook)(reinterpret_cast<void*>(o))));
         } else {
-          PADDLE_THROW(common::errors::InvalidArgument(
+          PADDLE_THROW(platform::errors::InvalidArgument(
               "save_for_backward only support Tensor, list of Tensor, tuple of "
               "Tensor."));
         }
       }
       PyTuple_SET_ITEM(packed_value, i, tmp_tuple);
-    } else if (obj == Py_None) {
-      PyTuple_SET_ITEM(packed_value,
-                       i,
-                       reinterpret_cast<PyObject*>(
-                           (*pack_hook)(reinterpret_cast<void*>(obj))));
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "save_for_backward only support Tensor, list of Tensor, tuple of "
           "Tensor."));
     }
@@ -793,15 +775,15 @@ void BindEagerPyLayer(PyObject* module) {
   Py_INCREF(&PyBaseObject_Type);
   type->tp_base = reinterpret_cast<PyTypeObject*>(&PyBaseObject_Type);
   type->tp_flags |=
-      Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;  // NOLINT
+      Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HEAPTYPE;
 #if PY_VERSION_HEX >= 0x03050000
   type->tp_as_async = &heap_type->as_async;
 #endif
   p_pylayer_type = type;
 
   if (PyType_Ready(type) < 0) {
-    PADDLE_THROW(
-        common::errors::Fatal("Init Paddle error in BindEager(PyType_Ready)."));
+    PADDLE_THROW(platform::errors::Fatal(
+        "Init Paddle error in BindEager(PyType_Ready)."));
     return;
   }
 
@@ -810,7 +792,7 @@ void BindEagerPyLayer(PyObject* module) {
       0) {
     Py_DECREF(type);
     Py_DECREF(module);
-    PADDLE_THROW(common::errors::Fatal(
+    PADDLE_THROW(platform::errors::Fatal(
         "Init Paddle error in BindEager(PyModule_AddObject)."));
     return;
   }

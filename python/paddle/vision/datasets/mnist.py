@@ -11,19 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any, Literal, Tuple
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-
-    from paddle._typing.dtype_like import _DTypeLiteral
-    from paddle.vision.transforms.transforms import _Transform
-
-    from ..image import _ImageBackend, _ImageDataType
-
-    _DatasetMode = Literal["train", "test"]
 
 import gzip
 import struct
@@ -38,20 +25,20 @@ from paddle.io import Dataset
 __all__ = []
 
 
-class MNIST(Dataset[Tuple["_ImageDataType", "npt.NDArray[np.int64]"]]):
+class MNIST(Dataset):
     """
     Implementation of `MNIST <http://yann.lecun.com/exdb/mnist/>`_ dataset.
 
     Args:
-        image_path (str|None, optional): Path to image file, can be set None if
+        image_path (str, optional): Path to image file, can be set None if
             :attr:`download` is True. Default: None, default data path: ~/.cache/paddle/dataset/mnist.
-        label_path (str|None, optional): Path to label file, can be set None if
+        label_path (str, optional): Path to label file, can be set None if
             :attr:`download` is True. Default: None, default data path: ~/.cache/paddle/dataset/mnist.
         mode (str, optional): Either train or test mode. Default 'train'.
-        transform (Callable|None, optional): Transform to perform on image, None for no transform. Default: None.
+        transform (Callable, optional): Transform to perform on image, None for no transform. Default: None.
         download (bool, optional): Download dataset automatically if
             :attr:`image_path` :attr:`label_path` is not set. Default: True.
-        backend (str|None, optional): Specifies which type of image to be returned:
+        backend (str, optional): Specifies which type of image to be returned:
             PIL.Image or numpy.ndarray. Should be one of {'pil', 'cv2'}.
             If this option is not set, will get backend from :ref:`paddle.vision.get_image_backend <api_paddle_vision_get_image_backend>`,
             default backend is 'pil'. Default: None.
@@ -99,7 +86,7 @@ class MNIST(Dataset[Tuple["_ImageDataType", "npt.NDArray[np.int64]"]]):
 
             >>> for img, label in itertools.islice(iter(mnist_test), 5):  # only show first 5 images
             ...     # do something with img and label
-            ...     print(type(img), img.shape, label)  # type: ignore
+            ...     print(type(img), img.shape, label)
             ...     # <class 'paddle.Tensor'> [1, 28, 28] [7]
     """
 
@@ -114,24 +101,15 @@ class MNIST(Dataset[Tuple["_ImageDataType", "npt.NDArray[np.int64]"]]):
     TRAIN_LABEL_URL = URL_PREFIX + 'train-labels-idx1-ubyte.gz'
     TRAIN_LABEL_MD5 = 'd53e105ee54ea40749a09fcbcd1e9432'
 
-    mode: _DatasetMode
-    image_path: str | None
-    label_path: str | None
-    transform: _Transform[Any, Any] | None
-    backend: _ImageBackend
-    dtype: _DTypeLiteral
-    labels: list
-    images: list
-
     def __init__(
         self,
-        image_path: str | None = None,
-        label_path: str | None = None,
-        mode: _DatasetMode = 'train',
-        transform: _Transform[Any, Any] | None = None,
-        download: bool = True,
-        backend: _ImageBackend | None = None,
-    ) -> None:
+        image_path=None,
+        label_path=None,
+        mode='train',
+        transform=None,
+        download=True,
+        backend=None,
+    ):
         assert mode.lower() in [
             'train',
             'test',
@@ -237,9 +215,7 @@ class MNIST(Dataset[Tuple["_ImageDataType", "npt.NDArray[np.int64]"]]):
                             np.array([labels[i]]).astype('int64')
                         )
 
-    def __getitem__(
-        self, idx: int
-    ) -> tuple[_ImageDataType, npt.NDArray[np.int64]]:
+    def __getitem__(self, idx):
         image, label = self.images[idx], self.labels[idx]
         image = np.reshape(image, [28, 28])
 
@@ -254,7 +230,7 @@ class MNIST(Dataset[Tuple["_ImageDataType", "npt.NDArray[np.int64]"]]):
 
         return image.astype(self.dtype), label.astype('int64')
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.labels)
 
 
@@ -319,7 +295,7 @@ class FashionMNIST(MNIST):
 
             >>> for img, label in itertools.islice(iter(fashion_mnist_test), 5):  # only show first 5 images
             ...     # do something with img and label
-            ...     print(type(img), img.shape, label)  # type: ignore
+            ...     print(type(img), img.shape, label)
             ...     # <class 'paddle.Tensor'> [1, 28, 28] [9]
     """
 

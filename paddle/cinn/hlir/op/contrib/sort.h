@@ -27,12 +27,14 @@ namespace op {
 
 std::vector<ir::Tensor> ArgSort(const ir::Tensor& A,
                                 const cinn::common::Target& target,
+                                poly::StageMap stages,
                                 const int& axis,
                                 const bool& is_ascend,
                                 const std::string& name);
 
 std::vector<ir::Tensor> Sort(const ir::Tensor& A,
                              const cinn::common::Target& target,
+                             poly::StageMap stages,
                              const int& axis,
                              const bool& is_ascend,
                              const std::string& name);

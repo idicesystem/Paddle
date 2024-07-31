@@ -136,7 +136,7 @@ void Tensor::copy_(const Tensor &src,
   auto *dev_ctx = pool.GetMutable(
       place.GetType() == target_place.GetType() ? target_place : place);
 
-  if (kernel_type == KernelType::DENSE_TENSOR_KERNEL) {
+  if (kernel_type == KernelType::DENSE_TENSOR_KENREL) {
 #ifdef PADDLE_WITH_DISTRIBUTE
   bool run_auto_parallel = AllInputsAreDistTensor(src);
   bool rank_is_in_current_mesh = false;
@@ -200,7 +200,7 @@ void Tensor::copy_(const Tensor &src,
               target_place,
               blocking,
               static_cast<phi::DenseTensor *>(impl_.get()));
-  } else if (kernel_type == KernelType::SELECTED_ROWS_KERNEL) {
+  } else if (kernel_type == KernelType::SELECTED_ROWS_KENREL) {
     SetSelectedRowsKernelOutput(this);
     phi::MetaTensor meta_out(impl_.get());
     phi::UnchangedInferMeta(

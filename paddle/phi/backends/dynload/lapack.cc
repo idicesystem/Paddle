@@ -16,7 +16,8 @@ limitations under the License. */
 
 #include <mutex>
 
-namespace phi::dynload {
+namespace phi {
+namespace dynload {
 
 std::once_flag lapack_dso_flag;
 void* lapack_dso_handle = nullptr;
@@ -25,4 +26,5 @@ void* lapack_dso_handle = nullptr;
 
 LAPACK_ROUTINE_EACH(DEFINE_WRAP);
 
-}  // namespace phi::dynload
+}  // namespace dynload
+}  // namespace phi

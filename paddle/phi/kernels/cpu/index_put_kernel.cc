@@ -64,19 +64,13 @@ void LaunchIndexPutKernel(const Context& dev_ctx,
   auto* x_data = x.data<T>();
   auto* val_data = value.data<T>();
   bool is_initialized = out->initialized();
-  bool is_same_place = true;
-
-  if (is_initialized) {
-    is_same_place = (x.place() == out->place());
-  }
-
   T* out_data = dev_ctx.template Alloc<T>(out);
 
-  if (!is_initialized || !is_same_place) {
+  if (!is_initialized) {
     phi::Copy(dev_ctx, x, dev_ctx.GetPlace(), false, out);
   }
 
-  const auto& x_dims = x.dims();
+  auto x_dims = x.dims();
   const int64_t numel = indices[0]->numel();
   auto x_stride = common::stride(x_dims);
 

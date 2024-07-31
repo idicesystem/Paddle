@@ -13,31 +13,40 @@
 // limitations under the License.
 
 #include "paddle/cinn/ir/dim.h"
-#include "paddle/cinn/common/dim_expr_converter.h"
 #include "paddle/cinn/ir/ir.h"
 
 namespace cinn {
 namespace ir {
 
+using pir::shape::SymbolicDimOp;
+
 const _Dim_* Dim::operator->() const { return As<_Dim_>(); }
 _Dim_* Dim::operator->() { return As<_Dim_>(); }
 
-bool _Dim_::IsUniSymbolic() const { return sym_dim.isa<std::string>(); }
+SymbolicDimOp _Dim_::GetSymbolicDim() const { return sym_dim; }
 
-std::string _Dim_::ToString() const { return symbol::ToString(sym_dim); }
+bool _Dim_::IsDynamic() const { return sym_dim.IsDynamic(); }
+
+std::string _Dim_::GetSymbolName() const { return sym_dim.GetSymName(); }
+
+int64_t _Dim_::GetRealDimSize() const { return sym_dim.GetDimSize(); }
 
 Expr _Dim_::GetDimExpr() const { return dim_expr; }
 
-Dim _Dim_::Make(const std::string& name, const symbol::DimExpr& sym_dim) {
+Dim _Dim_::Make(const std::string& name, const SymbolicDimOp& sym_dim) {
   auto* n = make_shared<_Dim_>();
   n->name = name;
   n->sym_dim = sym_dim;
-  n->dim_expr = common::DimExprConverter().ConvertToIrExpr(sym_dim);
-  n->set_type(n->dim_expr.type());
+  if (sym_dim.IsDynamic()) {
+    n->dim_expr = Expr(Var(sym_dim.GetSymName(), cinn::common::Int(32)));
+  } else {
+    n->dim_expr = Expr(static_cast<int32_t>(sym_dim.GetDimSize()));
+  }
+
   return Dim(n);
 }
 
-Dim::Dim(const std::string& name, const symbol::DimExpr& sym_dim)
+Dim::Dim(const std::string& name, const SymbolicDimOp& sym_dim)
     : IrNodeRef(_Dim_::Make(name, sym_dim).self()) {}
 
 }  // namespace ir

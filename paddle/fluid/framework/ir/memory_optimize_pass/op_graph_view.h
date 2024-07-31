@@ -139,15 +139,15 @@ void OpGraphView::BreadthFirstVisit(Callback &&callback) const {
   PADDLE_ENFORCE_EQ(
       num_calls,
       op_num,
-      common::errors::InvalidArgument("There are unvisited ops."));
+      platform::errors::InvalidArgument("There are unvisited ops."));
   PADDLE_ENFORCE_EQ(
       visited_ops.size(),
       op_num,
-      common::errors::InvalidArgument("There are unvisited ops."));
+      platform::errors::InvalidArgument("There are unvisited ops."));
   PADDLE_ENFORCE_EQ(
       op_deps.empty(),
       true,
-      common::errors::InvalidArgument("There are unvisited ops."));
+      platform::errors::InvalidArgument("There are unvisited ops."));
 }
 
 }  // namespace ir

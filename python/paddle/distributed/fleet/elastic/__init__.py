@@ -12,19 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import signal
+import os
 import sys
 
-from paddle.distributed.fleet.launch_utils import DistributeMode  # noqa: F401
-
+from .manager import ElasticManager
+from .manager import ElasticStatus
+from .manager import ELASTIC_EXIT_CODE
+from .manager import ElasticLevel
 from .collective import CollectiveLauncher
-from .manager import (
-    ELASTIC_EXIT_CODE,
-    ElasticLevel,  # noqa: F401
-    ElasticManager,
-    ElasticStatus,
-)
+
+from paddle.distributed.fleet.launch_utils import DistributeMode
 
 
 def enable_elastic(args, distribute_mode):

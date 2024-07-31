@@ -17,7 +17,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/op_info.h"
 #include "paddle/fluid/framework/program_desc.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 TEST(OpCompatSensiblePass, compatOp) {
   auto lambda = [](const std::string& str) { return str == "tanh"; };
@@ -290,4 +292,6 @@ TEST(OpCompatSensiblePass, IsCompatFail) {
   OpInfoMap::Instance().mutable_map()->erase("op2");
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

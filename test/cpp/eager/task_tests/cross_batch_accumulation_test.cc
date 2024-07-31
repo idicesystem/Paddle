@@ -32,14 +32,14 @@ PD_DECLARE_KERNEL(full, CPU, ALL_LAYOUT);
 namespace egr {
 
 TEST(CrossBatchAccumulation, SingleScaleNode) {
-  eager_test::InitEnv(phi::CPUPlace());
+  eager_test::InitEnv(paddle::platform::CPUPlace());
 
   std::vector<paddle::Tensor> target_tensors;
-  phi::DDim ddim = common::make_ddim({4, 16, 16, 32});
+  paddle::framework::DDim ddim = common::make_ddim({4, 16, 16, 32});
 
   paddle::Tensor tensor =
       eager_test::CreateTensorWithValue(ddim,
-                                        phi::CPUPlace(),
+                                        paddle::platform::CPUPlace(),
                                         phi::DataType::FLOAT32,
                                         phi::DataLayout::NCHW,
                                         1.0 /*value*/,

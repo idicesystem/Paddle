@@ -132,7 +132,7 @@ class TRTNearestInterpTest2(TRTNearestInterpTest):
 class TRTNearestInterpTest3(TRTNearestInterpTest):
     def set_params(self):
         self.bs = 4
-        self.scale = 2.0
+        self.scale = -1
         self.channels = 3
         self.origin_shape = (16, 16)  # HW
         self.resize_shape = (32, 32)  # HW
@@ -141,6 +141,17 @@ class TRTNearestInterpTest3(TRTNearestInterpTest):
 
 
 class TRTNearestInterpTest4(TRTNearestInterpTest):
+    def set_params(self):
+        self.bs = 4
+        self.scale = 2.0
+        self.channels = 3
+        self.origin_shape = (16, 16)  # HW
+        self.resize_shape = (32, 32)  # HW
+        self.align_corners = False
+        self.data_layout = 'NHWC'
+
+
+class TRTNearestInterpTest5(TRTNearestInterpTest):
     def set_params(self):
         self.bs = 4
         self.scale = -1

@@ -13,8 +13,8 @@ limitations under the License. */
 #ifdef PADDLE_WITH_XPU
 #include <vector>
 
+#include "paddle/fluid/platform/place.h"
 #include "paddle/phi/backends/xpu/xpu_info.h"
-#include "paddle/phi/common/place.h"
 #include "xpu/runtime.h"
 
 namespace paddle {
@@ -52,15 +52,15 @@ std::vector<int> GetXPUSelectedDevices();
 void MemcpySyncH2D(void *dst,
                    const void *src,
                    size_t count,
-                   const phi::XPUPlace &dst_place);
+                   const platform::XPUPlace &dst_place);
 void MemcpySyncD2H(void *dst,
                    const void *src,
                    size_t count,
-                   const phi::XPUPlace &src_place);
+                   const platform::XPUPlace &src_place);
 void MemcpySyncD2D(void *dst,
-                   const phi::XPUPlace &dst_place,
+                   const platform::XPUPlace &dst_place,
                    const void *src,
-                   const phi::XPUPlace &src_place,
+                   const platform::XPUPlace &src_place,
                    size_t count);
 
 //! Blocks until stream has completed all operations.
@@ -69,8 +69,6 @@ void XPUStreamSync(xpuStream stream);
 using XPUDeviceGuard = phi::backends::xpu::XPUDeviceGuard;
 
 phi::backends::xpu::XPUVersion get_xpu_version(int dev_id);
-
-void set_xpu_debug_level(int level);
 
 //! Get the minimum chunk size for XPU allocator.
 size_t XPUMinChunkSize();

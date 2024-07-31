@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "paddle/cinn/ir/ir.h"
+#include "paddle/cinn/lang/builtin.h"
 #include "paddle/cinn/lang/compute.h"
 #include "paddle/cinn/poly/stage.h"
 
@@ -178,7 +179,7 @@ std::vector<ir::Tensor> Conv2d_NCHWc(
     const cinn::common::Target &target = cinn::common::DefaultHostTarget());
 
 #ifdef CINN_WITH_DNNL
-std::vector<ir::Tensor> Conv2d_NCHW_ONEDNN(
+std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(
     const ir::Tensor &input,
     const ir::Tensor &weights,
     int pad_h,
@@ -332,7 +333,7 @@ std::vector<ir::Tensor> Softmax(
     const std::string &output_name = UniqName("T_softmax_out"));
 
 #ifdef CINN_WITH_DNNL
-std::vector<ir::Tensor> SoftmaxONEDNN(
+std::vector<ir::Tensor> SoftmaxMKLDNN(
     const ir::Tensor &A,
     int axis = -1,
     const std::string &output_name = UniqName("T_softmax_out"));

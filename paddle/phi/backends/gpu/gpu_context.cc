@@ -63,13 +63,7 @@ namespace internal {
 
 class EigenGpuStreamDevice : public Eigen::StreamInterface {
  public:
-  EigenGpuStreamDevice()
-      : stream_(nullptr),
-        allocator_(nullptr),
-        device_prop_(nullptr),
-        scratch_(nullptr),
-        semaphore_(nullptr),
-        allocations_() {
+  EigenGpuStreamDevice() : scratch_(nullptr), semaphore_(nullptr) {
     Eigen::initializeDeviceProp();
   }
   ~EigenGpuStreamDevice() override = default;
@@ -251,8 +245,8 @@ struct GPUContext::Impl {
   ~Impl() {
     backends::gpu::GPUDeviceGuard guard(place_.device);
     if (owned_) {
-      DestroyInternalWorkspace();
-      DestroyInternalEigenDevice();
+      DestoryInternalWorkspace();
+      DestoryInternalEigenDevice();
       phi::DestroySparseHandle(sparse_handle_);
       phi::DestroySolverHandle(solver_handle_);
       phi::DestroyDnnHandle(dnn_handle_);
@@ -289,7 +283,7 @@ struct GPUContext::Impl {
     workspace_ = new DnnWorkspaceHandle(allocator_, stream());
   }
 
-  void DestroyInternalWorkspace() {
+  void DestoryInternalWorkspace() {
     if (owned_ && workspace_ != nullptr) {
       delete workspace_;
       workspace_ = nullptr;
@@ -344,7 +338,7 @@ struct GPUContext::Impl {
     eigen_device_ = new Eigen::GpuDevice(eigen_stream_.get());
   }
 
-  void DestroyInternalEigenDevice() {
+  void DestoryInternalEigenDevice() {
     if (owned_ && eigen_device_ != nullptr) {
       delete eigen_device_;
       eigen_device_ = nullptr;
@@ -485,7 +479,7 @@ struct GPUContext::Impl {
   }
 
   solverHandle_t GetSolverHandle() {
-    std::call_once(flag_solver_, [&]() {
+    std::call_once(flag_slover_, [&]() {
       if (!solver_handle_) {
         if (!solver_handle_creator_) {
           phi::InitSolverHandle(&solver_handle_, stream());
@@ -753,13 +747,13 @@ struct GPUContext::Impl {
   bool owned_{false};
   bool stream_owned_{false};
   Place place_;
-  int compute_capability_ = 0;
-  int runtime_version_ = 0;
-  int driver_version_ = 0;
-  int multi_process_ = 0;
-  int max_threads_per_mp_ = 0;
-  int max_threads_per_block_ = 0;
-  std::array<unsigned int, 3> max_grid_dim_size_;
+  int compute_capability_;
+  int runtime_version_;
+  int driver_version_;
+  int multi_process_;
+  int max_threads_per_mp_;
+  int max_threads_per_block_;
+  std::array<int, 3> max_grid_dim_size_;
 
   CUDAStream* stream_{nullptr};
   Eigen::GpuDevice* eigen_device_{nullptr};
@@ -784,7 +778,7 @@ struct GPUContext::Impl {
   std::once_flag flag_blas_;
   std::once_flag flag_blaslt_;
   std::once_flag flag_dnn_;
-  std::once_flag flag_solver_;
+  std::once_flag flag_slover_;
   std::once_flag flag_cublas_;
   std::once_flag flag_tensorcore_cublas_;
   std::once_flag flag_eigen_device_;
@@ -879,7 +873,7 @@ int GPUContext::GetMaxThreadsPerBlock() const {
   return impl_->max_threads_per_block_;
 }
 
-std::array<unsigned int, 3> GPUContext::GetCUDAMaxGridDimSize() const {
+std::array<int, 3> GPUContext::GetCUDAMaxGridDimSize() const {
   return impl_->max_grid_dim_size_;
 }
 
@@ -1030,7 +1024,7 @@ void GPUContext::SetMaxThreadsPerBlock(int val) {
   impl_->max_threads_per_block_ = val;
 }
 
-void GPUContext::SetMaxGridDimSize(const std::array<unsigned int, 3>& val) {
+void GPUContext::SetMaxGridDimSize(const std::array<int, 3>& val) {
   impl_->max_grid_dim_size_ = val;
 }
 

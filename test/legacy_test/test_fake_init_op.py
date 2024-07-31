@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 from op import Operator
@@ -41,13 +40,7 @@ class TestFakeInitOpSelectedRows(unittest.TestCase):
         self.assertEqual(var_shape, out_tensor._get_dims())
 
     def test_fake_init_selected_rows(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(core.CPUPlace())
+        places = [core.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(core.CUDAPlace(0))
         for place in places:

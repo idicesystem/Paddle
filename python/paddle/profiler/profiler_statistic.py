@@ -1130,8 +1130,8 @@ def _build_table(
         )
         if len(model_perspective_items) > 1:
             all_row_values = []
-            accumulation_time = 0
-            gpu_accumulation_time = 0
+            accmulation_time = 0
+            gpu_accmulation_time = 0
             gpu_total_time = (
                 statistic_data.event_summary.model_perspective_items[
                     'ProfileStep'
@@ -1154,16 +1154,28 @@ def _build_table(
                     row_values = [
                         f'{name}',
                         item.call,
-                        f'{format_time(item.cpu_time, unit=time_unit)} / {format_time(item.avg_cpu_time, unit=time_unit)} / {format_time(item.max_cpu_time, unit=time_unit)} / {format_time(item.min_cpu_time, unit=time_unit)} / {format_ratio(float(item.cpu_time) / total_time)}',
-                        f'{format_time(item.gpu_time, unit=time_unit)} / {format_time(item.avg_gpu_time, unit=time_unit)} / {format_time(item.max_gpu_time, unit=time_unit)} / {format_time(item.min_gpu_time, unit=time_unit)} / {format_ratio(gpu_ratio)}',
+                        '{} / {} / {} / {} / {}'.format(
+                            format_time(item.cpu_time, unit=time_unit),
+                            format_time(item.avg_cpu_time, unit=time_unit),
+                            format_time(item.max_cpu_time, unit=time_unit),
+                            format_time(item.min_cpu_time, unit=time_unit),
+                            format_ratio(float(item.cpu_time) / total_time),
+                        ),
+                        '{} / {} / {} / {} / {}'.format(
+                            format_time(item.gpu_time, unit=time_unit),
+                            format_time(item.avg_gpu_time, unit=time_unit),
+                            format_time(item.max_gpu_time, unit=time_unit),
+                            format_time(item.min_gpu_time, unit=time_unit),
+                            format_ratio(gpu_ratio),
+                        ),
                     ]
                     all_row_values.append(row_values)
                     if 'ProfileStep' not in name:
-                        accumulation_time += item.cpu_time
-                        gpu_accumulation_time += item.gpu_time
+                        accmulation_time += item.cpu_time
+                        gpu_accmulation_time += item.gpu_time
 
-            other_time = total_time - accumulation_time
-            other_gpu_time = gpu_total_time - gpu_accumulation_time
+            other_time = total_time - accmulation_time
+            other_gpu_time = gpu_total_time - gpu_accmulation_time
             if gpu_total_time == 0:
                 gpu_ratio = 0
             else:
@@ -1171,8 +1183,14 @@ def _build_table(
             row_values = [
                 '  Others',
                 '-',
-                f'{format_time(other_time, unit=time_unit)} / - / - / - / {format_ratio(float(other_time) / total_time)}',
-                f'{format_time(other_gpu_time, unit=time_unit)} / - / - / - / {format_ratio(gpu_ratio)}',
+                '{} / - / - / - / {}'.format(
+                    format_time(other_time, unit=time_unit),
+                    format_ratio(float(other_time) / total_time),
+                ),
+                '{} / - / - / - / {}'.format(
+                    format_time(other_gpu_time, unit=time_unit),
+                    format_ratio(gpu_ratio),
+                ),
             ]
             all_row_values.append(row_values)
             # Calculate the column width
@@ -1380,7 +1398,13 @@ def _build_table(
                     row_values = [
                         name,
                         item.call,
-                        f'{format_time(item.cpu_time, unit=time_unit)} / {format_time(item.avg_cpu_time, unit=time_unit)} / {format_time(item.max_cpu_time, unit=time_unit)} / {format_time(item.min_cpu_time, unit=time_unit)} / {format_ratio(cpu_ratio)}',
+                        '{} / {} / {} / {} / {}'.format(
+                            format_time(item.cpu_time, unit=time_unit),
+                            format_time(item.avg_cpu_time, unit=time_unit),
+                            format_time(item.max_cpu_time, unit=time_unit),
+                            format_time(item.min_cpu_time, unit=time_unit),
+                            format_ratio(cpu_ratio),
+                        ),
                         '{} / {} / {} / {} / {}'.format(
                             format_time(item.general_gpu_time, unit=time_unit),
                             format_time(
@@ -1636,7 +1660,13 @@ def _build_table(
                 row_values = [
                     name,
                     item.call,
-                    f'{format_time(item.gpu_time, unit=time_unit)} / {format_time(item.avg_gpu_time, unit=time_unit)} / {format_time(item.max_gpu_time, unit=time_unit)} / {format_time(item.min_gpu_time, unit=time_unit)} / {format_ratio(gpu_ratio)}',
+                    '{} / {} / {} / {} / {}'.format(
+                        format_time(item.gpu_time, unit=time_unit),
+                        format_time(item.avg_gpu_time, unit=time_unit),
+                        format_time(item.max_gpu_time, unit=time_unit),
+                        format_time(item.min_gpu_time, unit=time_unit),
+                        format_ratio(gpu_ratio),
+                    ),
                 ]
                 all_row_values.append(row_values)
 
@@ -1711,8 +1741,20 @@ def _build_table(
                 row_values = [
                     name,
                     item.call,
-                    f'{format_time(item.cpu_time, unit=time_unit)} / {format_time(item.avg_cpu_time, unit=time_unit)} / {format_time(item.max_cpu_time, unit=time_unit)} / {format_time(item.min_cpu_time, unit=time_unit)} / {format_ratio(float(item.cpu_time) / total_time)}',
-                    f'{format_time(item.general_gpu_time, unit=time_unit)} / {format_time(item.avg_general_gpu_time, unit=time_unit)} / {format_time(item.max_general_gpu_time, unit=time_unit)} / {format_time(item.min_general_gpu_time, unit=time_unit)} / {format_ratio(gpu_ratio)}',
+                    '{} / {} / {} / {} / {}'.format(
+                        format_time(item.cpu_time, unit=time_unit),
+                        format_time(item.avg_cpu_time, unit=time_unit),
+                        format_time(item.max_cpu_time, unit=time_unit),
+                        format_time(item.min_cpu_time, unit=time_unit),
+                        format_ratio(float(item.cpu_time) / total_time),
+                    ),
+                    '{} / {} / {} / {} / {}'.format(
+                        format_time(item.general_gpu_time, unit=time_unit),
+                        format_time(item.avg_general_gpu_time, unit=time_unit),
+                        format_time(item.max_general_gpu_time, unit=time_unit),
+                        format_time(item.min_general_gpu_time, unit=time_unit),
+                        format_ratio(gpu_ratio),
+                    ),
                 ]
                 all_row_values.append(row_values)
 
@@ -1836,7 +1878,13 @@ def _build_table(
                     row_values = [
                         name,
                         item.call,
-                        f'{format_time(item.cpu_time, unit=time_unit)} / {format_time(item.avg_cpu_time, unit=time_unit)} / {format_time(item.max_cpu_time, unit=time_unit)} / {format_time(item.min_cpu_time, unit=time_unit)} / {format_ratio(float(item.cpu_time) / total_time)}',
+                        '{} / {} / {} / {} / {}'.format(
+                            format_time(item.cpu_time, unit=time_unit),
+                            format_time(item.avg_cpu_time, unit=time_unit),
+                            format_time(item.max_cpu_time, unit=time_unit),
+                            format_time(item.min_cpu_time, unit=time_unit),
+                            format_ratio(float(item.cpu_time) / total_time),
+                        ),
                         '{} / {} / {} / {} / {}'.format(
                             format_time(item.general_gpu_time, unit=time_unit),
                             format_time(

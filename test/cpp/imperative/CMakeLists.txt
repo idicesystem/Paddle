@@ -32,11 +32,17 @@ endif()
 cc_test(
   test_gradient_accmulator
   SRCS test_gradient_accmulator.cc
-  DEPS selected_rows_utils gradient_accumulator phi common phi_utils)
+  DEPS memcpy selected_rows_utils gradient_accumulator phi common phi_utils)
 cc_test(
   test_layer
   SRCS test_layer.cc
-  DEPS layer proto_desc operator op_registry variable_helper generated_op)
+  DEPS layer
+       proto_desc
+       operator
+       op_registry
+       variable_helper
+       mul_op
+       memcpy)
 cc_test(
   test_prepare_op
   SRCS test_prepare_op.cc
@@ -44,9 +50,9 @@ cc_test(
        op_info
        split_op
        layer
+       concat_and_split
        activation_op
-       phi
-       common)
+       place)
 cc_test(
   test_tracer
   SRCS test_tracer.cc
@@ -56,9 +62,10 @@ cc_test(
        operator
        op_registry
        variable_helper
-       generated_op
+       mul_op
        generated_static_op
-       elementwise_add_op)
+       elementwise_add_op
+       memcpy)
 cc_test(
   test_hooks
   SRCS test_hooks.cc
@@ -69,17 +76,18 @@ cc_test(
        operator
        op_registry
        variable_helper
-       generated_op
-       elementwise_add_op)
+       mul_op
+       elementwise_add_op
+       memcpy)
 cc_test(
   test_eager
   SRCS test_eager.cc
-  DEPS tracer layer prepared_operator generated_op)
+  DEPS tracer layer prepared_operator mul_op)
 if(WITH_NCCL
    OR WITH_RCCL
    OR WITH_XPU_BKCL)
   cc_test(
     test_group
     SRCS test_group.cc
-    DEPS reducer phi common)
+    DEPS reducer concat_and_split memcpy)
 endif()

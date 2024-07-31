@@ -68,11 +68,15 @@ if __name__ == '__main__':
 
     if actual < expected:
         print(
-            f'expected >= {round(expected * 100, 1)} %, actual {round(actual * 100, 1)} %, failed'
+            'expected >= {} %, actual {} %, failed'.format(
+                round(expected * 100, 1), round(actual * 100, 1)
+            )
         )
 
         sys.exit(1)
 
     print(
-        f'expected >= {round(expected * 100, 1)} %, actual {round(actual * 100, 1)} %, passed'
+        'expected >= {} %, actual {} %, passed'.format(
+            round(expected * 100, 1), round(actual * 100, 1)
+        )
     )

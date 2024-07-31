@@ -59,5 +59,4 @@ PD_REGISTER_KERNEL(divide_grad,
                    ALL_LAYOUT,
                    phi::DivideGradKernel,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
                    float) {}

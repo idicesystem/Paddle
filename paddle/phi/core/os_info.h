@@ -20,7 +20,7 @@ limitations under the License. */
 #ifdef _POSIX_C_SOURCE
 #include <time.h>
 #endif
-#include "paddle/phi/common/port.h"
+#include "paddle/phi/backends/dynload/port.h"
 
 namespace phi {
 
@@ -54,7 +54,7 @@ ThreadId GetCurrentThreadId();
 
 // Return the map from StdTid to ThreadId
 // Returns current snapshot of all threads. Make sure there is no thread
-// create/destroy when using it.
+// create/destory when using it.
 std::unordered_map<uint64_t, ThreadId> GetAllThreadIds();
 
 static constexpr const char* kDefaultThreadName = "unnamed";
@@ -63,7 +63,7 @@ std::string GetCurrentThreadName();
 
 // Return the map from StdTid to ThreadName
 // Returns current snapshot of all threads. Make sure there is no thread
-// create/destroy when using it.
+// create/destory when using it.
 std::unordered_map<uint64_t, std::string> GetAllThreadNames();
 
 // Thread name is immutable, only the first call will succeed.

@@ -16,7 +16,7 @@ if(WITH_TESTING AND NOT WIN32)
       fetch_op
       generated_op
       transfer_layout_op
-      fluid_jit
+      jit_layer
       generated_static_op)
   cc_test(
     layer_test

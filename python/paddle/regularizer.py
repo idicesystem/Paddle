@@ -13,9 +13,6 @@
 # limitations under the License.
 
 
-from __future__ import annotations
-
-import paddle
 from paddle import _C_ops, pir
 from paddle.base import framework
 from paddle.base.framework import in_dynamic_or_pir_mode
@@ -34,12 +31,10 @@ class WeightDecayRegularizer:
     of its implementations
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
-    def __call__(
-        self, param: paddle.Tensor, grad: paddle.Tensor, block: pir.Block
-    ):
+    def __call__(self, param, grad, block):
         """Add corresponding weight decay operations to the network"""
         raise NotImplementedError()
 
@@ -110,17 +105,12 @@ class L1Decay(WeightDecayRegularizer):
             ...         bias_attr=False)
     """
 
-    def __init__(self, coeff: float = 0.0) -> None:
+    def __init__(self, coeff=0.0):
         assert coeff is not None
         super().__init__()
         self._coeff = coeff
 
-    def __call__(
-        self,
-        param: paddle.Tensor,
-        grad: paddle.Tensor,
-        block: pir.Block,
-    ):
+    def __call__(self, param, grad, block):
         """Add L1 weight decay ops to network
 
         Adds L1 weight decay ops.
@@ -134,7 +124,7 @@ class L1Decay(WeightDecayRegularizer):
             new variable for weight decay
         """
         assert isinstance(
-            param, (framework.Variable, pir.Value, pir.core.ParameterMeta)
+            param, (framework.Variable, pir.OpResult, pir.core.ParameterMeta)
         )
         assert isinstance(block, (framework.Block, pir.Block))
 
@@ -162,8 +152,8 @@ class L1Decay(WeightDecayRegularizer):
             )
             return decay
 
-    def __str__(self) -> str:
-        return f"L1Decay, coeff={self._coeff:f}"
+    def __str__(self):
+        return "L1Decay, coeff=%f" % self._coeff
 
 
 class L2Decay(WeightDecayRegularizer):
@@ -227,17 +217,12 @@ class L2Decay(WeightDecayRegularizer):
             ...         bias_attr=False)
     """
 
-    def __init__(self, coeff: float = 0.0) -> None:
+    def __init__(self, coeff=0.0):
         assert coeff is not None
         super().__init__()
         self._coeff = coeff
 
-    def __call__(
-        self,
-        param: paddle.Tensor,
-        grad: paddle.Tensor,
-        block: pir.Block,
-    ):
+    def __call__(self, param, grad, block):
         """Add L2 weight decay ops to network
 
         Adds L2 weight decay ops.
@@ -251,7 +236,7 @@ class L2Decay(WeightDecayRegularizer):
             new variable for weight decay
         """
         assert isinstance(
-            param, (framework.Variable, pir.Value, pir.core.ParameterMeta)
+            param, (framework.Variable, pir.OpResult, pir.core.ParameterMeta)
         )
         assert isinstance(block, (framework.Block, pir.Block))
 
@@ -272,5 +257,5 @@ class L2Decay(WeightDecayRegularizer):
 
             return decay
 
-    def __str__(self) -> str:
-        return f"L2Decay, coeff={self._coeff:f}"
+    def __str__(self):
+        return "L2Decay, coeff=%f" % self._coeff

@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * PRelu converter from paddle to tensorRT.
@@ -118,10 +120,12 @@ class PReluOpConverter : public OpConverter {
         engine_, ParametricReLU, *input, *real_alpha_tensor);
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "prelu", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "prelu", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(prelu, PReluOpConverter);

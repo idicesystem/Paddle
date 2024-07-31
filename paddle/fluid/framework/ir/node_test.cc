@@ -17,7 +17,9 @@ limitations under the License. */
 #include "gtest/gtest.h"
 #include "paddle/fluid/framework/var_desc.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Node;
 
@@ -101,4 +103,6 @@ TEST(NodeTest, ToString) {
   EXPECT_EQ(n3->ToString(), "{n2} = n3(n1)");
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

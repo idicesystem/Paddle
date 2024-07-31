@@ -18,16 +18,16 @@ namespace paddle {
 namespace memory {
 namespace allocation {
 
-ThreadLocalAllocatorImpl::ThreadLocalAllocatorImpl(const phi::Place& p)
+ThreadLocalAllocatorImpl::ThreadLocalAllocatorImpl(const platform::Place& p)
     : place_(p) {
-  if (phi::is_gpu_place(place_)) {
+  if (platform::is_gpu_place(place_)) {
     buddy_allocator_ = std::make_unique<memory::detail::BuddyAllocator>(
         std::unique_ptr<memory::detail::SystemAllocator>(
             new memory::detail::GPUAllocator(place_.device)),
         platform::GpuMinChunkSize(),
         platform::GpuMaxChunkSize());
   } else {
-    PADDLE_THROW(common::errors::Unavailable(
+    PADDLE_THROW(platform::errors::Unavailable(
         "Thread local allocator only supports CUDAPlace now."));
   }
 }
@@ -39,11 +39,12 @@ std::shared_ptr<ThreadLocalAllocatorImpl> ThreadLocalCUDAAllocatorPool::Get(
   PADDLE_ENFORCE_LT(
       pos,
       devices_.size(),
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "The position of device should be less than the size of devices."));
   std::call_once(*init_flags_[pos], [this, pos, gpu_id] {
     platform::SetDeviceId(devices_[pos]);
-    allocators_[pos].reset(new ThreadLocalAllocatorImpl(phi::GPUPlace(gpu_id)));
+    allocators_[pos].reset(
+        new ThreadLocalAllocatorImpl(platform::CUDAPlace(gpu_id)));
   });
   return allocators_[pos];
 }

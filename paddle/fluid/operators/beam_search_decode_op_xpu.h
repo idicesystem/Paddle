@@ -14,7 +14,6 @@ limitations under the License. */
 #pragma once
 
 #include "paddle/fluid/operators/beam_search_decode_op_def.h"
-#include "paddle/phi/common/memory_utils.h"
 
 namespace paddle {
 namespace operators {
@@ -46,22 +45,23 @@ int CopyTensorByXPU(const phi::DenseTensor& srcTensor,
   PADDLE_ENFORCE_EQ(
       r,
       xpu::Error_t::SUCCESS,
-      common::errors::External("Execute function SetMeta failed by [%d]", r));
+      platform::errors::External("Execute function SetMeta failed by [%d]", r));
 
   if (flag == 0) {
-    T* dstData = dstTensor->template mutable_data<T>(phi::CPUPlace());
-    phi::memory_utils::Copy(phi::CPUPlace(),
-                            dstData,
-                            place,
-                            srcData,
-                            srcTensor.numel() * sizeof(T));
+    T* dstData =
+        dstTensor->template mutable_data<T>(paddle::platform::CPUPlace());
+    paddle::memory::Copy(paddle::platform::CPUPlace(),
+                         dstData,
+                         place,
+                         srcData,
+                         srcTensor.numel() * sizeof(T));
   } else {
     T* dstData = dstTensor->template mutable_data<T>(place);
-    phi::memory_utils::Copy(place,
-                            dstData,
-                            phi::CPUPlace(),
-                            srcData,
-                            srcTensor.numel() * sizeof(T));
+    paddle::memory::Copy(place,
+                         dstData,
+                         paddle::platform::CPUPlace(),
+                         srcData,
+                         srcTensor.numel() * sizeof(T));
   }
 
   return xpu::Error_t::SUCCESS;
@@ -75,7 +75,8 @@ const int CopyTensorByType(const phi::DenseTensor& srcTensor,
   if (srcTensor.dtype() == phi::DataType::FLOAT32)
     r = CopyTensorByXPU<float>(srcTensor, dstTensor, flag, place);
   else if (srcTensor.dtype() == phi::DataType::FLOAT16)
-    r = CopyTensorByXPU<phi::dtype::float16>(srcTensor, dstTensor, flag, place);
+    r = CopyTensorByXPU<paddle::platform::float16>(
+        srcTensor, dstTensor, flag, place);
   else if (srcTensor.dtype() == phi::DataType::FLOAT64)
     r = CopyTensorByXPU<double>(srcTensor, dstTensor, flag, place);
   else if (srcTensor.dtype() == phi::DataType::INT32)
@@ -87,7 +88,7 @@ const int CopyTensorByType(const phi::DenseTensor& srcTensor,
 
   PADDLE_ENFORCE_EQ(r,
                     xpu::Error_t::SUCCESS,
-                    common::errors::External(
+                    platform::errors::External(
                         "Execute function CopyTensorByXPU failed by [%d]", r));
 
   return xpu::Error_t::SUCCESS;
@@ -107,7 +108,7 @@ struct BeamSearchDecodeXPUFunctor {
     int r = 0;
 
     // First make a copy of XPU data on CPU
-    if (step_ids[0].place().GetType() == phi::AllocationType::XPU) {
+    if (platform::is_xpu_place(step_ids[0].place())) {
       // Copy all tensors in the input tensor array
       for (auto& step_id : step_ids) {
         phi::DenseTensor out;
@@ -116,7 +117,7 @@ struct BeamSearchDecodeXPUFunctor {
           PADDLE_ENFORCE_EQ(
               r,
               xpu::Error_t::SUCCESS,
-              common::errors::External(
+              platform::errors::External(
                   "Execute function CopyTensorByXPU failed by [%d]", r));
         }
 
@@ -125,7 +126,7 @@ struct BeamSearchDecodeXPUFunctor {
       }
     }
 
-    if (step_scores[0].place().GetType() == phi::AllocationType::XPU) {
+    if (platform::is_xpu_place(step_scores[0].place())) {
       // Copy all tensors in the input tensor array
       for (auto& step_score : step_scores) {
         phi::DenseTensor out;
@@ -134,7 +135,7 @@ struct BeamSearchDecodeXPUFunctor {
           PADDLE_ENFORCE_EQ(
               r,
               xpu::Error_t::SUCCESS,
-              common::errors::External(
+              platform::errors::External(
                   "Execute function CopyTensorByType failed by [%d]", r));
         }
 
@@ -147,7 +148,7 @@ struct BeamSearchDecodeXPUFunctor {
   template <typename T>
   void apply_xpu() const {
     if (std::is_same<bool, T>::value) {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "beam search decode op does not support bool!"));
     } else {
       BeamSearchDecoder<T> beam_search_decoder(beam_size_, end_id_);

@@ -59,7 +59,7 @@ class LauncherInterface:
         self.procs = []
 
     def _terminate_procs(self):
-        # try to terminate process by group, this happened in multiprocess scenario in user process
+        # try to terminate process by group, this happend in multiprocess senario in user process
         if os.name != 'nt':
             for p in self.procs:
                 if p.proc.poll() is None:
@@ -79,7 +79,7 @@ class LauncherInterface:
         for step in range(0, 50):
             alive = False
             for p in self.procs:
-                if p.proc.poll() is None:  # not terminate
+                if p.proc.poll() is None:  # not termniate
                     os.kill(p.proc.pid, signal.SIGKILL)
                     alive = True
 
@@ -103,7 +103,9 @@ class LauncherInterface:
                     return ret
                 logger.error("ABORT!!! ABORT!!! ABORT!!!")
                 logger.error(
-                    f"ERROR rank {p.rank} error with exit code {ret}, check log for detail."
+                    "ERROR rank {} error with exit code {}, check log for detail.".format(
+                        p.rank, ret
+                    )
                 )
                 result = ret
         if not alive and result is None:
@@ -184,7 +186,7 @@ class ElasticManager:
             self.elastic_level = ElasticLevel.ELASTIC
             logger.info('start job with ElasticLevel.ELASTIC')
 
-        # compatible with kubernetes service discovery
+        # compatible with kuberntes service discovery
         if (
             not server
             and os.getenv('PADDLE_ELASTIC_ETCD_SERVICE_HOST')
@@ -207,7 +209,9 @@ class ElasticManager:
 
         if not server or ':' not in server or not name or not self.np:
             logger.info(
-                f'Elastic is not enabled with server {server} name {name} and np {self.np}'
+                'Elastic is not enabled with server {} name {} and np {}'.format(
+                    server, name, self.np
+                )
             )
             self.enable = False
             return
@@ -453,7 +457,7 @@ class ElasticManager:
             f'{endpoints}|{hosts}'.encode('latin-1'),
         )
 
-    def _update_fault_tolerance(self):
+    def _update_fault_tolrance(self):
         rank = int(os.getenv('PADDLE_TRAINER_ID', -1))
         logger.debug(
             f"self.curr_host={self.curr_host}, self.dist_endpoints={self.dist_endpoints}"
@@ -555,12 +559,12 @@ class ElasticManager:
     def _update_hosts(self):
         assert len(self.hosts) != 0, 'hosts empty'
         if self.elastic_level == ElasticLevel.FAULT_TOLERANCE:
-            self._update_fault_tolerance()
+            self._update_fault_tolrance()
         else:
             # elastic
             if len(self.hosts) == self.np:
                 logger.info(f"elastic startup, hosts={self.hosts}")
-                self._update_fault_tolerance()
+                self._update_fault_tolrance()
 
             elif len(self.hosts) > self.np:
                 # scale out

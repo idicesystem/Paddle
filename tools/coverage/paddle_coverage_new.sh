@@ -50,6 +50,7 @@ function gen_full_html_report() {
         '/paddle/paddle/fluid/memory/*' \
         '/paddle/paddle/fluid/operators/*' \
         '/paddle/paddle/fluid/recordio/*' \
+        '/paddle/paddle/fluid/string/*' \
         '/paddle/paddle/fluid/eager/*' \
         '/paddle/paddle/phi/*' \
         '/paddle/paddle/utils/*' \

@@ -77,7 +77,8 @@ class SimpleFCNet(paddle.nn.Layer):
 
 class TestDygraphDataLoader(unittest.TestCase):
     def run_main(self, num_workers, places, persistent_workers):
-        paddle.seed(1)
+        base.default_startup_program().random_seed = 1
+        base.default_main_program().random_seed = 1
         with base.dygraph.guard(places[0]):
             fc_net = SimpleFCNet()
             optimizer = paddle.optimizer.Adam(parameters=fc_net.parameters())
@@ -145,7 +146,8 @@ class TestDygraphDataLoader(unittest.TestCase):
 
 class TestDygraphDataLoaderWithBatchedDataset(TestDygraphDataLoader):
     def run_main(self, num_workers, places, persistent_workers):
-        paddle.seed(1)
+        base.default_startup_program().random_seed = 1
+        base.default_main_program().random_seed = 1
         with base.dygraph.guard(places[0]):
             fc_net = SimpleFCNet()
             optimizer = paddle.optimizer.Adam(parameters=fc_net.parameters())

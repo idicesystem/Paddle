@@ -60,13 +60,10 @@ class TestFetchLoDTensorArray(unittest.TestCase):
         exe.run(startup_program)
         feed_dict = {'image': image, 'label': label}
 
-        if not paddle.base.framework.use_pir_api():
-            build_strategy = base.BuildStrategy()
-            binary = base.CompiledProgram(
-                main_program, build_strategy=build_strategy
-            )
-        else:
-            binary = main_program
+        build_strategy = base.BuildStrategy()
+        binary = base.CompiledProgram(
+            main_program, build_strategy=build_strategy
+        )
 
         for _ in range(3):
             loss_v, array_v = exe.run(

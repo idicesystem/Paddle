@@ -116,7 +116,7 @@ class TestFuseAdamWPass(unittest.TestCase):
 
         for i in range(5):
             loss_data = exe.run(
-                train_program, feed={"X": x[i]}, fetch_list=[loss]
+                train_program, feed={"X": x[i]}, fetch_list=[loss.name]
             )
         return loss_data
 

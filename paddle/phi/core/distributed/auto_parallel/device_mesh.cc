@@ -16,8 +16,8 @@ limitations under the License. */
 #include <iterator>
 
 #include "paddle/phi/core/distributed/auto_parallel/device_mesh.h"
-#include "paddle/phi/core/distributed/auto_parallel/proto_helper.h"
 #include "paddle/phi/core/distributed/auto_parallel/utils.h"
+
 namespace phi {
 namespace distributed {
 namespace auto_parallel {
@@ -41,11 +41,13 @@ DeviceCapability DeviceCapability::from_proto(
   return capability;
 }
 
-void DeviceCapability::to_proto(DeviceCapabilityProto *proto) const {
-  proto->set_single_precision_flops(single_precision_flops);
-  proto->set_double_precision_flops(double_precision_flops);
-  proto->set_memory_size_in_bytes(memory_size_in_bytes);
-  proto->set_clock_rate_in_ghz(clock_rate_in_ghz);
+DeviceCapabilityProto DeviceCapability::to_proto() const {
+  DeviceCapabilityProto proto;
+  proto.set_single_precision_flops(single_precision_flops);
+  proto.set_double_precision_flops(double_precision_flops);
+  proto.set_memory_size_in_bytes(memory_size_in_bytes);
+  proto.set_clock_rate_in_ghz(clock_rate_in_ghz);
+  return proto;
 }
 
 std::string Device::to_string() const {
@@ -67,13 +69,14 @@ Device Device::from_proto(const DeviceProto &proto) {
   return device;
 }
 
-void Device::to_proto(DeviceProto *proto) const {
-  proto->set_global_id(global_id_);
-  proto->set_local_id(local_id_);
-  proto->set_machine_id(machine_id_);
-  proto->set_type(type_);
-  proto->mutable_capability()->CopyFrom(
-      phi::distributed::to_proto(capability_));
+DeviceProto Device::to_proto() const {
+  DeviceProto proto;
+  proto.set_global_id(global_id_);
+  proto.set_local_id(local_id_);
+  proto.set_machine_id(machine_id_);
+  proto.set_type(type_);
+  proto.mutable_capability()->CopyFrom(capability_.to_proto());
+  return proto;
 }
 
 bool operator==(const Device &lhs, const Device &rhs) {
@@ -106,9 +109,11 @@ LinkCapability LinkCapability::from_proto(const LinkCapabilityProto &proto) {
   return capability;
 }
 
-void LinkCapability::to_proto(LinkCapabilityProto *proto) const {
-  proto->set_bandwidth(bandwidth);
-  proto->set_latency(latency);
+LinkCapabilityProto LinkCapability::to_proto() const {
+  LinkCapabilityProto proto;
+  proto.set_bandwidth(bandwidth);
+  proto.set_latency(latency);
+  return proto;
 }
 
 std::string Link::to_string() const {
@@ -128,12 +133,13 @@ Link Link::from_proto(const LinkProto &proto) {
   return link;
 }
 
-void Link::to_proto(LinkProto *proto) const {
-  proto->set_source_id(source_id_);
-  proto->set_target_id(target_id_);
-  proto->set_type(type_);
-  proto->mutable_capability()->CopyFrom(
-      phi::distributed::to_proto(capability_));
+LinkProto Link::to_proto() const {
+  LinkProto proto;
+  proto.set_source_id(source_id_);
+  proto.set_target_id(target_id_);
+  proto.set_type(type_);
+  proto.mutable_capability()->CopyFrom(capability_.to_proto());
+  return proto;
 }
 
 bool operator==(const Link &lhs, const Link &rhs) {
@@ -349,32 +355,34 @@ DeviceMesh DeviceMesh::from_proto(const DeviceMeshProto &proto) {
   return mesh;
 }
 
-void DeviceMesh::to_proto(DeviceMeshProto *proto) const {
-  proto->set_name(name_);
+DeviceMeshProto DeviceMesh::to_proto() const {
+  DeviceMeshProto proto;
+
+  proto.set_name(name_);
 
   for (const auto &i : shape_) {
-    proto->add_shape(i);
+    proto.add_shape(i);
   }
 
   for (const auto &i : device_ids_) {
-    proto->add_device_ids(i);
+    proto.add_device_ids(i);
   }
 
   for (const auto &i : dim_names_) {
-    proto->add_dim_names(i);
+    proto.add_dim_names(i);
   }
 
   for (const auto &device : devices_) {
-    proto->mutable_devices()->Add()->CopyFrom(
-        phi::distributed::to_proto(device.second));
+    proto.mutable_devices()->Add()->CopyFrom(device.second.to_proto());
   }
 
   for (const auto &neighbors : links_) {
     for (const auto &link : neighbors.second) {
-      proto->mutable_links()->Add()->CopyFrom(
-          phi::distributed::to_proto(link.second));
+      proto.mutable_links()->Add()->CopyFrom(link.second.to_proto());
     }
   }
+
+  return proto;
 }
 
 bool operator==(const DeviceMesh &lhs, const DeviceMesh &rhs) {

@@ -11,12 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Sequence, Union
 
 import numpy as np
-import numpy.typing as npt
 
 import paddle
 from paddle import _C_ops
@@ -25,20 +21,6 @@ from paddle.base.framework import Variable
 from paddle.distribution import distribution
 from paddle.framework import in_dynamic_mode
 from paddle.tensor import random
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
-
-    from paddle import Tensor
-    from paddle._typing import NestedSequence
-
-    _UniformBoundary: TypeAlias = Union[
-        float,
-        Sequence[float],
-        NestedSequence[float],
-        npt.NDArray[Union[np.float32, np.float64]],
-        Tensor,
-    ]
 
 
 class Uniform(distribution.Distribution):
@@ -63,7 +45,7 @@ class Uniform(distribution.Distribution):
     * :math:`Z`: is the normalizing constant.
 
     The parameters `low` and `high` must be shaped in a way that supports
-    `Broadcasting` (e.g., `high - low` is a valid operation).
+    `Boardcasting` (e.g., `high - low` is a valid operation).
 
     Note:
         If you want know more about broadcasting, please refer to `Introduction to Tensor`_ .
@@ -118,42 +100,18 @@ class Uniform(distribution.Distribution):
                 [0.50000000])
     """
 
-    low: Tensor
-    high: Tensor
-
-    def __init__(
-        self,
-        low: _UniformBoundary,
-        high: _UniformBoundary,
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, low, high, name=None):
         if not in_dynamic_mode():
             check_type(
                 low,
                 'low',
-                (
-                    int,
-                    float,
-                    np.ndarray,
-                    Variable,
-                    paddle.pir.Value,
-                    list,
-                    tuple,
-                ),
+                (int, float, np.ndarray, Variable, list, tuple),
                 'Uniform',
             )
             check_type(
                 high,
                 'high',
-                (
-                    int,
-                    float,
-                    np.ndarray,
-                    Variable,
-                    paddle.pir.Value,
-                    list,
-                    tuple,
-                ),
+                (int, float, np.ndarray, Variable, list, tuple),
                 'Uniform',
             )
 
@@ -191,7 +149,7 @@ class Uniform(distribution.Distribution):
 
         super().__init__(self.low.shape)
 
-    def sample(self, shape: list[int], seed: int = 0) -> Tensor:
+    def sample(self, shape, seed=0):
         """Generate samples of the specified shape.
 
         Args:
@@ -244,7 +202,7 @@ class Uniform(distribution.Distribution):
             else:
                 return output
 
-    def log_prob(self, value: Tensor) -> Tensor:
+    def log_prob(self, value):
         """Log probability density/mass function.
 
         Args:
@@ -273,7 +231,7 @@ class Uniform(distribution.Distribution):
                 paddle.log(lb * ub), paddle.log(self.high - self.low), name=name
             )
 
-    def probs(self, value: Tensor) -> Tensor:
+    def probs(self, value):
         """Probability density/mass function.
 
         Args:
@@ -298,7 +256,7 @@ class Uniform(distribution.Distribution):
             ub = paddle.cast(ub_bool, dtype=value.dtype)
             return paddle.divide((lb * ub), (self.high - self.low), name=name)
 
-    def entropy(self) -> Tensor:
+    def entropy(self):
         r"""Shannon entropy in nats.
 
         The entropy is

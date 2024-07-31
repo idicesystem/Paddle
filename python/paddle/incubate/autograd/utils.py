@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from __future__ import annotations
-
 import collections
 import typing
 
@@ -39,7 +36,7 @@ prim_option = PrimOption()
 
 
 @framework.static_only
-def prim_enabled() -> bool:
+def prim_enabled():
     """
     Note:
         **ONLY available in the static graph mode.**
@@ -73,7 +70,7 @@ def prim_enabled() -> bool:
 
 
 @framework.static_only
-def enable_prim() -> None:
+def enable_prim():
     """
     Note:
         **ONLY available in the static graph mode.**
@@ -99,7 +96,7 @@ def enable_prim() -> None:
 
 
 @framework.static_only
-def disable_prim() -> None:
+def disable_prim():
     """
     Note:
         **ONLY available in the static graph mode.**
@@ -239,8 +236,8 @@ def _get_args_values(op, phi_name):
 def prepare_python_api_arguments(op):
     """
     Generate all args inputs of composite op. Because inputs of composite op is
-    the same as phi op described in ops.yaml. So we need to map origin op to phi op
-    and then push input data and attrs of origin op to corresponding phi op.
+    the same as phi op desribed in ops.yaml. So we need to map origin op to phi op
+    and then push input data and attrs of origin op to correspondng phi op.
     """
     if op.input_names is None:
         return []
@@ -312,9 +309,7 @@ def map_output_for_composite(op):
 
 
 def flatten(inp):
-    if inp is None or isinstance(
-        inp, (paddle.base.framework.Variable, paddle.pir.Value)
-    ):
+    if inp is None or isinstance(inp, paddle.base.framework.Variable):
         return [inp]
     flattened = []
     for part in inp:
@@ -328,7 +323,7 @@ def flatten_and_remove_none(inp):
 
 
 def as_tensors(xs):
-    if isinstance(xs, (framework.Variable, paddle.pir.Value)):
+    if isinstance(xs, framework.Variable):
         return (xs,)
     elif isinstance(xs, typing.Sequence):
         return tuple(xs)

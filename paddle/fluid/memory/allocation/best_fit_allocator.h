@@ -21,7 +21,7 @@
 
 #include "paddle/fluid/memory/allocation/allocator.h"
 #include "paddle/fluid/memory/allocation/spin_lock.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform//place.h"
 
 namespace paddle {
 namespace memory {
@@ -109,7 +109,7 @@ class BestFitAllocator : public Allocator {
 
   void* BasePtr() const { return allocation_->ptr(); }
 
-  const phi::Place& Place() const { return allocation_->place(); }
+  const platform::Place& Place() const { return allocation_->place(); }
 
   size_t NumFreeChunks() const;
 

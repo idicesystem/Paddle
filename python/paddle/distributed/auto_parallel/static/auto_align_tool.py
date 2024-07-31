@@ -352,13 +352,13 @@ class AutoAlignTool:
         if src_attr_map is None or len(src_attr_map) == 0:
             return vars_list[0]
 
-        dst_strategies = {}
-        src_strategies = {}
+        dst_strategys = {}
+        src_strategys = {}
         tensors_dict = {}
 
         convert_tensor_dict = None
         for var_name in src_attr_map.keys():
-            assert var_name not in dst_strategies
+            assert var_name not in dst_strategys
             dist_vars = []
             for vars in vars_list:
                 if var_name in vars.keys():
@@ -367,13 +367,13 @@ class AutoAlignTool:
                 continue
 
             if var_name in dst_attr_map and var_name in src_attr_map:
-                dst_strategies[var_name] = copy.deepcopy(dst_attr_map[var_name])
-                src_strategies[var_name] = copy.deepcopy(src_attr_map[var_name])
+                dst_strategys[var_name] = copy.deepcopy(dst_attr_map[var_name])
+                src_strategys[var_name] = copy.deepcopy(src_attr_map[var_name])
                 tensors_dict[var_name] = dist_vars
 
         if src_attr_map == dst_attr_map:
             return tensors_dict
-        converter = Converter(tensors_dict, src_strategies, dst_strategies)
+        converter = Converter(tensors_dict, src_strategys, dst_strategys)
         convert_tensor_dict = converter.convert()
 
         return convert_tensor_dict

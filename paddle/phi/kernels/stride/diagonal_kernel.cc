@@ -16,11 +16,8 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-
-COMMON_DECLARE_bool(use_stride_kernel);
 
 namespace phi {
 
@@ -31,11 +28,6 @@ void DiagonalStridedKernel(const Context& dev_ctx,
                            int axis1,
                            int axis2,
                            DenseTensor* out) {
-  if (!FLAGS_use_stride_kernel) {
-    PADDLE_THROW(
-        phi::errors::Fatal("FLAGS_use_stride_kernel is closed. Strided kernel "
-                           "be called, something wrong has happened!"));
-  }
   size_t x_rank = x.dims().size();
   if (axis1 < 0) {
     axis1 += static_cast<int>(x_rank);
@@ -90,7 +82,5 @@ void DiagonalStridedKernel(const Context& dev_ctx,
 }
 
 }  // namespace phi
-
-PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE(diagonal,
-                                         STRIDED,
-                                         phi::DiagonalStridedKernel) {}
+PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE_EXCEPT_CUSTOM(
+    diagonal, STRIDED, phi::DiagonalStridedKernel) {}

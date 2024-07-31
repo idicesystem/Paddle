@@ -173,11 +173,11 @@ class TestGradSync(unittest.TestCase):
         allreduce_count = 0
 
         for op in ops:
-            # check sequence parallel allgather
-            if op.type == "all_gather":
+            # check sequence parallel algather
+            if op.type == "c_allgather":
                 assert (
                     int(op.attr("nranks")) == 4
-                ), "sequence parallel allgather error with nranks [{}]".format(
+                ), "sequence parallel algather error with nranks [{}]".format(
                     op.attr("nranks")
                 )
                 if sp_ring_id is None:
@@ -185,7 +185,7 @@ class TestGradSync(unittest.TestCase):
                 else:
                     assert sp_ring_id == int(
                         op.attr("ring_id")
-                    ), "sequence parallel allgather error with ring_id [{}]".format(
+                    ), "sequence parallel algather error with ring_id [{}]".format(
                         op.attr("ring_id")
                     )
                 allgather_count += 1
@@ -208,7 +208,9 @@ class TestGradSync(unittest.TestCase):
             elif op.type == "c_allreduce_sum":
                 assert (
                     "layer_norm" in op.output_arg_names[0]
-                ), f"sequence parallel reducescatter error grad sync var [{op.output_arg_names[0]}]"
+                ), "sequence parallel reducescatter error grad sync var [{}]".format(
+                    op.output_arg_names[0]
+                )
                 assert sp_ring_id == int(
                     op.attr("ring_id")
                 ), "sequence parallel reducescatter error with ring_id [{}]".format(
@@ -218,13 +220,19 @@ class TestGradSync(unittest.TestCase):
 
         assert (
             allgather_count == 4
-        ), f"sequence parallel should have 4 allgather, but got [{allgather_count}]"
+        ), "sequence parallel should have 4 allgather, but got [{}]".format(
+            allgather_count
+        )
         assert (
             reducescatter_count == 4
-        ), f"sequence parallel should have 4 allgather, but got [{reducescatter_count}]"
+        ), "sequence parallel should have 4 allgather, but got [{}]".format(
+            reducescatter_count
+        )
         assert (
             allreduce_count == 4
-        ), f"sequence parallel should have 4 allgather, but got [{allreduce_count}]"
+        ), "sequence parallel should have 4 allgather, but got [{}]".format(
+            allreduce_count
+        )
 
 
 if __name__ == "__main__":

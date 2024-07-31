@@ -22,7 +22,7 @@ from filters import (
     assert_dense_or_sr,
     cartesian_prod_mapping,
     delete_last_underline,
-    find_optional_inputs_name,
+    find_optinal_inputs_name,
     get_infer_var_type_func,
     to_composite_grad_opmaker_name,
     to_input_name,
@@ -70,7 +70,7 @@ env.filters["to_composite_grad_opmaker_name"] = to_composite_grad_opmaker_name
 env.filters["to_variable_names"] = to_variable_names
 env.filters["get_infer_var_type_func"] = get_infer_var_type_func
 env.filters["assert_dense_or_sr"] = assert_dense_or_sr
-env.filters["find_optional_inputs_name"] = find_optional_inputs_name
+env.filters["find_optinal_inputs_name"] = find_optinal_inputs_name
 env.tests["base_op"] = is_base_op
 env.tests["composite_op"] = is_composite_op
 env.tests["only_composite_op"] = is_only_composite_op
@@ -125,8 +125,7 @@ def process_scalar(op_item, scalar_configs):
                         '"' + attr_item['default_value'] + '"'
                     )
                 if attr_item['is_support_tensor'] is False:
-                    if 'tensor_name' in scalar_config:
-                        attr_item['tensor_name'] = scalar_config['tensor_name']
+                    attr_item['tensor_name'] = scalar_config['tensor_name']
 
 
 def process_int_array(op_item, int_array_configs):
@@ -605,8 +604,6 @@ def main(
     op_version_yaml_path,
     output_op_path,
     output_arg_map_path,
-    ops_exclude_yaml_path,
-    backward_exclude_yaml_path,
 ):
     with open(ops_yaml_path, "rt") as f:
         ops = yaml.safe_load(f)
@@ -629,28 +626,6 @@ def main(
             op_args["op"] = to_phi_and_fluid_op_name_without_underline(
                 op_args["op"]
             )
-
-    # exclude ops in specific yaml file
-    if ops_exclude_yaml_path is not None:
-        with open(ops_exclude_yaml_path, "rt", encoding='utf-8') as f:
-            exclude_ops = yaml.safe_load(f)
-            exclude_ops = [op.rstrip('_') for op in exclude_ops]
-        for op_name in exclude_ops:
-            if op_name in forward_op_dict:
-                del forward_op_dict[op_name]
-        ops = [op for op in ops if op['name'] not in exclude_ops]
-    if backward_exclude_yaml_path is not None:
-        with open(backward_exclude_yaml_path, "rt", encoding='utf-8') as f:
-            exclude_backward_ops = yaml.safe_load(f)
-            exclude_ops = [op.rstrip('_') for op in exclude_ops]
-        for op_name in exclude_backward_ops:
-            if op_name in backward_op_dict:
-                del backward_op_dict[op_name]
-        backward_ops = [
-            bw_op
-            for bw_op in backward_ops
-            if bw_op['name'] not in exclude_backward_ops
-        ]
 
     for op in ops:
         op['op_name'] = op['name']
@@ -752,18 +727,6 @@ if __name__ == "__main__":
         type=str,
         help="path to save generated argument mapping functions.",
     )
-    parser.add_argument(
-        "--ops_exclude_yaml_path",
-        type=str,
-        default=None,
-        help="yaml file to exclude ops",
-    )
-    parser.add_argument(
-        "--backward_exclude_yaml_path",
-        type=str,
-        default=None,
-        help="yaml file to exclude backward ops",
-    )
 
     args = parser.parse_args()
     main(
@@ -773,6 +736,4 @@ if __name__ == "__main__":
         args.op_version_yaml_path,
         args.output_op_path,
         args.output_arg_map_path,
-        args.ops_exclude_yaml_path,
-        args.backward_exclude_yaml_path,
     )

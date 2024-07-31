@@ -97,7 +97,7 @@ class Net(paddle.nn.Layer):
 
 class TestSaveFwdBwdProg(unittest.TestCase):
     def setUp(self):
-        self.net = paddle.jit.to_static(Net(), full_graph=True)
+        self.net = paddle.jit.to_static(Net())
         self.root_dir = os.path.join(get_saving_dir(), "wrapper")
         self.clean()
 

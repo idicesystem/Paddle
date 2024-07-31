@@ -16,7 +16,6 @@
 
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/reduce_kernel_impl.h"
 
 namespace phi {
 
@@ -66,9 +65,7 @@ PD_REGISTER_KERNEL(mean, KPS, ALL_LAYOUT, phi::MeanKernel, float) {}
 
 #if defined(PADDLE_WITH_DNNL)
 PD_REGISTER_KERNEL(
-    mean, OneDNN, ONEDNN, phi::MeanKernel, float, phi::dtype::bfloat16) {
-  kernel->check_if_onednn_kernel_support_ = phi::ReduceMeanCheckIfOneDNNSupport;
-}
+    mean, OneDNN, ONEDNN, phi::MeanKernel, float, phi::dtype::bfloat16) {}
 #endif
 
 #if defined(PADDLE_WITH_XPU)

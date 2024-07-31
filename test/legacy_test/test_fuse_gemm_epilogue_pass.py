@@ -158,12 +158,16 @@ class TestFuseGemmEpilogueFWDBase(unittest.TestCase):
         )
         self.assertTrue(
             verify_node_count(program._graph, "fused_gemm_epilogue", 3),
-            f"[{type(self).__name__}] The number of fused_gemm_epilogue is miss-matched in the computing graph.",
+            "[{}] The number of fused_gemm_epilogue is miss-matched in the computing graph.".format(
+                type(self).__name__
+            ),
         )
         act_fwd_name = self._get_act_type()[1]
         self.assertTrue(
             verify_node_count(program._graph, act_fwd_name, 1),
-            f"[{type(self).__name__}] The number of {act_fwd_name} is miss-matched in the computing graph.",
+            "[{}] The number of {} is miss-matched in the computing graph.".format(
+                type(self).__name__, act_fwd_name
+            ),
         )
 
     def _pre_test_hooks(self):
@@ -331,20 +335,28 @@ class TestFuseGemmEpilogueBWDBase(unittest.TestCase):
 
         self.assertTrue(
             verify_node_count(program._graph, "fused_gemm_epilogue", 3),
-            f"[{type(self).__name__}] The number of fused_gemm_epilogue is miss-matched in the computing graph.",
+            "[{}] The number of fused_gemm_epilogue is miss-matched in the computing graph.".format(
+                type(self).__name__
+            ),
         )
         self.assertTrue(
             verify_node_count(program._graph, "fused_gemm_epilogue_grad", 3),
-            f"[{type(self).__name__}] The number of fused_gemm_epilogue_grad is miss-matched in the computing graph.",
+            "[{}] The number of fused_gemm_epilogue_grad is miss-matched in the computing graph.".format(
+                type(self).__name__
+            ),
         )
         _, act_fwd_name, act_bwd_name = self._get_act_type()
         self.assertTrue(
             verify_node_count(program._graph, act_fwd_name, 1),
-            f"[{type(self).__name__}] The number of {act_fwd_name} is miss-matched in the computing graph.",
+            "[{}] The number of {} is miss-matched in the computing graph.".format(
+                type(self).__name__, act_fwd_name
+            ),
         )
         self.assertTrue(
             verify_node_count(program._graph, act_bwd_name, 2),
-            f"[{type(self).__name__}] The number of {act_bwd_name} is miss-matched in the computing graph.",
+            "[{}] The number of {} is miss-matched in the computing graph.".format(
+                type(self).__name__, act_bwd_name
+            ),
         )
 
     def _pre_test_hooks(self):

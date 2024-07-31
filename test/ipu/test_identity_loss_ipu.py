@@ -57,7 +57,8 @@ class TestBase(IPUOpTest):
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()
         SEED = 0
-        paddle.seed(SEED)
+        main_prog.random_seed = SEED
+        startup_prog.random_seed = SEED
 
         with base.scope_guard(scope):
             with paddle.static.program_guard(main_prog, startup_prog):

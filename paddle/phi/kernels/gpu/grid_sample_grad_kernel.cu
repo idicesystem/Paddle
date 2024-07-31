@@ -121,13 +121,16 @@ ComputePositionsWithMask(T coord,
     coord = ClipIndexesWithMask(coord, size, &grad_clip);
     *grad_in = (*grad_in) * grad_clip;
   } else if (padding_mode == PaddingMode::reflect) {
-    coord = align_corners
-                ? ReflectIndexesWithMask(coord, 0, 2 * (size - 1), &grad_refl)
-                : ReflectIndexesWithMask(coord, -1, 2 * size - 1, &grad_refl);
+    if (align_corners) {
+      coord = ReflectIndexesWithMask(coord, 0, 2 * (size - 1), &grad_refl);
+    } else {
+      coord = ReflectIndexesWithMask(coord, -1, 2 * size - 1, &grad_refl);
+    }
     coord = ClipIndexesWithMask(coord, size, &grad_clip);
     *grad_in = (*grad_in) * grad_refl * grad_clip;
   }
-  return SafeDownGradeToIntRange(coord);
+
+  return coord;
 }
 
 template <typename T>

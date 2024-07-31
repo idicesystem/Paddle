@@ -41,7 +41,8 @@ namespace {
 */
 #include "paddle/fluid/framework/op_def.pbtxt"  //NOLINT
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
 const proto::OpDef& GetOpDef(const std::string& op_name) {
   static std::unordered_map<std::string, proto::OpDef> ops_definition;
@@ -72,4 +73,5 @@ const proto::OpDef& GetOpDef(const std::string& op_name) {
 bool HasOpDef(const std::string& op_name) {
   return op_def_map.find(op_name) != op_def_map.end();
 }
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

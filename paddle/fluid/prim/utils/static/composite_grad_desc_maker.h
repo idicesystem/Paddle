@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/framework/op_call_stack.h"
 #include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/framework/operator.h"
@@ -31,8 +30,9 @@
 #include "paddle/fluid/prim/utils/static/static_global_utils.h"
 #include "paddle/phi/api/include/tensor.h"
 #include "paddle/phi/core/enforce.h"
+#include "paddle/phi/core/flags.h"
 
-COMMON_DECLARE_string(tensor_operants_mode);
+PHI_DECLARE_string(tensor_operants_mode);
 
 namespace paddle {
 namespace prim {
@@ -72,7 +72,7 @@ class CompositeGradOpMakerBase {
   virtual ~CompositeGradOpMakerBase() = default;
 
   virtual std::vector<std::unique_ptr<framework::OpDesc>> operator()() {
-    VLOG(3) << "Running Composite Grad func for " << fwd_op_.Type() << "_grad ";
+    VLOG(3) << "Runing Composite Grad func for " << fwd_op_.Type() << "_grad ";
     this->Apply();
     std::vector<std::unique_ptr<framework::OpDesc>> ops;
     // TODO(jiabin): Support multiple blocks later
@@ -518,7 +518,7 @@ class CompositeGradOpMakerBase {
                          const std::vector<std::string>& origin_names) {
     PADDLE_ENFORCE_EQ(outputs.size(),
                       origin_names.size(),
-                      phi::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The size of outputs must be equal to the size "
                           "of the origin_names.",
                           outputs.size(),
@@ -575,7 +575,7 @@ class CompositeGradOpMakerBase {
     PADDLE_ENFORCE_NE(
         it,
         map.end(),
-        phi::errors::NotFound("Cannot find attribute (%s).", name));
+        platform::errors::NotFound("Cannot find attribute (%s).", name));
     return it->second;
   }
 

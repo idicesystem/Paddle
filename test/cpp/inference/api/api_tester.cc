@@ -20,7 +20,6 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/api/paddle_analysis_config.h"
 #include "paddle/fluid/inference/api/paddle_api.h"
-#include "paddle/fluid/platform/enforce.h"
 
 namespace paddle {
 
@@ -30,7 +29,6 @@ namespace paddle {
  */
 struct DemoConfig : public PaddlePredictor::Config {
   float other_config;
-  DemoConfig() : other_config(0) {}
 };
 
 /*
@@ -97,11 +95,8 @@ TEST(paddle_inference_api, AnalysisConfigCopyCtor) {
   AnalysisConfig cfg2(cfg1);
 
   auto passes = cfg2.pass_builder()->AllPasses();
-  for (auto const &ps : passes) {
-    PADDLE_ENFORCE_NE(ps,
-                      delete_pass,
-                      phi::errors::InvalidArgument(
-                          "Required ps shouldn't be euqal to delete_pass. "));
+  for (auto ps : passes) {
+    CHECK_NE(ps, delete_pass);
   }
 }
 

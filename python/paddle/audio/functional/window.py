@@ -376,7 +376,9 @@ def get_window(
         else:
             winstr = window
     else:
-        raise ValueError(f"{type(window)} as window type is not supported.")
+        raise ValueError(
+            "%s as window type is not supported." % str(type(window))
+        )
 
     try:
         winfunc = window_function_register.get('_' + winstr)

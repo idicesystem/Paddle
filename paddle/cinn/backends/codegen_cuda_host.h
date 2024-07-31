@@ -13,9 +13,15 @@
 // limitations under the License.
 
 #pragma once
-#include <memory>
 
-#include "paddle/cinn/backends/codegen_invoke_module.h"
+#include <absl/container/flat_hash_map.h>
+
+#include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
+
+#include "paddle/cinn/backends/llvm/codegen_llvm.h"
 #include "paddle/cinn/runtime/intrinsic.h"
 
 PD_DECLARE_bool(cinn_bucket_compile);
@@ -24,29 +30,30 @@ namespace cinn {
 namespace backends {
 
 /**
- * CodeGenCUDA_Host takes a CINN Module with CUDA host functions and output a
- * LLVM module.
+ * CodeGenCUDA takes a CINN Module with host functions and output a LLVM module.
  */
-class CodeGenCUDA_Host : public CodeGenHost {
+class CodeGenCUDA_Host : public CodeGenLLVM {
  public:
   explicit CodeGenCUDA_Host(llvm::Module *m,
                             llvm::IRBuilder<> *b,
                             const std::shared_ptr<SymbolTable> &vars = nullptr)
-      : CodeGenHost(m, b, vars) {}
+      : CodeGenLLVM(m, b, vars) {}
 
-  // TODO(Hongqing-work): remove this after we clear some old codes.
+  using CodeGenLLVM::Visit;
   llvm::Value *Visit(const ir::_LoweredFunc_ *func) override {
     if (FLAGS_cinn_bucket_compile) {
-      return CodeGenHost::Visit(func);
+      return LowerHostFunc(func);
     }
     return LowerGPUKernelLauncher(func);
   }
 
   llvm::Value *Visit(const ir::Call *op) override {
-    if (op->name == runtime::intrinsic::call_cuda_kernel) {
+    if (op->name == runtime::intrinsic::get_value_in_cuda_kernel_args) {
+      return LowerParseArgsValueCall(op);
+    } else if (op->name == runtime::intrinsic::call_cuda_kernel) {
       return LowerCUDAKernelCall(op);
     } else {
-      return CodeGenHost::Visit(op);
+      CINN_NOT_IMPLEMENTED;
     }
   }
 
@@ -65,6 +72,10 @@ class CodeGenCUDA_Host : public CodeGenHost {
    *
    */
   llvm::Value *LowerGPUKernelLauncher(const ir::_LoweredFunc_ *func);
+
+  llvm::Value *LowerHostFunc(const ir::_LoweredFunc_ *func);
+
+  llvm::Value *LowerParseArgsValueCall(const ir::Call *call_ir);
 
   llvm::Value *LowerCUDAKernelCall(const ir::Call *op);
 };

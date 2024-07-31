@@ -111,8 +111,7 @@ class TestConvTransposeDoubleGradCheck(unittest.TestCase):
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for p in places:
-            with paddle.pir_utils.OldIrGuard():
-                self.func(p)
+            self.func(p)
             self.func_pir(p)
 
 
@@ -140,7 +139,6 @@ class TestConvTranspose2DoubleGradCheck_AsyPadding(
             bias_attr=False,
             use_cudnn=True,
         )
-
         x_arr = np.random.uniform(-1, 1, shape).astype(dtype)
 
         w = base.default_main_program().global_block().all_parameters()
@@ -321,7 +319,6 @@ class TestConvTranspose2DoubleGradCheck_PaddingVALID(
             bias_attr=False,
             use_cudnn=True,
         )
-
         x_arr = np.random.uniform(-1, 1, shape).astype(dtype)
 
         w = base.default_main_program().global_block().all_parameters()
@@ -404,7 +401,6 @@ class TestConvTranspose2DoubleGradCheck_ChannelLast(
         if core.is_compiled_with_rocm():
             dtype = np.float32
         x = paddle.static.data('x', shape, dtype)
-
         y = paddle.static.nn.conv2d_transpose(
             input=x,
             num_filters=2,

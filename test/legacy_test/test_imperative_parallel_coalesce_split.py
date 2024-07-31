@@ -21,6 +21,7 @@ import paddle
 import paddle.nn.functional as F
 from paddle import base
 from paddle.base import core
+from paddle.base.dygraph.base import to_variable
 
 
 class MyLayer(paddle.nn.Layer):
@@ -48,14 +49,10 @@ class TestImperativeParallelCoalesceSplit(unittest.TestCase):
 
             # test variables prepare
             vars = []
+            vars.append(to_variable(np.random.random([2, 3]).astype("float32")))
+            vars.append(to_variable(np.random.random([4, 9]).astype("float32")))
             vars.append(
-                paddle.to_tensor(np.random.random([2, 3]).astype("float32"))
-            )
-            vars.append(
-                paddle.to_tensor(np.random.random([4, 9]).astype("float32"))
-            )
-            vars.append(
-                paddle.to_tensor(np.random.random([10, 1]).astype("float32"))
+                to_variable(np.random.random([10, 1]).astype("float32"))
             )
             var_groups = OrderedDict()
             var_groups.setdefault(0, vars)
@@ -84,7 +81,7 @@ class TestImperativeParallelCoalesceSplit(unittest.TestCase):
             ori_shape = [2, 25]
             new_shape = [5, 10]
             x_data = np.random.random(ori_shape).astype("float32")
-            x = paddle.to_tensor(x_data)
+            x = to_variable(x_data)
             _reshape_inplace(x, new_shape)
             self.assertEqual(x.shape, new_shape)
 

@@ -67,6 +67,8 @@ def layer_to_str(base, *args, **kwargs):
         if kwargs:
             name += ", "
     if kwargs:
-        name += ", ".join(f"{key}={value}" for key, value in kwargs.items())
+        name += ", ".join(
+            f"{key}={str(value)}" for key, value in kwargs.items()
+        )
     name += ")"
     return name

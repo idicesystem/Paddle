@@ -29,11 +29,16 @@ namespace phi {
 class DenseTensor;
 }  // namespace phi
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Scope;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 
 struct Conv2dLargeDilationsPattern : public PatternBase {
   Conv2dLargeDilationsPattern(PDPattern* pattern,
@@ -58,12 +63,11 @@ Conv2dLargeDilationsPattern::Conv2dLargeDilationsPattern(
       });
 }
 
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 void Conv2dTransFilterDilationsNxNTo1x1Pass::ApplyImpl(ir::Graph* graph) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::PreconditionNotMet("graph should not be null."));
+      graph, platform::errors::PreconditionNotMet("graph should not be null."));
   Init(name_scope_, graph);
   conv2d_dilation_trans(graph);
 }
@@ -125,7 +129,7 @@ void Conv2dTransFilterDilationsNxNTo1x1Pass::conv2d_dilation_trans(
         scope->Var(new_weights_name)->GetMutable<phi::DenseTensor>();
     new_weights->Resize({weights_shape[0], weights_shape[1], new_kh, new_kw});
     auto* cpu_ctx = static_cast<phi::CPUContext*>(
-        phi::DeviceContextPool::Instance().Get(phi::CPUPlace()));
+        platform::DeviceContextPool::Instance().Get(phi::CPUPlace()));
     if (weights->dtype() == phi::DataType::FLOAT32) {
       auto weights_data = weights->data<float>();
       auto* new_weights_data = cpu_ctx->Alloc<float>(new_weights);
@@ -209,7 +213,9 @@ void Conv2dTransFilterDilationsNxNTo1x1Pass::conv2d_dilation_trans(
   AddStatis(found_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(conv2d_trans_filter_dilations_nxn_to_1x1_pass,
               paddle::framework::ir::Conv2dTransFilterDilationsNxNTo1x1Pass);

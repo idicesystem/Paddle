@@ -76,8 +76,8 @@ class IgnoreReasons(enum.Enum):
     TRT_NOT_SUPPORT = 1
     # Accuracy is abnormal after enabling pass.
     PASS_ACCURACY_ERROR = 2
-    # Accuracy is abnormal after enabling onednn.
-    ONEDNN_ACCURACY_ERROR = 3
+    # Accuracy is abnormal after enabling mkldnn.
+    MKLDNN_ACCURACY_ERROR = 3
     # Accuracy is abnormal after enabling cutlass.
     CUTLASS_ACCURACY_ERROR = 3
 
@@ -132,19 +132,18 @@ class AutoScanTest(unittest.TestCase):
         """
         Test a single case.
         """
-        with paddle.pir_utils.OldIrGuard():
-            pred_config.set_model_buffer(model, len(model), params, len(params))
-            predictor = paddle_infer.create_predictor(pred_config)
-            self.available_passes_in_framework = (
-                self.available_passes_in_framework
-                | set(pred_config.pass_builder().all_passes())
-            )
-            for name, _ in prog_config.inputs.items():
-                input_tensor = predictor.get_input_handle(name)
-                input_tensor.copy_from_cpu(feed_data[name]["data"])
-                if feed_data[name]["lod"] is not None:
-                    input_tensor.set_lod(feed_data[name]["lod"])
-            predictor.run()
+        pred_config.set_model_buffer(model, len(model), params, len(params))
+        predictor = paddle_infer.create_predictor(pred_config)
+        self.available_passes_in_framework = (
+            self.available_passes_in_framework
+            | set(pred_config.pass_builder().all_passes())
+        )
+        for name, _ in prog_config.inputs.items():
+            input_tensor = predictor.get_input_handle(name)
+            input_tensor.copy_from_cpu(feed_data[name]["data"])
+            if feed_data[name]["lod"] is not None:
+                input_tensor.set_lod(feed_data[name]["lod"])
+        predictor.run()
         result = {}
         for out_name, o_name in zip(
             prog_config.outputs, predictor.get_output_names()
@@ -163,7 +162,7 @@ class AutoScanTest(unittest.TestCase):
         for key, arr in tensor.items():
             self.assertTrue(
                 baseline[key].shape == arr.shape,
-                f"The output shapes are not equal, the baseline shape is {baseline[key].shape}, but got {arr.shape}",
+                f"The output shapes are not equal, the baseline shape is {baseline[key].shape}, but got {str(arr.shape)}",
             )
             diff = abs(baseline[key] - arr)
             np.testing.assert_allclose(
@@ -279,9 +278,9 @@ class MkldnnAutoScanTest(AutoScanTest):
                     model, params, prog_config, base_config, feed_data
                 )
             )
-            self.success_log(f"baseline program_config: {prog_config}")
+            self.success_log(f"basline program_config: {prog_config}")
             self.success_log(
-                f"baseline predictor_config: {self.inference_config_str(base_config)}"
+                f"basline predictor_config: {self.inference_config_str(base_config)}"
             )
 
             for pred_config, (atol, rtol) in self.sample_predictor_configs(
@@ -294,10 +293,10 @@ class MkldnnAutoScanTest(AutoScanTest):
                         ignore_flag = True
                         if (
                             ignore_info[1]
-                            == IgnoreReasons.ONEDNN_ACCURACY_ERROR
+                            == IgnoreReasons.MKLDNN_ACCURACY_ERROR
                         ):
                             self.ignore_log(
-                                f"[ONEDNN_ACCURACY_ERROR] {ignore_info[2]} vs {self.inference_config_str(pred_config)}"
+                                f"[MKLDNN_ACCURACY_ERROR] {ignore_info[2]} vs {self.inference_config_str(pred_config)}"
                             )
                         else:
                             raise NotImplementedError
@@ -341,26 +340,6 @@ class MkldnnAutoScanTest(AutoScanTest):
         enable_gpu = config.use_gpu()
         dic["use_gpu"] = enable_gpu
         return str(dic)
-
-
-class PirMkldnnAutoScanTest(MkldnnAutoScanTest):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def run_test_config(
-        self, model, params, prog_config, pred_config, feed_data
-    ) -> Dict[str, np.ndarray]:
-        """
-        Test a single case.
-        """
-        pred_config.enable_new_ir(True)
-        pred_config.switch_ir_optim(False)
-        pred_config.enable_new_executor()
-        result = super().run_test_config(
-            model, params, prog_config, pred_config, feed_data
-        )
-        pred_config.enable_new_ir(False)
-        return result
 
 
 class PassAutoScanTest(AutoScanTest):
@@ -582,11 +561,11 @@ class PassAutoScanTest(AutoScanTest):
             dic["passes"] = self.passes
 
         enable_trt = config.tensorrt_engine_enabled()
-        trt_precision = config.tensorrt_precision_mode()
+        trt_precison = config.tensorrt_precision_mode()
         trt_dynamic_shape = config.tensorrt_dynamic_shape_enabled()
         if enable_trt:
             dic["use_trt"] = True
-            dic["trt_precision"] = trt_precision
+            dic["trt_precision"] = trt_precison
             dic["use_dynamic_shape"] = trt_dynamic_shape
         else:
             dic["use_trt"] = False
@@ -657,7 +636,6 @@ class TrtLayerAutoScanTest(AutoScanTest):
 
         # Use a separate random generator for skipping tests
         self.skip_rng = np.random.default_rng(int(time.strftime("%W")))
-        self.optimization_level = None
 
     def create_inference_config(self, use_trt=True) -> paddle_infer.Config:
         config = paddle_infer.Config()
@@ -685,8 +663,6 @@ class TrtLayerAutoScanTest(AutoScanTest):
                     self.dynamic_shape.opt_input_shape,
                     self.dynamic_shape.disable_trt_plugin_fp16,
                 )
-            if self.optimization_level is not None:
-                config.set_tensorrt_optimization_level(self.optimization_level)
         return config
 
     def assert_tensors_near(
@@ -700,7 +676,7 @@ class TrtLayerAutoScanTest(AutoScanTest):
             self.assertEqual(
                 baseline[key].shape,
                 arr.shape,
-                f"The output shapes are not equal, the baseline shape is {baseline[key].shape}, but got {arr.shape}",
+                f"The output shapes are not equal, the baseline shape is {baseline[key].shape}, but got {str(arr.shape)}",
             )
             np.testing.assert_allclose(arr, baseline[key], rtol=rtol, atol=atol)
 
@@ -737,11 +713,11 @@ class TrtLayerAutoScanTest(AutoScanTest):
     def inference_config_str(self, config: paddle_infer.Config) -> str:
         dic = {}
         enable_trt = config.tensorrt_engine_enabled()
-        trt_precision = config.tensorrt_precision_mode()
+        trt_precison = config.tensorrt_precision_mode()
         trt_dynamic_shape = config.tensorrt_dynamic_shape_enabled()
         if enable_trt:
             dic["use_trt"] = True
-            dic["trt_precision"] = trt_precision
+            dic["trt_precision"] = trt_precison
             dic["use_dynamic_shape"] = trt_dynamic_shape
         else:
             dic["use_trt"] = False
@@ -779,7 +755,7 @@ class TrtLayerAutoScanTest(AutoScanTest):
                     gpu_config,
                     prog_config.get_feed_data(),
                 )
-                self.success_log(f"baseline program_config: {prog_config}")
+                self.success_log(f"basline program_config: {prog_config}")
 
             for (
                 pred_config,
@@ -954,7 +930,7 @@ class CutlassAutoScanTest(AutoScanTest):
                 except Exception as e:
                     self.fail_log(
                         self.inference_config_str(pred_config)
-                        + f'\033[1;31m \nERROR INFO: {e}\033[0m'
+                        + f'\033[1;31m \nERROR INFO: {str(e)}\033[0m'
                     )
                     if not ignore_flag:
                         status = False

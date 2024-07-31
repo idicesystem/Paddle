@@ -68,7 +68,7 @@ void PopartCanonicalizationPass::ApplyImpl(ir::Graph* graph) const {
     for (auto& op_type : missing_ops) {
       LOG(ERROR) << op_type;
     }
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(platform::errors::Unimplemented(
         "Found unimplemented op_handler(s) for IPU"));
   }
 

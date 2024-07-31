@@ -67,7 +67,7 @@ class AddLrDecayTablePass(PassBase):
         attrs['tensor_table'] = tensor_table_dict
 
     def _get_lr_scheduler_program(self, lr_scheduler, lr_decay_steps):
-        scheduler_decay = [
+        schedler_decay = [
             'NoamDecay',
             'NaturalExpDecay',
             'InverseTimeDecay',
@@ -137,7 +137,9 @@ class AddLrDecayTablePass(PassBase):
                 )
         else:
             raise ValueError(
-                f"Not supported current LearningRate strategy, please use follow decay strategy: {scheduler_decay}"
+                "Not supported current LearningRate strategy, please use follow decay strategy: {}".format(
+                    schedler_decay
+                )
             )
 
         return decay_main_program, decay_startup_program, lr_name

@@ -24,7 +24,8 @@ IS_SPARSE = True
 os.environ['PADDLE_ENABLE_REMOTE_PREFETCH'] = "1"
 
 # Fix seed for test
-paddle.seed(1)
+base.default_startup_program().random_seed = 1
+base.default_main_program().random_seed = 1
 
 
 class TestDistCTR2x2(TestDistRunnerBase):

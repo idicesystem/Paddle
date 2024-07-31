@@ -23,7 +23,6 @@ from op_test import (
     convert_float_to_uint16,
     convert_uint16_to_float,
 )
-from utils import compare_legacy_with_pt
 
 import paddle
 from paddle import base
@@ -56,9 +55,7 @@ class TestSGDOpBF16(OpTest):
         self.w = 105
 
     def test_check_output(self):
-        self.check_output_with_place(
-            core.CPUPlace(), check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_output_with_place(core.CPUPlace(), check_dygraph=False)
 
 
 @unittest.skipIf(
@@ -286,7 +283,7 @@ class TestSGDOpBF16API(unittest.TestCase):
         out_dtype = np.uint16 if bf16 else np.float32
         lookup_table_grad = np.zeros(self.w_shape, dtype=out_dtype)
 
-        # indexes may duplicate
+        # indexes may dupplicate
         if bf16:
             for i, idx in enumerate(data):
                 idxv = idx[0]
@@ -333,7 +330,6 @@ class TestSGDOpBF16API(unittest.TestCase):
             data = np.random.randint(0, 9, self.ids_shape).astype("int64")
             yield data, label
 
-    @compare_legacy_with_pt
     def test_sgd(self):
         place = base.CPUPlace()
         main = base.Program()
@@ -346,19 +342,15 @@ class TestSGDOpBF16API(unittest.TestCase):
             label = paddle.static.data(
                 name='Y', shape=[-1] + y_shape, dtype='uint16'
             )
-            pre_dtype = paddle.get_default_dtype()
-            paddle.set_default_dtype("uint16")
-            emb = paddle.nn.Embedding(
-                num_embeddings=self.w_shape[0],
-                embedding_dim=self.w_shape[1],
-                sparse=False,
-                weight_attr=base.ParamAttr(
+            emb = paddle.static.nn.embedding(
+                input=x,
+                size=self.w_shape,
+                param_attr=base.ParamAttr(
                     name="emb_weight", initializer=self.initializer
                 ),
-            )(
-                x
+                is_sparse=False,
+                dtype="uint16",
             )  # bfloat16
-            paddle.set_default_dtype(pre_dtype)
             cost = paddle.add(emb, label)
             avg_cost = paddle.mean(cost)
 

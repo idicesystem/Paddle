@@ -23,9 +23,9 @@
 #include "paddle/fluid/pir/transforms/pd_op_to_kernel_pass.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/pir/include/core/program.h"
-#include "paddle/pir/include/dialect/control_flow/ir/cf_dialect.h"
-#include "paddle/pir/include/dialect/control_flow/ir/cf_op.h"
+#include "paddle/pir/core/program.h"
+#include "paddle/pir/dialect/control_flow/ir/cf_dialect.h"
+#include "paddle/pir/dialect/control_flow/ir/cf_op.h"
 
 PD_DECLARE_KERNEL(full, CPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(add, CPU, ALL_LAYOUT);
@@ -91,10 +91,10 @@ TEST(if_op_test, build_by_block) {
   std::unique_ptr<pir::Block> false_block(new pir::Block());
   builder.SetInsertionPointToStart(false_block.get());
   auto full_op_2 = builder.Build<paddle::dialect::FullOp>(
-      std::vector<int64_t>{3}, true, phi::DataType::BOOL);
+      std::vector<int64_t>{2}, true, phi::DataType::BOOL);
   builder.Build<pir::YieldOp>(std::vector<pir::Value>{full_op_2.out()});
 
-  builder.SetInsertionPointToBlockEnd(block);
+  builder.SetInsertionPointToEnd(block);
 
   auto if_op = builder.Build<paddle::dialect::IfOp>(
       full_op.out(), std::move(true_block), std::move(false_block));
@@ -112,10 +112,6 @@ TEST(if_op_test, build_by_block) {
   EXPECT_EQ(vec.size(), 2u);
   EXPECT_EQ(vec[0], &if_op.true_block());
   EXPECT_EQ(vec[1], &if_op.false_block());
-  EXPECT_EQ(if_op.num_results(), 1u);
-  auto type = if_op.result_type(0).dyn_cast<DenseTensorType>();
-  EXPECT_TRUE(type);
-  EXPECT_EQ(type.dims(), common::DDim{-1});
 }
 
 TEST(if_op_test, network_with_backward) {
@@ -153,7 +149,7 @@ TEST(if_op_test, network_with_backward) {
                                   std::initializer_list<pir::Value>{local2_z});
   builder.Build<pir::YieldOp>(std::vector<pir::Value>{local2_w});
 
-  builder.SetInsertionPointToBlockEnd(block);
+  builder.SetInsertionPointToEnd(block);
 
   // build backward network
   auto out_grad = builder.Build<FullOp>(std::vector<int64_t>{2, 2}, 1.0f).out();
@@ -205,15 +201,15 @@ TEST(if_op_test, network_with_backward) {
   builder.Build<pir::YieldOp>(
       std::vector<pir::Value>{local2_x_grad, local2_y_grad});
 
-  builder.SetInsertionPointToBlockEnd(block);
+  builder.SetInsertionPointToEnd(block);
 
   LOG(INFO) << program;
 
   auto kernel_program = paddle::dialect::PdOpLowerToKernelPass(&program);
 
-  auto place = phi::CPUPlace();
+  auto place = paddle::platform::CPUPlace();
 #if defined(PADDLE_WITH_CUDA)
-  place = phi::GPUPlace();
+  place = paddle::platform::CUDAPlace();
 #endif
   paddle::framework::Scope scope;
 

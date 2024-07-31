@@ -332,7 +332,9 @@ class Quant2Int8ImageClassificationComparisonTest(unittest.TestCase):
 
     def _compare_accuracy(self, threshold, quant_acc1, int8_acc1):
         _logger.info(
-            f'Accepted top1 accuracy drop threshold: {threshold}. (condition: (Quant_top1_acc - IN8_top1_acc) <= threshold && Quant_top1_acc > 0.5 && INT8_top1_acc > 0.5)'
+            'Accepted top1 accuracy drop threshold: {}. (condition: (Quant_top1_acc - IN8_top1_acc) <= threshold && Quant_top1_acc > 0.5 && INT8_top1_acc > 0.5)'.format(
+                threshold
+            )
         )
         # We assume valid accuracy to be at least 0.5
         assert quant_acc1 > 0.5

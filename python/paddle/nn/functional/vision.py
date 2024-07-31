@@ -12,35 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Literal
-
-import paddle
-from paddle import _C_ops, in_dynamic_mode
-from paddle.base.framework import (
-    in_dynamic_or_pir_mode,
-    in_pir_mode,
-)
+from paddle import _C_ops, _legacy_C_ops, in_dynamic_mode
+from paddle.base.framework import in_dygraph_mode
 
 from ...base.data_feeder import check_variable_and_dtype
 from ...base.layer_helper import LayerHelper
 from ...common_ops_import import Variable
 from ...device import get_cudnn_version, is_compiled_with_rocm
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import DataLayout2D, ShapeLike
-
 __all__ = []
 
 
-def affine_grid(
-    theta: Tensor,
-    out_shape: ShapeLike,
-    align_corners: bool = True,
-    name: str | None = None,
-) -> Tensor:
+def affine_grid(theta, out_shape, align_corners=True, name=None):
     """
     It generates a grid of (x,y) or (x,y,z) coordinates using the parameters of
     the affine transformation that correspond to a set of points where
@@ -48,13 +31,13 @@ def affine_grid(
     output feature map.
 
     Args:
-        theta (Tensor): A tensor with shape [N, 2, 3] or [N, 3, 4]. It contains a batch of affine transform parameters.
+        theta (Tensor) - A tensor with shape [N, 2, 3] or [N, 3, 4]. It contains a batch of affine transform parameters.
                            The data type can be float32 or float64.
         out_shape (Tensor | list | tuple): Type can be a 1-D Tensor, list, or tuple. It is used to represent the shape of the output in an affine transformation, in the format ``[N, C, H, W]`` or ``[N, C, D, H, W]``.
                                            When the format is ``[N, C, H, W]``, it represents the batch size, number of channels, height and width. When the format is ``[N, C, D, H, W]``, it represents the batch size, number of channels, depth, height and width.
                                            The data type must be int32.
         align_corners(bool, optional): if True, aligns the centers of the 4 (4D) or 8 (5D) corner pixels of the input and output tensors, and preserves the value of the corner pixels. Default: True
-        name(str|None, optional): The default value is None.  Normally there is no need for user to set this property.  For more information, please refer to :ref:`api_guide_Name`.
+        name(str, optional): The default value is None.  Normally there is no need for user to set this property.  For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
         Tensor, A Tensor with shape [batch_size, H, W, 2] or [batch, D, H, W, 3] while ('D')'H', 'W' are the (depth)height, width of feature map in affine transformation. The data type is the same as `theta`.
@@ -85,8 +68,8 @@ def affine_grid(
                [ 0.03333333,  1.83333337],
                [-0.43333334,  2.23333335]]]])
     """
-    if not isinstance(theta, (Variable, paddle.pir.Value)):
-        raise TypeError("The theta should be a Tensor.")
+    if not isinstance(theta, Variable):
+        raise ValueError("The theta should be a Tensor.")
 
     cudnn_version = get_cudnn_version()
     if cudnn_version is not None and cudnn_version >= 6000 and align_corners:
@@ -100,51 +83,58 @@ def affine_grid(
             False  # ROCM platform do not have MIOPEN kernel for affine_grid
         )
 
-    if in_dynamic_mode():
+    if in_dygraph_mode():
         _out_shape = (
             out_shape.tolist() if isinstance(out_shape, Variable) else out_shape
         )
         theta = theta._use_gpudnn(use_cudnn)
         return _C_ops.affine_grid(theta, _out_shape, align_corners)
-    elif in_pir_mode():
-        return _C_ops.affine_grid(
+    elif in_dynamic_mode():
+        _out_shape = (
+            out_shape.tolist() if isinstance(out_shape, Variable) else out_shape
+        )
+        return _legacy_C_ops.affine_grid(
             theta,
-            out_shape,
+            "output_shape",
+            _out_shape,
+            "align_corners",
             align_corners,
+            "use_cudnn",
+            use_cudnn,
+        )
+
+    helper = LayerHelper('affine_grid')
+    check_variable_and_dtype(
+        theta, 'theta', ['float32', 'float64'], 'affine_grid'
+    )
+    out = helper.create_variable_for_type_inference(theta.dtype)
+    ipts = {'Theta': theta}
+    attrs = {"align_corners": align_corners, "use_cudnn": use_cudnn}
+    if isinstance(out_shape, Variable):
+        ipts['OutputShape'] = out_shape
+        check_variable_and_dtype(
+            out_shape, 'out_shape', ['int32'], 'affine_grid'
         )
     else:
-        helper = LayerHelper('affine_grid', **locals())
-        check_variable_and_dtype(
-            theta, 'theta', ['float32', 'float64'], 'affine_grid'
-        )
-        out = helper.create_variable_for_type_inference(dtype=theta.dtype)
-        ipts = {'Theta': theta}
-        attrs = {"align_corners": align_corners, "use_cudnn": use_cudnn}
-        if isinstance(out_shape, Variable):
-            ipts['OutputShape'] = out_shape
-            check_variable_and_dtype(
-                out_shape, 'out_shape', ['int32'], 'affine_grid'
-            )
-        else:
-            attrs['output_shape'] = out_shape
+        attrs['output_shape'] = out_shape
 
-        helper.append_op(
-            type='affine_grid',
-            inputs=ipts,
-            outputs={'Output': out},
-            attrs=None if len(attrs) == 0 else attrs,
-        )
-        return out
+    helper.append_op(
+        type='affine_grid',
+        inputs=ipts,
+        outputs={'Output': out},
+        attrs=None if len(attrs) == 0 else attrs,
+    )
+    return out
 
 
 def grid_sample(
-    x: Tensor,
-    grid: Tensor,
-    mode: str = 'bilinear',
-    padding_mode: Literal["zeros", "reflection", "border"] = 'zeros',
-    align_corners: bool = True,
-    name: str | None = None,
-) -> Tensor:
+    x,
+    grid,
+    mode='bilinear',
+    padding_mode='zeros',
+    align_corners=True,
+    name=None,
+):
     """
     Sample input X by using bilinear interpolation or
     nearest interpolation based on flow field grid, which is usually
@@ -160,7 +150,7 @@ def grid_sample(
     indexing the 5th dimension (in width dimension) of input data x, y is
     indexing the 4th dimension (in height dimension) and z is indexing the
     3rd dimension (in depth dimension) finally results is the bilinear
-    interpolation or nearest value of 8 nearest corner points. The output
+    interpolation or nearest value of 8 nearest cornerpoints. The output
     tensor shape will be [N, C, D, H, W].
 
 
@@ -226,7 +216,7 @@ def grid_sample(
         align_corners(bool, optional): If `align_corners` is true, it will projects
                    -1 and 1 to the centers of the corner pixels. Otherwise, it will
                    projects -1 and 1 to the image edges.
-        name(str|None, optional): For detailed information, please refer
+        name(str, optional): For detailed information, please refer
                              to :ref:`api_guide_Name`. Usually name is no need to set and
                              None by default.
 
@@ -281,7 +271,9 @@ def grid_sample(
         )
     if padding_mode not in _padding_modes:
         raise ValueError(
-            f"The padding mode of grid sample function should be in {_padding_modes}, but got: {padding_mode}"
+            "The padding mode of grid sample function should be in {}, but got: {}".format(
+                _padding_modes, padding_mode
+            )
         )
 
     if not isinstance(align_corners, bool):
@@ -306,8 +298,20 @@ def grid_sample(
     if len(grid.shape) == 5:
         use_cudnn = False
 
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         return _C_ops.grid_sample(x, grid, mode, padding_mode, align_corners)
+    elif in_dynamic_mode():
+        attrs = (
+            'mode',
+            mode,
+            'padding_mode',
+            padding_mode,
+            'align_corners',
+            align_corners,
+            'use_cudnn',
+            use_cudnn,
+        )
+        out = _legacy_C_ops.grid_sampler(x, grid, *attrs)
     else:
         helper = LayerHelper("grid_sample", **locals())
         check_variable_and_dtype(x, 'x', ['float32', 'float64'], 'grid_sample')
@@ -331,22 +335,17 @@ def grid_sample(
     return out
 
 
-def pixel_shuffle(
-    x: Tensor,
-    upscale_factor: int,
-    data_format: DataLayout2D = 'NCHW',
-    name: str | None = None,
-) -> Tensor:
+def pixel_shuffle(x, upscale_factor, data_format="NCHW", name=None):
     """
     This API implements pixel shuffle operation.
-    See more details in :ref:`PixelShuffle <api_paddle_nn_PixelShuffle>` .
+    See more details in :ref:`PixelSuffle <api_paddle_nn_PixelShuffle>` .
 
 
     Parameters:
         x(Tensor): 4-D tensor, the data type should be float32 or float64.
         upscale_factor(int): factor to increase spatial resolution.
         data_format (str, optional): The data format of the input and output data. An optional string from: ``"NCHW"``, ``"NHWC"``. When it is ``"NCHW"``, the data is stored in the order of: [batch_size, input_channels, input_height, input_width]. Default: ``"NCHW"``.
-        name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
         Out(tensor): Reshaped tensor according to the new dimension.
@@ -368,9 +367,9 @@ def pixel_shuffle(
     if data_format not in ["NCHW", "NHWC"]:
         raise ValueError(
             "Attr(data_format) should be 'NCHW' or 'NHWC'."
-            f"But receive Attr(data_format): {data_format} "
+            f"But recevie Attr(data_format): {data_format} "
         )
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         return _C_ops.pixel_shuffle(x, upscale_factor, data_format)
     else:
         helper = LayerHelper("pixel_shuffle", **locals())
@@ -390,21 +389,16 @@ def pixel_shuffle(
         return out
 
 
-def pixel_unshuffle(
-    x: Tensor,
-    downscale_factor: int,
-    data_format: DataLayout2D = 'NCHW',
-    name: str | None = None,
-) -> Tensor:
+def pixel_unshuffle(x, downscale_factor, data_format="NCHW", name=None):
     """
     This API implements pixel unshuffle operation.
-    See more details in :ref:`PixelUnShuffle <api_paddle_nn_PixelUnshuffle>` .
+    See more details in :ref:`PixelUnSuffle <api_paddle_nn_PixelUnshuffle>` .
 
     Parameters:
         x (Tensor): 4-D tensor, the data type should be float32 or float64.
         downscale_factor (int): Factor to decrease spatial resolution.
         data_format (str, optional): The data format of the input and output data. An optional string of ``'NCHW'`` or ``'NHWC'``. When it is ``'NCHW'``, the data is stored in the order of [batch_size, input_channels, input_height, input_width]. Default: ``'NCHW'``.
-        name (str|None, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
         Out (Tensor): Reshaped tensor according to the new dimension.
@@ -433,11 +427,13 @@ def pixel_unshuffle(
     if data_format not in ["NCHW", "NHWC"]:
         raise ValueError(
             "Attr(data_format) should be 'NCHW' or 'NHWC'."
-            f"But receive Attr(data_format): {data_format} "
+            f"But recevie Attr(data_format): {data_format} "
         )
 
-    if in_dynamic_or_pir_mode():
-        return _C_ops.pixel_unshuffle(x, downscale_factor, data_format)
+    if in_dygraph_mode():
+        return _legacy_C_ops.pixel_unshuffle(
+            x, "downscale_factor", downscale_factor, "data_format", data_format
+        )
 
     helper = LayerHelper("pixel_unshuffle", **locals())
     check_variable_and_dtype(
@@ -456,12 +452,7 @@ def pixel_unshuffle(
     return out
 
 
-def channel_shuffle(
-    x: Tensor,
-    groups: int,
-    data_format: DataLayout2D = 'NCHW',
-    name: str | None = None,
-) -> Tensor:
+def channel_shuffle(x, groups, data_format="NCHW", name=None):
     """
     This API implements channel shuffle operation.
     See more details in :ref:`api_paddle_nn_ChannelShuffle`.
@@ -470,7 +461,7 @@ def channel_shuffle(
         x (Tensor): 4-D tensor, the data type should be float32 or float64.
         groups (int): Number of groups to divide channels in.
         data_format (str, optional): The data format of the input and output data. An optional string of NCHW or NHWC. The default is NCHW. When it is NCHW, the data is stored in the order of [batch_size, input_channels, input_height, input_width].
-        name (str|None, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
         Out (Tensor): Rearranged tensor keeping the original tensor shape.
@@ -514,10 +505,10 @@ def channel_shuffle(
     if data_format not in ["NCHW", "NHWC"]:
         raise ValueError(
             "Attr(data_format) should be 'NCHW' or 'NHWC'."
-            f"But receive Attr(data_format): {data_format} "
+            f"But recevie Attr(data_format): {data_format} "
         )
 
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         return _C_ops.channel_shuffle(x, groups, data_format)
 
     helper = LayerHelper("channel_shuffle", **locals())

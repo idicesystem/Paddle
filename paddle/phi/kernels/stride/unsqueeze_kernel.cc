@@ -16,12 +16,9 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/unsqueeze.h"
-
-COMMON_DECLARE_bool(use_stride_kernel);
 
 namespace phi {
 
@@ -30,11 +27,6 @@ void UnsqueezeInferStridedKernel(const Context& dev_ctx,
                                  const DenseTensor& input,
                                  const IntArray& axes_arr,
                                  DenseTensor* out) {
-  if (!FLAGS_use_stride_kernel) {
-    PADDLE_THROW(
-        phi::errors::Fatal("FLAGS_use_stride_kernel is closed. Strided kernel "
-                           "be called, something wrong has happened!"));
-  }
   std::vector<int64_t> axes = axes_arr.GetData();
   std::vector<int64_t> input_dims = common::vectorize<int64_t>(input.dims());
   std::vector<int64_t> input_stride =
@@ -93,11 +85,8 @@ void UnsqueezeStridedKernel(const Context& dev_ctx,
 }
 
 }  // namespace phi
+PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE_EXCEPT_CUSTOM(
+    unsqueeze_infer, STRIDED, phi::UnsqueezeInferStridedKernel) {}
 
-PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE(unsqueeze_infer,
-                                         STRIDED,
-                                         phi::UnsqueezeInferStridedKernel) {}
-
-PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE(unsqueeze,
-                                         STRIDED,
-                                         phi::UnsqueezeStridedKernel) {}
+PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE_EXCEPT_CUSTOM(
+    unsqueeze, STRIDED, phi::UnsqueezeStridedKernel) {}

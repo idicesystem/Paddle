@@ -12,30 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any, Literal, Union
-
 from PIL import Image
-from typing_extensions import TypeAlias
 
 from paddle.utils import try_import
 
-if TYPE_CHECKING:
-    import numpy.typing as npt
-    from PIL.Image import Image as PILImage
-
-    from paddle import Tensor
-
-    _ImageBackend: TypeAlias = Literal["pil", "cv2", "tensor"]
-    _ImageDataType: TypeAlias = Union[Tensor, PILImage, npt.NDArray[Any]]
-
 __all__ = []
 
-_image_backend: _ImageBackend = 'pil'
+_image_backend = 'pil'
 
 
-def set_image_backend(backend: _ImageBackend) -> None:
+def set_image_backend(backend):
     """
     Specifies the backend used to load images in class :ref:`api_paddle_datasets_ImageFolder`
     and :ref:`api_paddle_datasets_DatasetFolder` . Now support backends are pillow and opencv.
@@ -75,7 +61,7 @@ def set_image_backend(backend: _ImageBackend) -> None:
 
             >>> pil_data_folder = DatasetFolder(temp_dir)
 
-            >>> for items in pil_data_folder:  # type: ignore
+            >>> for items in pil_data_folder:
             ...     break
 
             >>> print(type(items[0]))
@@ -86,7 +72,7 @@ def set_image_backend(backend: _ImageBackend) -> None:
 
             >>> cv2_data_folder = DatasetFolder(temp_dir)
 
-            >>> for items in cv2_data_folder:  # type: ignore
+            >>> for items in cv2_data_folder:
             ...     break
 
             >>> print(type(items[0]))
@@ -102,7 +88,7 @@ def set_image_backend(backend: _ImageBackend) -> None:
     _image_backend = backend
 
 
-def get_image_backend() -> _ImageBackend:
+def get_image_backend():
     """
     Gets the name of the package used to load images
 
@@ -123,9 +109,7 @@ def get_image_backend() -> _ImageBackend:
     return _image_backend
 
 
-def image_load(
-    path: str, backend: _ImageBackend | None = None
-) -> _ImageDataType | None:
+def image_load(path, backend=None):
     """Load an image.
 
     Args:
@@ -152,7 +136,7 @@ def image_load(
 
             >>> set_image_backend('pil')
 
-            >>> pil_img = image_load(path).convert('RGB')  # type: ignore
+            >>> pil_img = image_load(path).convert('RGB')
 
             >>> print(type(pil_img))
             <class 'PIL.Image.Image'>

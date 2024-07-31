@@ -1,4 +1,4 @@
-# Copyright (c) 2020 PaddlePaddle Authors. All Rights Reserved.
+#   Copyright (c) 2020 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 from functools import reduce
 
 import paddle
+import paddle.base.param_attr as attr
+from paddle.nn import Layer
 
 
 class EmbeddingLayer:
@@ -42,7 +44,7 @@ class EmbeddingLayer:
             self.emb_dim,
             sparse=True,
             padding_idx=self.padding_idx,
-            weight_attr=paddle.ParamAttr(
+            weight_attr=attr.ParamAttr(
                 name=self.name,
                 initializer=paddle.nn.initializer.XavierUniform(),
             ),
@@ -70,8 +72,8 @@ class FCLayer:
         """
         fc = FC(
             size=self.fc_dim,
-            param_attr=paddle.ParamAttr(name=f"{self.name}.w"),
-            bias_attr=paddle.ParamAttr(name=f"{self.name}.b"),
+            param_attr=attr.ParamAttr(name="%s.w" % self.name),
+            bias_attr=attr.ParamAttr(name="%s.b" % self.name),
             act=self.act,
         )
         return fc
@@ -232,7 +234,7 @@ class SoftsignLayer:
         return softsign
 
 
-class FC(paddle.nn.Layer):
+class FC(Layer):
     r"""
     This interface is used to construct a callable object of the ``FC`` class.
     For more details, refer to code examples.
@@ -298,16 +300,15 @@ class FC(paddle.nn.Layer):
 
     Examples:
         .. code-block:: python
-
-            >>> import paddle
-            >>> import paddle.base as base
-            >>> from paddle.base.dygraph import FC
-            >>> import numpy as np
-            >>> data = np.random.uniform(-1, 1, [30, 10, 32]).astype('float32')
-            >>> with base.dygraph.guard():
-            ...     fc = FC("fc", 64, num_flatten_dims=2)
-            ...     data_tensor = paddle.to_tensor(data)
-            ...     conv = fc(data_tensor)
+          from paddle.base.dygraph.base import to_variable
+          import paddle.base as base
+          from paddle.base.dygraph import FC
+          import numpy as np
+          data = np.random.uniform(-1, 1, [30, 10, 32]).astype('float32')
+          with base.dygraph.guard():
+              fc = FC("fc", 64, num_flatten_dims=2)
+              data = to_variable(data)
+              conv = fc(data)
     """
 
     def __init__(
@@ -460,7 +461,7 @@ class HingeLoss:
         return loss
 
 
-class BOW(paddle.nn.Layer):
+class BOW(Layer):
     """
     BOW
     """

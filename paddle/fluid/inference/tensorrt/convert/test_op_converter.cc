@@ -19,7 +19,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/program_desc.h"
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 TEST(OpConverter, ConvertBlock) {
   framework::ProgramDesc prog;
@@ -58,7 +60,7 @@ TEST(OpConverter, ConvertBlock) {
   auto* x = scope.Var("conv2d-Y");
   auto* x_tensor = x->GetMutable<phi::DenseTensor>();
   x_tensor->Resize(common::make_ddim(dim_vec));
-  x_tensor->mutable_data<float>(phi::GPUPlace(0));
+  x_tensor->mutable_data<float>(platform::CUDAPlace(0));
 
   OpTeller::Global().SetOpConverterType(conv2d_op, OpConverterType::Default);
   OpConverter converter;
@@ -66,6 +68,8 @@ TEST(OpConverter, ConvertBlock) {
       *block->Proto(), {"conv2d-Y"}, scope, engine_.get() /*TensorRTEngine*/);
 }
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 USE_TRT_CONVERTER(conv2d)

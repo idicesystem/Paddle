@@ -76,7 +76,9 @@ class TestNestLayerHook(Dy2StTestBase):
             net = paddle.jit.to_static(net)
         out = net(self.x)
 
-        paddle.jit.save(net, self.path, input_spec=[self.x])
+        # TODO(xiongkun) save / load unitest.
+        if to_static and not paddle.base.framework.use_pir_api():
+            paddle.jit.save(net, self.path)
 
         return float(out)
 

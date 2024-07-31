@@ -16,7 +16,8 @@
 
 #include <string>
 
-namespace phi::dynload {
+namespace phi {
+namespace dynload {
 
 std::once_flag tensorrt_dso_flag;
 void* tensorrt_dso_handle;
@@ -79,4 +80,5 @@ void* GetTensorRtPluginHandle() {
   return GetDsoHandle(dso_name);
 }
 
-}  // namespace phi::dynload
+}  // namespace dynload
+}  // namespace phi

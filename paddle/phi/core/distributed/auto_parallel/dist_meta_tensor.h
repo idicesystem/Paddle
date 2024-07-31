@@ -48,8 +48,6 @@ class DistMetaTensor : public MetaTensor {
 
   const distributed::TensorDistAttr& dist_attr() const;
 
-  bool initialized() const override;
-
  private:
   /**
    * Note: When using the semi-automatic parallel segmentation derivation rules

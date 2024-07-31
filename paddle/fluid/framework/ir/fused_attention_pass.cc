@@ -15,7 +15,10 @@
 #include "paddle/fluid/framework/ir/fused_attention_pass.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 
 PDNode* FusedAttentionPattern::operator()(PDNode* x,
                                           bool pre_layer_norm,
@@ -264,9 +267,9 @@ PDNode* FusedAttentionPattern::operator()(PDNode* x,
 
   PDNode* mp_allreduce_out_node{nullptr};
   if (use_mp) {
-    mp_allreduce_out_node = pattern->NewNode(mp_allreduce_sum_out_repr())
+    mp_allreduce_out_node = pattern->NewNode(mp_allreudce_sum_out_repr())
                                 ->assert_is_op_output("mp_allreduce_sum");
-    auto* mp_allreduce_node = pattern->NewNode(mp_allreduce_sum_op_repr())
+    auto* mp_allreduce_node = pattern->NewNode(mp_allreudce_sum_op_repr())
                                   ->assert_is_op("mp_allreduce_sum");
     out_linear_ele_add_out_node->assert_is_op_input("mp_allreduce_sum");
     mp_allreduce_node->LinksFrom({out_linear_ele_add_out_node})
@@ -457,9 +460,9 @@ PDNode* FusedAttentionGradPattern::operator()(PDNode* x,
 
   PDNode* mp_c_identity_out_node{nullptr};
   if (use_mp) {
-    mp_c_identity_out_node = pattern->NewNode(mp_allreduce_sum_grad_out_repr())
+    mp_c_identity_out_node = pattern->NewNode(mp_allreudce_sum_grad_out_repr())
                                  ->assert_is_op_output("c_identity", "Out");
-    auto* mp_c_identity_node = pattern->NewNode(mp_allreduce_sum_grad_op_repr())
+    auto* mp_c_identity_node = pattern->NewNode(mp_allreudce_sum_grad_op_repr())
                                    ->assert_is_op("c_identity");
     out_linear_dropout_grad_out_node->assert_is_op_input("c_identity");
     mp_c_identity_node->LinksFrom({out_linear_dropout_grad_out_node})
@@ -833,8 +836,7 @@ PDNode* FusedAttentionGradPattern::operator()(PDNode* x,
   return grad_accumulation_sum_out_node;
 }
 
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 void FusedAttentionsPass::ApplyImpl(Graph* graph) const {
   FusePassBase::Init(name_scope_, graph);
@@ -987,13 +989,13 @@ ir::Graph* FusedAttentionsPass::ForwardHandlerHelper(
     if (use_mp) {
       GET_IR_NODE_FROM_SUBGRAPH(
           c_identity_op_node, c_identity_op, fused_attention_pattern);
-      GET_IR_NODE_FROM_SUBGRAPH(mp_allreduce_sum_op_node,
-                                mp_allreduce_sum_op,
+      GET_IR_NODE_FROM_SUBGRAPH(mp_allreudce_sum_op_node,
+                                mp_allreudce_sum_op,
                                 fused_attention_pattern);
       remove_nodes.insert(c_identity_op_node);
-      remove_nodes.insert(mp_allreduce_sum_op_node);
+      remove_nodes.insert(mp_allreudce_sum_op_node);
       ring_id = PADDLE_GET_CONST(
-          int, mp_allreduce_sum_op_node->Op()->GetAttr("ring_id"));
+          int, mp_allreudce_sum_op_node->Op()->GetAttr("ring_id"));
     }
 
     std::string cache_anchor_name = fuse_qkv_matmul_w_node->Var()->Name();
@@ -1365,16 +1367,16 @@ ir::Graph* FusedAttentionsPass::BackwardHandlerHelper(
 
     int ring_id = -1;
     if (use_mp) {
-      GET_IR_NODE_FROM_SUBGRAPH(mp_allreduce_sum_grad_op_node,
-                                mp_allreduce_sum_grad_op,
+      GET_IR_NODE_FROM_SUBGRAPH(mp_allreudce_sum_grad_op_node,
+                                mp_allreudce_sum_grad_op,
                                 fused_attention_grad_pattern);
       GET_IR_NODE_FROM_SUBGRAPH(c_identity_grad_op_node,
                                 c_identity_grad_op,
                                 fused_attention_grad_pattern);
-      remove_nodes.insert(mp_allreduce_sum_grad_op_node);
+      remove_nodes.insert(mp_allreudce_sum_grad_op_node);
       remove_nodes.insert(c_identity_grad_op_node);
       ring_id = PADDLE_GET_CONST(
-          int, mp_allreduce_sum_grad_op_node->Op()->GetAttr("ring_id"));
+          int, mp_allreudce_sum_grad_op_node->Op()->GetAttr("ring_id"));
     }
 
     OpDesc fused_attention_grad_op_desc(
@@ -1685,6 +1687,8 @@ ir::Graph* FusedAttentionsPass::BackwardHandlerHelper(
   return graph;
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(fused_attention_pass, paddle::framework::ir::FusedAttentionsPass);

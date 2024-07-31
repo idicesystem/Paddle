@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import copy
-import os
 import unittest
 
 import numpy as np
@@ -121,13 +120,7 @@ class TestIndexPutAPIBase(unittest.TestCase):
         self.accumulate = False
 
     def setPlace(self):
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.place.append('cpu')
+        self.place = ['cpu']
         if self.dtype_np is np.float16:
             self.place = []
         if paddle.is_compiled_with_cuda():
@@ -630,13 +623,7 @@ class TestIndexPutInplaceAPI(unittest.TestCase):
         self.accumulate = False
 
     def setPlace(self):
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.place.append('cpu')
+        self.place = ['cpu']
         if paddle.is_compiled_with_cuda():
             self.place.append('gpu')
 
@@ -680,13 +667,7 @@ class TestIndexPutAPIBackward(unittest.TestCase):
         self.setPlace()
 
     def setPlace(self):
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            self.place.append('cpu')
+        self.place = ['cpu']
         if paddle.is_compiled_with_cuda():
             self.place.append('gpu')
 

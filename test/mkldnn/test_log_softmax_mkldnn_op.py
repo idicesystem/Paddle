@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
 from op_test import OpTest, OpTestTool, convert_float_to_uint16
-
-sys.path.append("../deprecated/legacy_test")
 from test_log_softmax import ref_log_softmax
 
 import paddle
@@ -56,9 +53,7 @@ class TestLogSoftmaxOneDNNOp(OpTest):
         self.axis = -1
 
     def test_check_output(self):
-        self.check_output_with_place(
-            core.CPUPlace(), check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_output_with_place(core.CPUPlace(), check_dygraph=False)
 
 
 class TestLogSoftmax0DOneDNNOp(TestLogSoftmaxOneDNNOp):

@@ -46,7 +46,7 @@ static ncclRedOp_t str_to_nccl_red_type(std::string reduction) {
   auto it = str_to_type.find(reduction);
   PADDLE_ENFORCE_EQ(it != str_to_type.end(),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Invalid nccl reduction. Must be ncclMin | ncclMax | "
                         "ncclProd | ncclSum"));
   return it->second;
@@ -56,9 +56,9 @@ template <typename T, typename DeviceContext>
 class NCCLAllReduceKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    PADDLE_ENFORCE_EQ(ctx.GetPlace().GetType() == phi::AllocationType::GPU,
+    PADDLE_ENFORCE_EQ(platform::is_gpu_place(ctx.GetPlace()),
                       true,
-                      common::errors::PreconditionNotMet(
+                      platform::errors::PreconditionNotMet(
                           "This kernel only runs on GPU device."));
     auto* x = ctx.Input<phi::DenseTensor>("X");
     auto* out = ctx.Output<phi::DenseTensor>("Out");
@@ -74,13 +74,13 @@ class NCCLAllReduceKernel : public framework::OpKernel<T> {
             << " invoke allreduce. send " << x->numel() << " recv "
             << out->numel();
     PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::ncclAllReduce(x->data<T>(),
-                                    out->mutable_data<T>(ctx.GetPlace()),
-                                    out->numel(),
-                                    NCCLTypeWrapper<T>::type,
-                                    reduction_op_,
-                                    comm->comms().at(idx),
-                                    ctx.cuda_device_context().stream()));
+        platform::dynload::ncclAllReduce(x->data<T>(),
+                                         out->mutable_data<T>(ctx.GetPlace()),
+                                         out->numel(),
+                                         NCCLTypeWrapper<T>::type,
+                                         reduction_op_,
+                                         comm->comms().at(idx),
+                                         ctx.cuda_device_context().stream()));
     VLOG(3) << "gpu : "
             << " finished allreduce. send " << x->numel() << " recv "
             << out->numel();
@@ -91,9 +91,9 @@ template <typename T, typename DeviceContext>
 class NCCLReduceKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    PADDLE_ENFORCE_EQ(ctx.GetPlace().GetType() == phi::AllocationType::GPU,
+    PADDLE_ENFORCE_EQ(platform::is_gpu_place(ctx.GetPlace()),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "This kernel only runs on GPU device."));
     auto x = ctx.Input<phi::DenseTensor>("X");  // x0, x1, x2
     auto out = ctx.Output<phi::DenseTensor>("Out");
@@ -115,14 +115,14 @@ class NCCLReduceKernel : public framework::OpKernel<T> {
     VLOG(3) << "gpu : " << gpu_id << " invoke reduce. send " << x->numel()
             << " recv " << out->numel();
     PADDLE_ENFORCE_GPU_SUCCESS(
-        phi::dynload::ncclReduce(x->data<T>(),
-                                 recvbuffer,
-                                 x->numel(),
-                                 NCCLTypeWrapper<T>::type,
-                                 reduction_op_,
-                                 root,
-                                 comm->comms().at(idx),
-                                 ctx.cuda_device_context().stream()));
+        platform::dynload::ncclReduce(x->data<T>(),
+                                      recvbuffer,
+                                      x->numel(),
+                                      NCCLTypeWrapper<T>::type,
+                                      reduction_op_,
+                                      root,
+                                      comm->comms().at(idx),
+                                      ctx.cuda_device_context().stream()));
     VLOG(3) << "gpu : " << gpu_id << " finished reduce. send " << x->numel()
             << " recv " << out->numel();
   }
@@ -132,9 +132,9 @@ template <typename T, typename DeviceContext>
 class NCCLBcastKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
-    PADDLE_ENFORCE_EQ(ctx.GetPlace().GetType() == phi::AllocationType::GPU,
+    PADDLE_ENFORCE_EQ(platform::is_gpu_place(ctx.GetPlace()),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "This kernel only runs on GPU device."));
     int root = ctx.Attr<int>("root");
     auto* comm = ctx.Input<Communicator>("Communicator");
@@ -144,7 +144,7 @@ class NCCLBcastKernel : public framework::OpKernel<T> {
     if (idx == root) {
       auto* x = ctx.Input<phi::DenseTensor>("X");
       VLOG(3) << "gpu : " << gpu_id << " invoke Bcast. send " << x->numel();
-      PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclBcast(
+      PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::ncclBcast(
           reinterpret_cast<void*>(const_cast<T*>(x->data<T>())),
           x->numel(),
           NCCLTypeWrapper<T>::type,
@@ -157,12 +157,12 @@ class NCCLBcastKernel : public framework::OpKernel<T> {
       VLOG(3) << "gpu : " << gpu_id << " invoke Bcast. recv buffer "
               << common::product(out->dims());
       PADDLE_ENFORCE_GPU_SUCCESS(
-          phi::dynload::ncclBcast(out->mutable_data<T>(ctx.GetPlace()),
-                                  out->numel(),
-                                  NCCLTypeWrapper<T>::type,
-                                  root,
-                                  comm->comms().at(idx),
-                                  ctx.cuda_device_context().stream()));
+          platform::dynload::ncclBcast(out->mutable_data<T>(ctx.GetPlace()),
+                                       out->numel(),
+                                       NCCLTypeWrapper<T>::type,
+                                       root,
+                                       comm->comms().at(idx),
+                                       ctx.cuda_device_context().stream()));
       VLOG(3) << "gpu : " << gpu_id << " finished Bcast. recv " << out->numel();
     }
   }

@@ -15,18 +15,19 @@
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING, Callable, TypeVar
-
-from typing_extensions import ParamSpec
+import types
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from types import CodeType
+    from typing import TypeVar
 
-T = TypeVar("T")
-P = ParamSpec("P")
+    from typing_extensions import ParamSpec
 
-NO_BREAKGRAPH_CODES: set[CodeType] = set()
-NO_FALLBACK_CODES: set[CodeType] = set()
+    T = TypeVar("T")
+    P = ParamSpec("P")
+
+NO_BREAKGRAPH_CODES: set[types.CodeType] = set()
+NO_FALLBACK_CODES: set[types.CodeType] = set()
 
 
 def assert_true(input: bool):
@@ -41,7 +42,7 @@ def breakpoint():
     import paddle
 
     old = paddle.framework.core.set_eval_frame(None)
-    builtins.breakpoint()  # noqa: T100
+    builtins.breakpoint()
     paddle.framework.core.set_eval_frame(old)
 
 

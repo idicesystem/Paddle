@@ -49,7 +49,7 @@ class AttrCompat {
   //! Assert the attribute is an integer in the `candidates` domain.
   AttrCompat& IsIntIn(const std::set<int>& candidates);
 
-  // @{ Number-related methods
+  // @{ Number-releated methods
   //! Assert the attribute is a number and > `v`.
   template <typename T>
   AttrCompat& IsNumGT(T v);
@@ -162,11 +162,11 @@ class OpCompat {
  *   void AddOpCompat(OpCompat&& judger);
  *
  * Most of the Passes are used for fusing ops, so we define a method for such
- * scenarios.
+ * scenerios.
  *   void AccessSubgraph(const GraphPatternDetector::subgraph_t& subgraph,
  Graph* g);
  * It will check the Op compatibility automatically.
- * For other scenarios, one should call `IsCompat` by himself.
+ * For other scenirios, one should call `IsCompat` by himself.
  *
  * A FC fuse pass example:
  * class FcFusePass : public OpCompatSensiblePass {
@@ -177,7 +177,7 @@ class OpCompat {
  *        .AddInput("Input").IsTensor().End()
  *        .AddAttr("in_num_col_dims").IsNumGE(1);
  *     AddOpCompat(OpCompat("Add")). ...;
- *     // There are multiple activation implementation.
+ *     // There are multiple activation implemention.
  *     AddOpCompat(OpCompat("Tanh")). ...;
  *     AddOpCompat(OpCompat("Sigmoid")). ...;
  *   }

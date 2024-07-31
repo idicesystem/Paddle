@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 
-import copy
 import os
 import platform
 import re
@@ -92,9 +91,6 @@ class ParameterServerOptimizer(MetaOptimizerBase):
         attrs['use_ps_gpu'] = self.user_defined_strategy.a_sync_configs[
             "use_ps_gpu"
         ]
-        attrs['use_gpu_graph'] = self.user_defined_strategy.a_sync_configs[
-            "use_gpu_graph"
-        ]
         attrs['lr_decay_steps'] = self.user_defined_strategy.a_sync_configs[
             "lr_decay_steps"
         ]
@@ -163,20 +159,12 @@ class ParameterServerOptimizer(MetaOptimizerBase):
         parameter_list=None,
         no_grad_set=None,
     ):
-        self.inner_opts = [self.inner_opt]
-        for idx, loss in enumerate(losses):
-            if idx == 0:
-                continue
-            tmp_opt = copy.deepcopy(self.inner_opt)
-            self.inner_opts.append(tmp_opt)
         if parameter_list is None:
             parameter_list = [None] * len(losses)
         for idx, loss in enumerate(losses):
             startup_prog = startup_program[idx]
             parameters = parameter_list[idx]
-            self.inner_opts[idx].minimize(
-                loss, startup_prog, parameters, no_grad_set
-            )
+            self.inner_opt.minimize(loss, startup_prog, parameters, no_grad_set)
         self._set_origin_programs(losses)
         for idx, loss in enumerate(losses):
             print("ps_optimizer idx loss:", idx, loss)
@@ -217,7 +205,8 @@ class ParameterServerOptimizer(MetaOptimizerBase):
                 return free
             else:
                 raise ValueError(
-                    f"{platform.system()} platform is unsupported is parameter server optimizer"
+                    "%s platform is unsupported is parameter server optimizer"
+                    % (platform.system())
                 )
 
         if not isinstance(self.inner_opt, paddle.optimizer.SGD):
@@ -256,7 +245,8 @@ class ParameterServerOptimizer(MetaOptimizerBase):
                     if x < 0:
                         if neg_dim_count >= 1:
                             raise ValueError(
-                                f"Var {var_name} has more than one negative dim."
+                                "Var %s has more than one negative dim."
+                                % (var_name)
                             )
                         neg_dim_count += 1
                         data_count *= -x

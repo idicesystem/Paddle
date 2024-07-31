@@ -26,7 +26,7 @@ from paddle import base
 flag_name = os.path.splitext(__file__)[0]
 
 
-class TestParallelDygraphSparseEmbeddingOverHeight(TestDistBase):
+class TestParallelDygraphSparseEmdeddingOverHeight(TestDistBase):
     def _setup_config(self):
         self._sync_mode = False
         self._nccl2_mode = True
@@ -44,7 +44,7 @@ class TestParallelDygraphSparseEmbeddingOverHeight(TestDistBase):
             )
 
 
-class TestParallelDygraphSparseEmbeddingOverHeightSpawn(TestDistSpawnRunner):
+class TestParallelDygraphSparseEmdeddingOverHeightSpawn(TestDistSpawnRunner):
     def test_sparse_embedding_with_spawn(self):
         if base.core.is_compiled_with_cuda():
             self.check_dist_result_with_spawn(

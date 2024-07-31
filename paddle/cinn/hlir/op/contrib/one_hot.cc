@@ -23,6 +23,7 @@
 #include "paddle/cinn/common/common.h"
 #include "paddle/cinn/common/context.h"
 #include "paddle/cinn/common/macros.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
 #include "paddle/cinn/hlir/op/op_util.h"
@@ -33,6 +34,7 @@
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/schedule/ir_schedule.h"
 #include "paddle/cinn/ir/tensor.h"
+#include "paddle/cinn/lang/builtin.h"
 #include "paddle/cinn/lang/compute.h"
 
 namespace cinn {
@@ -97,6 +99,55 @@ ir::Tensor OneHot(const ir::Tensor& indices,
   return res;
 }
 
+std::vector<framework::shape_t> InferShapeForOneHot(
+    const std::vector<framework::shape_t>& inputs_shape,
+    const framework::AttrMapType& attrs) {
+  CHECK_EQ(inputs_shape.size(), 3UL)
+      << "The number of one_hot's input should be 3";
+
+  int depth;
+  int axis;
+
+  for (auto& iter : attrs) {
+    if (iter.first == "depth") {
+      depth = absl::get<int>(iter.second);
+    } else if (iter.first == "axis") {
+      axis = absl::get<int>(iter.second);
+    }
+  }
+
+  const std::vector<int>& in_shape = inputs_shape[0];
+  int ndim = static_cast<int>(in_shape.size());
+  int true_axis = (axis == -1) ? in_shape.size() : axis;
+  int indices_index = 0;
+  std::vector<int> new_shape;
+
+  for (int i = 0; i < ndim + 1; ++i) {
+    if (i == true_axis) {
+      new_shape.push_back(depth);
+    } else {
+      new_shape.push_back(in_shape[indices_index++]);
+    }
+  }
+
+  std::vector<std::vector<int>> res{new_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForOneHot(const std::vector<Type>& inputs_type,
+                                      const framework::AttrMapType& attrs) {
+  CHECK(!inputs_type.empty())
+      << "The input's type size is 0! Please check again.";
+
+  std::string dtype = "float32";
+  if (attrs.find("dtype") != attrs.end()) {
+    dtype = absl::get<std::string>(attrs.at("dtype"));
+  }
+
+  std::vector<Type> res{cinn::common::Str2Type(dtype)};
+  return res;
+}
+
 std::shared_ptr<framework::OpStrategy> StrategyForOneHot(
     const framework::NodeAttr& attrs,
     const std::vector<ir::Tensor>& inputs,
@@ -151,7 +202,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(
                             tensor_name);
 
     std::vector<cinn::common::CINNValue> res;
+    auto stages = CreateStages({indices, on_value, off_value});
+    stages->InsertLazily(out);
     res.push_back(cinn::common::CINNValue(out));
+    res.push_back(cinn::common::CINNValue(stages));
     *ret = cinn::common::CINNValuePack{res};
   });
 
@@ -170,13 +224,17 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(
 CINN_REGISTER_HELPER(one_hot_ops) {
   CINN_REGISTER_OP(one_hot)
       .describe(
-          "Returns a one-hot tensor where the locations represented by indices "
+          "Returns a one-hot tensor where the locations repsented by indices "
           "take value `on_value`, "
           "other locations take value `off_value`.")
       .set_num_inputs(3)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>(
           "CINNStrategy", cinn::hlir::op::StrategyForOneHot)
+      .set_attr("infershape",
+                MakeOpFunction(cinn::hlir::op::InferShapeForOneHot))
+      .set_attr("inferdtype",
+                MakeOpFunction(cinn::hlir::op::InferDtypeForOneHot))
       .set_attr<cinn::hlir::framework::OpPatternKind>(
           "OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);

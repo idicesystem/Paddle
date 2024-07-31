@@ -14,14 +14,19 @@
 
 #include "paddle/fluid/framework/ir/memory_optimize_pass/op_graph_view.h"
 
-namespace paddle::framework::details {
+namespace paddle {
+namespace framework {
+namespace details {
 class OpHandleBase;
-}  // namespace paddle::framework::details
+}  // namespace details
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
-OpGraphView::OpGraphView(const std::vector<details::OpHandleBase *> &ops)
-    : preceding_ops_(), pending_ops_() {
+OpGraphView::OpGraphView(const std::vector<details::OpHandleBase *> &ops) {
   Build(ops);
 }
 
@@ -40,7 +45,7 @@ void OpGraphView::Build(const std::vector<details::OpHandleBase *> &ops) {
   }
   PADDLE_ENFORCE(
       preceding_ops_.size() == ops.size() && pending_ops_.size() == ops.size(),
-      common::errors::InvalidArgument("There are duplicate ops in graph."));
+      platform::errors::InvalidArgument("There are duplicate ops in graph."));
 }
 
 std::unordered_set<details::OpHandleBase *> OpGraphView::AllOps() const {
@@ -57,11 +62,11 @@ bool OpGraphView::HasOp(details::OpHandleBase *op) const {
 }
 
 void OpGraphView::EnforceHasOp(details::OpHandleBase *op) const {
-  PADDLE_ENFORCE_EQ(
-      HasOp(op),
-      true,
-      common::errors::NotFound("Cannot find op %s in OpGraphView.",
-                               op == nullptr ? "nullptr" : op->DebugString()));
+  PADDLE_ENFORCE_EQ(HasOp(op),
+                    true,
+                    platform::errors::NotFound(
+                        "Cannot find op %s in OpGraphView.",
+                        op == nullptr ? "nullptr" : op->DebugString()));
 }
 
 const std::unordered_set<details::OpHandleBase *> &OpGraphView::PendingOps(
@@ -88,4 +93,6 @@ OpGraphView::GetPrecedingDepNum() const {
 
 size_t OpGraphView::OpNumber() const { return preceding_ops_.size(); }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

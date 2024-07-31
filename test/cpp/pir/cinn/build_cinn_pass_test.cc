@@ -20,13 +20,14 @@ limitations under the License. */
 #include "paddle/cinn/hlir/dialect/operator/ir/manual_op.h"
 #include "paddle/fluid/pir/dialect/operator/ir/op_dialect.h"
 #include "paddle/fluid/pir/dialect/operator/ir/pd_op.h"
+#include "paddle/pir/core/builtin_type.h"
+#include "paddle/pir/core/ir_context.h"
+#include "paddle/pir/core/program.h"
+#include "paddle/pir/dialect/control_flow/ir/cf_op.h"
+
 #include "paddle/fluid/pir/transforms/build_cinn_pass.h"
-#include "paddle/pir/include/core/builtin_type.h"
-#include "paddle/pir/include/core/ir_context.h"
-#include "paddle/pir/include/core/program.h"
-#include "paddle/pir/include/dialect/control_flow/ir/cf_op.h"
-#include "paddle/pir/include/pass/pass.h"
-#include "paddle/pir/include/pass/pass_manager.h"
+#include "paddle/pir/pass/pass.h"
+#include "paddle/pir/pass/pass_manager.h"
 
 std::shared_ptr<::pir::Program> BuildAllOpSupportCinnGraph() {
   ::pir::IrContext* ctx = ::pir::IrContext::Instance();
@@ -41,9 +42,9 @@ std::shared_ptr<::pir::Program> BuildAllOpSupportCinnGraph() {
   auto full_op_x = builder.Build<paddle::dialect::FullOp>(
       shape, value_one, phi::DataType::FLOAT32, phi::GPUPlace());
   auto tan_op_x = builder.Build<paddle::dialect::TanOp>(full_op_x->result(0));
-  auto sin_op_x = builder.Build<paddle::dialect::SinOp>(tan_op_x->result(0));
-  auto tan_op_y = builder.Build<paddle::dialect::TanOp>(sin_op_x->result(0));
-  auto cos_op_y = builder.Build<paddle::dialect::CosOp>(tan_op_y->result(0));
+  auto relu_op_x = builder.Build<paddle::dialect::ReluOp>(tan_op_x->result(0));
+  auto tan_op_y = builder.Build<paddle::dialect::TanOp>(relu_op_x->result(0));
+  auto relu_op_y = builder.Build<paddle::dialect::ReluOp>(tan_op_y->result(0));
 
   return program;
 }
@@ -55,7 +56,6 @@ TEST(BuildCinnPassTest, AllOpSupportCinn) {
   pm.AddPass(pir::CreateBuildCinnPass());
   pm.EnablePassTiming();
   pm.EnableIRPrinting();
-
   CHECK_EQ(pm.Run(origin_program.get()), true);
   LOG(INFO) << "after pass: " << *origin_program;
 
@@ -67,9 +67,9 @@ TEST(BuildCinnPassTest, AllOpSupportCinn) {
   std::vector<std::string> op_names = {
       paddle::dialect::FullOp::name(),
       paddle::dialect::TanOp::name(),
-      paddle::dialect::SinOp::name(),
+      paddle::dialect::ReluOp::name(),
       paddle::dialect::TanOp::name(),
-      paddle::dialect::CosOp::name(),
+      paddle::dialect::ReluOp::name(),
       pir::YieldOp::name(),
   };
   int index = 0;
@@ -94,6 +94,9 @@ std::shared_ptr<::pir::Program> BuildNoOpSupportCinnGraph() {
       builder.Build<paddle::dialect::HardswishOp>(ones_op_x->result(0));
   auto square_op_y =
       builder.Build<paddle::dialect::SquareOp>(hardswish_op_y->result(0));
+  auto unsqueeze_op_x =
+      builder.Build<paddle::dialect::UnsqueezeOp>(square_op_y->result(0), axis);
+
   return program;
 }
 
@@ -107,11 +110,15 @@ TEST(BuildCinnPassTest, NoOpSupportCinn) {
   CHECK_EQ(pm.Run(origin_program.get()), true);
   LOG(INFO) << "after pass: " << *origin_program;
 
-  CHECK_EQ(origin_program->block()->size(), 3u);  // Because of `FullIntArrayOp`
+  CHECK_EQ(origin_program->block()->size(), 5u);  // Because of `FullIntArrayOp`
 
-  std::vector<std::string> op_names = {paddle::dialect::OnesOp::name(),
-                                       paddle::dialect::HardswishOp::name(),
-                                       paddle::dialect::SquareOp::name()};
+  std::vector<std::string> op_names = {
+      paddle::dialect::OnesOp::name(),
+      paddle::dialect::HardswishOp::name(),
+      paddle::dialect::SquareOp::name(),
+      paddle::dialect::FullIntArrayOp::name(),
+      paddle::dialect::UnsqueezeOp::name(),
+  };
   int index = 0;
   for (auto& op : *origin_program->block()) {
     CHECK_EQ(op.name(), op_names[index++]);
@@ -135,7 +142,8 @@ std::shared_ptr<::pir::Program> BuildOneCinnSubgraph() {
 
   auto acosh_op_x =
       builder.Build<paddle::dialect::AcoshOp>(full_op_x->result(0));
-  auto relu_op_y = builder.Build<paddle::dialect::SinOp>(acosh_op_x->result(0));
+  auto relu_op_y =
+      builder.Build<paddle::dialect::ReluOp>(acosh_op_x->result(0));
   auto square_op_y =
       builder.Build<paddle::dialect::SquareOp>(relu_op_y->result(0));
   auto unsqueeze_op_x =
@@ -161,7 +169,7 @@ TEST(BuildCinnPassTest, OneCinnSubgraph) {
   std::vector<std::string> op_names = {
       paddle::dialect::FullOp::name(),
       paddle::dialect::AcoshOp::name(),
-      paddle::dialect::SinOp::name(),
+      paddle::dialect::ReluOp::name(),
       pir::YieldOp::name(),
   };
   int index = 0;
@@ -194,7 +202,7 @@ std::shared_ptr<::pir::Program> BuildMultiCinnSubgraph() {
   auto unsqueeze_op_x =
       builder.Build<paddle::dialect::UnsqueezeOp>(square_op_y->result(0), axis);
   auto relu_op_y =
-      builder.Build<paddle::dialect::SinOp>(unsqueeze_op_x->result(0));
+      builder.Build<paddle::dialect::ReluOp>(unsqueeze_op_x->result(0));
   return program;
 }
 
@@ -208,7 +216,7 @@ TEST(BuildCinnPassTest, MultiCinnSubgraph) {
   CHECK_EQ(pm.Run(origin_program.get()), true);
   LOG(INFO) << "after pass: " << *origin_program;
 
-  CHECK_EQ(origin_program->block()->size(), 5u);
+  CHECK_EQ(origin_program->block()->size(), 6u);
   pir::Operation* group_op = &origin_program->block()->front();
   pir::Block* group_block =
       group_op->dyn_cast<cinn::dialect::GroupOp>().block();
@@ -226,11 +234,10 @@ TEST(BuildCinnPassTest, MultiCinnSubgraph) {
 
   group_op = &origin_program->block()->back();
   group_block = group_op->dyn_cast<cinn::dialect::GroupOp>().block();
-  CHECK_EQ(group_block->size(), 3u);
+  CHECK_EQ(group_block->size(), 2u);
 
   std::vector<std::string> op_names_back = {
-      paddle::dialect::UnsqueezeOp::name(),
-      paddle::dialect::SinOp::name(),
+      paddle::dialect::ReluOp::name(),
       pir::YieldOp::name(),
   };
   index = 0;

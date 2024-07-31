@@ -26,12 +26,10 @@ import numpy as np
 import paddle
 from paddle import profiler
 from paddle.base.framework import _current_expected_place, _set_expected_place
-from paddle.incubate import multiprocessing
-from paddle.pir.core import datatype_to_vartype
 from paddle.profiler.timer import benchmark
 from paddle.profiler.utils import in_profiler_mode
 
-from ...framework import core, in_dynamic_mode, in_pir_mode
+from ...framework import core, in_dynamic_mode
 from ..multiprocess_utils import (
     MP_STATUS_CHECK_INTERVAL,
     CleanupFuncRegistrar,
@@ -51,11 +49,11 @@ from .worker import (
 # NOTE: fix `terminate called without an active exception`
 # if for loop break and program exit immediately(with no model
 # layers processing) after iterate **the first few data** in
-# distributed launch mode, distributed launch will call
+# distributed lauch mode, distributed launch will call
 # terminate() to kill main process on each devices, but thread
 # is still iterating to fullfill blocking queue caches, which
 # may cause thread error `terminate called without an active
-# exception` for terminate is a strong signal and `__del__`
+# exception` for terminate is a strong singal and `__del__`
 # of DataLoader may not be called, so we add a global link to
 # the last DataLoader instance to call `__del__` to clean up
 # resources
@@ -135,9 +133,6 @@ class _DataLoaderIterBase:
     def __iter__(self):
         return self
 
-    def __next__(self):
-        raise NotImplementedError('Should implement `__next__` for a iterator')
-
     def __len__(self):
         return len(self._batch_sampler)
 
@@ -169,13 +164,13 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
             self._drop_last,
         )
 
-        # NOTE: _structure_infos used to record the data structure of
+        # NOTE: _structrue_infos used to record the data structure of
         # batch to restore batch structure after reading Tensor
         # from blocking_queue in single-process mode. Note that
         # only single process is used in single-process mode, we
         # can record the data structure sequencely in a list without
         # recording the send and recv index
-        self._structure_infos = multiprocessing.Queue()
+        self._structure_infos = []
 
         # NOTE: len(self._places) batch data compose as an output
         # iteration, set blocking_queue can cache "self._prefetch_factor" iteration datas
@@ -193,16 +188,10 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
     def _init_thread(self):
         self._var_names = [v.name for v in self._feed_list]
         self._shapes = [v.shape for v in self._feed_list]
-        if in_pir_mode():
-            self._need_check_feed = [False for v in self._feed_list]
-            self._dtypes = [
-                datatype_to_vartype[v.dtype] for v in self._feed_list
-            ]
-        else:
-            self._need_check_feed = [
-                v.desc.need_check_feed() for v in self._feed_list
-            ]
-            self._dtypes = [v.dtype for v in self._feed_list]
+        self._dtypes = [v.dtype for v in self._feed_list]
+        self._need_check_feed = [
+            v.desc.need_check_feed() for v in self._feed_list
+        ]
         # if only 1 place, do not need to keep order
         self._blocking_queue = core.init_lod_tensor_blocking_queue(
             core.Variable(),
@@ -255,7 +244,7 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
 
             # flat batch and record structure infos
             batch, structure = _flatten_batch(batch)
-            self._structure_infos.put(structure)
+            self._structure_infos.append(structure)
 
             if self._thread_done_event.is_set():
                 break
@@ -264,7 +253,7 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
                 # pack as LoDTensorArray
                 array = core.LoDTensorArray()
                 for slot in batch:
-                    if isinstance(slot, paddle.Tensor):
+                    if isinstance(slot, (paddle.Tensor, core.eager.Tensor)):
                         slot = slot.value().get_tensor()
                     elif not isinstance(slot, core.LoDTensor):
                         tmp = core.LoDTensor()
@@ -301,8 +290,7 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
                 data = core.eager.read_next_tensor_list(
                     self._reader.read_next_list()[0]
                 )
-                structure_info = self._structure_infos.get()
-                data = _restore_batch(data, structure_info)
+                data = _restore_batch(data, self._structure_infos.pop(0))
             else:
                 # in static graph mode
                 if self._return_list:
@@ -310,7 +298,7 @@ class _DataLoaderIterSingleProcess(_DataLoaderIterBase):
                     for i in range(len(data)):
                         data[i] = data[i]._move_to_list()
                     structs = [
-                        self._structure_infos.get()
+                        self._structure_infos.pop(0)
                         for _ in range(len(self._places))
                     ]
                     data = [_restore_batch(d, s) for d, s in zip(data, structs)]
@@ -389,7 +377,7 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
         self._rcvd_idx = 0
         self._batches_outstanding = 0
         self._task_infos = {}
-        self._structure_infos = multiprocessing.Queue()
+        self._structure_infos = []
 
         # indices outstand as _outstanding_capacity at first, and
         # blocking_queue capacity is also _outstanding_capacity.
@@ -438,6 +426,8 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
         self._shutdown = False
 
     def _init_workers(self):
+        from paddle.incubate import multiprocessing
+
         # multiprocess worker and indice queue list initial as empty
         self._workers = []
         self._worker_status = []
@@ -496,16 +486,10 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
     def _init_thread(self):
         self._var_names = [v.name for v in self._feed_list]
         self._shapes = [v.shape for v in self._feed_list]
-        if in_pir_mode():
-            self._need_check_feed = [False for v in self._feed_list]
-            self._dtypes = [
-                datatype_to_vartype[v.dtype] for v in self._feed_list
-            ]
-        else:
-            self._need_check_feed = [
-                v.desc.need_check_feed() for v in self._feed_list
-            ]
-            self._dtypes = [v.dtype for v in self._feed_list]
+        self._dtypes = [v.dtype for v in self._feed_list]
+        self._need_check_feed = [
+            v.desc.need_check_feed() for v in self._feed_list
+        ]
         # if only 1 place, do not need to keep order
         self._blocking_queue = core.init_lod_tensor_blocking_queue(
             core.Variable(), self._outstanding_capacity, len(self._places) > 1
@@ -565,8 +549,7 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
         self._rcvd_idx = 0
         self._batches_outstanding = 0
         self._task_infos = {}
-        while not self._structure_infos.empty():
-            self._structure_infos.get()
+        self._structure_infos = []
 
         # set all worker status available
         self._worker_status = [True] * self._num_workers
@@ -636,8 +619,10 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                             # LoDTensor not in shared memory is not
                             # serializable, cannot be create in workers
                             for slot in batch:
-                                if isinstance(slot, paddle.Tensor):
-                                    slot = slot.get_tensor()
+                                if isinstance(
+                                    slot, (paddle.Tensor, core.eager.Tensor)
+                                ):
+                                    slot = slot.value().get_tensor()
                                 elif not isinstance(slot, core.LoDTensor):
                                     tmp = core.LoDTensor()
                                     tmp.set(slot, core.CPUPlace())
@@ -692,7 +677,7 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                 and len(self._task_infos[self._rcvd_idx]) == 3
             ):
                 info = self._task_infos.pop(self._rcvd_idx)
-                self._structure_infos.put(info[2])
+                self._structure_infos.append(info[2])
                 return info[1]
 
             try:
@@ -720,8 +705,8 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                     self._exit_thread_unexpectedly()
                     pids = ', '.join(str(w.pid) for w in failed_workers)
                     logging.warning(
-                        f"DataLoader {len(failed_workers)} workers exit unexpectedly, "
-                        f"pids: {pids}"
+                        "DataLoader {} workers exit unexpectedly, "
+                        "pids: {}".format(len(failed_workers), pids)
                     )
                     return
 
@@ -769,7 +754,7 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                 if idx == self._rcvd_idx:
                     if idx in self._task_infos:
                         del self._task_infos[idx]
-                    self._structure_infos.put(structure)
+                    self._structure_infos.append(structure)
                     return batch
                 else:
                     self._task_infos[idx] += (batch, structure)
@@ -840,15 +825,14 @@ class _DataLoaderIterMultiProcess(_DataLoaderIterBase):
                 data = core.eager.read_next_tensor_list(
                     self._reader.read_next_list()[0]
                 )
-                structure_info = self._structure_infos.get()
-                data = _restore_batch(data, structure_info)
+                data = _restore_batch(data, self._structure_infos.pop(0))
             else:
                 if self._return_list:
                     data = self._reader.read_next_list()
                     for i in range(len(data)):
                         data[i] = data[i]._move_to_list()
                     structs = [
-                        self._structure_infos.get()
+                        self._structure_infos.pop(0)
                         for _ in range(len(self._places))
                     ]
                     data = [_restore_batch(d, s) for d, s in zip(data, structs)]

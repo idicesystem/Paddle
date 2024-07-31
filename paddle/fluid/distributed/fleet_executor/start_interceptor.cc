@@ -18,7 +18,8 @@
 #include "paddle/fluid/distributed/fleet_executor/task_node.h"
 #include "paddle/fluid/framework/operator.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 StartInterceptor::StartInterceptor(int64_t interceptor_id, TaskNode* node)
     : ComputeInterceptor(interceptor_id, node) {
@@ -26,7 +27,7 @@ StartInterceptor::StartInterceptor(int64_t interceptor_id, TaskNode* node)
   PADDLE_ENFORCE_EQ(
       downstream.size(),
       1,
-      phi::errors::OutOfRange(
+      platform::errors::OutOfRange(
           "The downstream for StartInterceptor only support 1 for now."));
   for (auto down : downstream) {
     batch_size_ = down.second;
@@ -34,7 +35,7 @@ StartInterceptor::StartInterceptor(int64_t interceptor_id, TaskNode* node)
   bool evenly_divisible = ((node_->max_run_times() % batch_size_) == 0);
   PADDLE_ENFORCE(
       evenly_divisible,
-      phi::errors::Fatal(
+      platform::errors::Fatal(
           "Wrong config: Num of step should be divided by batch_size,"
           "num_step=%lld, batch_size=%lld",
           node_->max_run_times(),
@@ -56,12 +57,12 @@ void StartInterceptor::SendDataReadyToDownStream() {
       PADDLE_ENFORCE_LE(
           used_size,
           max_buff_size,
-          phi::errors::OutOfRange("downstream=%lld used buff size must <= "
-                                  "max_buff_size, but now used_size=%lld, "
-                                  "max_buff_size=%lld",
-                                  down_id,
-                                  used_size,
-                                  max_buff_size));
+          platform::errors::OutOfRange("downstream=%lld used buff size must <= "
+                                       "max_buff_size, but now used_size=%lld, "
+                                       "max_buff_size=%lld",
+                                       down_id,
+                                       used_size,
+                                       max_buff_size));
     }
     outs.second.second = used_size;
   }
@@ -122,4 +123,5 @@ void StartInterceptor::Compute(const InterceptorMessage& msg) {
 
 REGISTER_INTERCEPTOR(Start, StartInterceptor);
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

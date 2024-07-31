@@ -11,7 +11,7 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/selected_rows_utils.h"
 
-#include <ctime>
+#include <time.h>
 
 #include <thread>  // NOLINT
 
@@ -38,7 +38,7 @@ class SelectedRowsTester : public ::testing::Test {
   }
 
  protected:
-  phi::CPUPlace place_;
+  platform::CPUPlace place_;
   std::unique_ptr<phi::SelectedRows> selected_rows_{nullptr};
 };
 
@@ -52,7 +52,7 @@ TEST_F(SelectedRowsTester, complete_dims) {
   ASSERT_EQ(selected_rows_->GetCompleteDims(), common::make_ddim({10, 100}));
 }
 
-TEST_F(SelectedRowsTester, SerializeAndDeserialize) {
+TEST_F(SelectedRowsTester, SerializeAndDeseralize) {
   phi::SelectedRows dst_tensor;
   phi::CPUContext cpu_ctx(place_);
   std::ostringstream oss;
@@ -73,7 +73,7 @@ TEST_F(SelectedRowsTester, SerializeAndDeserialize) {
 }
 
 TEST(SelectedRows, SparseTable) {
-  phi::CPUPlace cpu;
+  platform::CPUPlace cpu;
   phi::SelectedRows table;
 
   int64_t table_size = 100;
@@ -172,7 +172,7 @@ void f4(phi::SelectedRows* table, int table_size) {
 }
 
 TEST(SelectedRows, MultiThreadAutoIndex) {
-  phi::CPUPlace cpu;
+  platform::CPUPlace cpu;
   phi::SelectedRows table;
 
   int64_t table_size = 100000;

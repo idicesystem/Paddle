@@ -14,15 +14,15 @@ limitations under the License. */
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 
 #include <string>
 #include <vector>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/inference/capi_exp/pd_inference_api.h"
+#include "paddle/utils/flags.h"
 
 PD_DEFINE_string(infer_model, "", "model path");
 
@@ -63,6 +63,13 @@ TEST(PD_Config, interface) {
   bool memory_enabled = PD_ConfigMemoryOptimEnabled(config);
   EXPECT_TRUE(memory_enabled);
 
+#ifndef PADDLE_WITH_LITE
+  PD_ConfigEnableLiteEngine(
+      config, PD_PRECISION_FLOAT32, TRUE, 0, nullptr, 0, nullptr);
+  bool lite_enabled = PD_ConfigLiteEngineEnabled(config);
+  EXPECT_TRUE(lite_enabled);
+#endif
+
   PD_ConfigSwitchIrDebug(config, TRUE);
 #ifdef PADDLE_WITH_DNNL
   const char* ops_name = "conv_2d";
@@ -77,8 +84,8 @@ TEST(PD_Config, interface) {
   EXPECT_EQ(cpu_threads, 10);
 
   PD_ConfigEnableMkldnnQuantizer(config);
-  bool onednn_qt_enabled = PD_ConfigMkldnnQuantizerEnabled(config);
-  EXPECT_TRUE(onednn_qt_enabled);
+  bool mkldnn_qt_enabled = PD_ConfigMkldnnQuantizerEnabled(config);
+  EXPECT_TRUE(mkldnn_qt_enabled);
 
   PD_ConfigEnableMkldnnBfloat16(config);
   PD_ConfigSetBfloat16Op(config, 1, &ops_name);
@@ -112,6 +119,7 @@ TEST(PD_Config, interface) {
   bool is_valid = PD_ConfigIsValid(config);
   EXPECT_FALSE(is_valid);
 
+  PD_ConfigPartiallyRelease(config);
   PD_ConfigDestroy(config);
 }
 

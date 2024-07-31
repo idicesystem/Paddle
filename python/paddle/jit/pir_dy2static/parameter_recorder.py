@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import paddle
-from paddle.autograd.backward_utils import ValueDict
-from paddle.framework import core
 
 from ..dy2static.program_translator import _program_hash, synchronized
 
@@ -22,7 +20,7 @@ from ..dy2static.program_translator import _program_hash, synchronized
 class ParametersRecorder:
     def __init__(self):
         self.params_dict = {}
-        self.tensor2value = {}
+        self.tensor2opresult = {}
 
     @synchronized
     def get(self, program, tensor):
@@ -32,30 +30,21 @@ class ParametersRecorder:
         key = _program_hash(program)
         if key not in self.params_dict:
             self.params_dict[key] = set()
-            self.tensor2value[key] = {}
+            self.tensor2opresult[key] = {}
 
         params = self.params_dict[key]
-        mappings = self.tensor2value[key]
+        mappings = self.tensor2opresult[key]
         if id(tensor) not in mappings:
             non_used_initializer = paddle.nn.initializer.Constant(0.0)
-            dtype = tensor.dtype
-            if isinstance(dtype, core.VarDesc.VarType):
-                vartype_to_datatype[dtype]
-            value = create_parameter(
-                dtype=dtype,
+            op_result = create_parameter(
+                dtype=vartype_to_datatype[tensor.dtype],
                 shape=tensor.shape,
                 type=tensor.type,
-                name=tensor.name,
                 initializer=non_used_initializer,
-                trainable=(not tensor.stop_gradient),
-                placements=tensor.placements,
-                process_mesh=tensor.process_mesh,
             )
-
             if isinstance(tensor, paddle.Tensor):
                 params.add(tensor)
-            mappings[id(tensor)] = value
-
+            mappings[id(tensor)] = op_result
         return mappings[id(tensor)]
 
     def pop(self, program):
@@ -63,12 +52,12 @@ class ParametersRecorder:
         params = self.params_dict.get(hash_id)
         if params is None:
             return [], []
-        params = list(params)
-        params.sort(key=lambda x: x.name)
-        params_values = [self.tensor2value[hash_id][id(x)] for x in params]
+        params_values = [
+            self.tensor2opresult[hash_id][id(x)] for x in list(params)
+        ]
         del self.params_dict[hash_id]
-        del self.tensor2value[hash_id]
-        return params, params_values
+        del self.tensor2opresult[hash_id]
+        return list(params), list(params_values)
 
 
 class InplaceMap:
@@ -76,26 +65,28 @@ class InplaceMap:
         self.params_dict = {}
 
     @synchronized
-    def add(self, program, origin_value, new_value):
+    def add(self, program, id, param):
+        """use the default_program as key, append param the parameter list."""
         key = _program_hash(program)
         if key not in self.params_dict:
-            self.params_dict[key] = ValueDict()
-        inplace_dict = self.params_dict[key]
-        inplace_dict[origin_value] = new_value
+            self.params_dict[key] = {}
 
-    def get(self, program, value):
-        inplace_dict = self.params_dict.get(_program_hash(program))
-        if inplace_dict is None:
+        params = self.params_dict[key]
+        params[id] = param
+
+    def get(self, program, id):
+        params = self.params_dict.get(_program_hash(program))
+        if params is None:
             return None
-        if value not in inplace_dict:
+        if id not in params:
             return None
-        root_var = inplace_dict[value]
+        root_var = params[id]
         saved = []
-        while root_var in inplace_dict:
+        while id(root_var) in params.keys():
             saved.append(root_var)
-            root_var = inplace_dict[root_var]
+            root_var = params[id(root_var)]
         for var in saved:
-            inplace_dict[var] = root_var
+            params[id(var)] = root_var
         return root_var
 
     def restore_checkpoint(self, checkpoint):

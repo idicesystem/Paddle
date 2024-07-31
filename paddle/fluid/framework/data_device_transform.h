@@ -22,7 +22,7 @@ namespace paddle {
 namespace framework {
 
 void TransDataDevice(const phi::DenseTensor& in,
-                     const phi::Place& dst_place,
+                     const platform::Place& dst_place,
                      phi::DenseTensor* out);
 
 }  // namespace framework

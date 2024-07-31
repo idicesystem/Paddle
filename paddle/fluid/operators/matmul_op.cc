@@ -36,7 +36,7 @@ inline static std::string DumpMatrixShape(
  * Get row matrix shape from a vector shape. If the rank of x_dim > 1, the
  * original x_dim is returned.
  */
-static phi::DDim RowMatrixFromVector(const phi::DDim &x_dim) {
+static framework::DDim RowMatrixFromVector(const framework::DDim &x_dim) {
   if (x_dim.size() > 1) {
     return x_dim;
   }
@@ -47,15 +47,14 @@ static phi::DDim RowMatrixFromVector(const phi::DDim &x_dim) {
  * Get column matrix shape from a vector shape. If the ran of y_dim > 1, the
  * original y_dim is returned.
  */
-static phi::DDim ColumnMatrixFromVector(const phi::DDim &y_dim) {
+static framework::DDim ColumnMatrixFromVector(const framework::DDim &y_dim) {
   if (y_dim.size() > 1) {
     return y_dim;
   }
   return common::make_ddim({y_dim[0], 1});
 }
 
-#if (defined(PADDLE_WITH_CUDA) && CUDA_VERSION >= 11060) || \
-    defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA) && CUDA_VERSION >= 11060
 template <typename T, typename DeviceContext>
 typename std::enable_if<std::is_integral<T>::value, void>::type
 ComputeMatmulImpl(const framework::ExecutionContext &context) {
@@ -379,7 +378,7 @@ phi::DDim GetDimForInput(const framework::InferShapeContext &ctx,
   auto dim = ctx.GetInputDim(input_name);
   PADDLE_ENFORCE_GT(dim.size(),
                     0,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "The Input(%s) has not been initialized properly. The "
                         "shape of Input(%s) = [%s].",
                         dim));
@@ -637,7 +636,7 @@ class MatMulOp : public framework::OperatorWithKernel {
           mat_dim_x.batch_size_ == mat_dim_y.batch_size_ ||
               mat_dim_x.batch_size_ == 0 || mat_dim_y.batch_size_ == 0,
           true,
-          common::errors::InvalidArgument(
+          phi::errors::InvalidArgument(
               "The batch size of the two matrices should be equal, or "
               "at least one is zero.\n"
               "But received X's shape: %s, Y's shape: %s.",
@@ -653,7 +652,7 @@ class MatMulOp : public framework::OperatorWithKernel {
       PADDLE_ENFORCE_LE(
           head_number,
           mat_dim_x.width_,
-          common::errors::InvalidArgument(
+          phi::errors::InvalidArgument(
               "Unsatisfied mkl acceleration library requirements: "
               "The number of heads "
               "(%d) must be equal to X's width. But received X's shape: %s.",
@@ -667,7 +666,7 @@ class MatMulOp : public framework::OperatorWithKernel {
 #else
     PADDLE_ENFORCE_EQ(mat_dim_x.width_,
                       mat_dim_y.height_,
-                      common::errors::InvalidArgument(
+                      phi::errors::InvalidArgument(
                           "Input X's width should be equal to the Y's height, "
                           "but received X's shape: [%s], "
                           "Y's shape: [%s].",
@@ -960,10 +959,9 @@ REGISTER_OP_CPU_KERNEL(matmul_grad_grad,
 #if defined(PADDLE_WITH_HIP)
 REGISTER_OP_CUDA_KERNEL(
     matmul,
-    ops::MatMulKernel<phi::GPUContext, int8_t>,
     ops::MatMulKernel<phi::GPUContext, float>,
     ops::MatMulKernel<phi::GPUContext, double>,
-    ops::MatMulKernel<phi::GPUContext, phi::dtype::float16>);
+    ops::MatMulKernel<phi::GPUContext, paddle::platform::float16>);
 #endif
 
 #if defined(PADDLE_WITH_CUDA)
@@ -973,13 +971,13 @@ REGISTER_OP_CUDA_KERNEL(
     ops::MatMulKernel<phi::GPUContext, int8_t>,
     ops::MatMulKernel<phi::GPUContext, float>,
     ops::MatMulKernel<phi::GPUContext, double>,
-    ops::MatMulKernel<phi::GPUContext, phi::dtype::float16>);
+    ops::MatMulKernel<phi::GPUContext, paddle::platform::float16>);
 #else
 REGISTER_OP_CUDA_KERNEL(
     matmul,
     ops::MatMulKernel<phi::GPUContext, float>,
     ops::MatMulKernel<phi::GPUContext, double>,
-    ops::MatMulKernel<phi::GPUContext, phi::dtype::float16>);
+    ops::MatMulKernel<phi::GPUContext, paddle::platform::float16>);
 #endif
 #endif
 
@@ -987,7 +985,7 @@ REGISTER_OP_CUDA_KERNEL(
     matmul_grad,
     ops::MatMulGradKernel<phi::GPUContext, float>,
     ops::MatMulGradKernel<phi::GPUContext, double>,
-    ops::MatMulGradKernel<phi::GPUContext, phi::dtype::float16>);
+    ops::MatMulGradKernel<phi::GPUContext, paddle::platform::float16>);
 REGISTER_OP_CUDA_KERNEL(matmul_grad_grad,
                         ops::MatMulDoubleGradKernel<phi::GPUContext, float>,
                         ops::MatMulDoubleGradKernel<phi::GPUContext, double>);

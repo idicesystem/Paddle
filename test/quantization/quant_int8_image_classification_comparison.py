@@ -270,13 +270,19 @@ class QuantInt8ImageClassificationComparisonTest(unittest.TestCase):
     ):
         _logger.info('--- Accuracy summary ---')
         _logger.info(
-            f'Accepted top1 accuracy drop threshold: {threshold}. (condition: (FP32_top1_acc - IN8_top1_acc) <= threshold)'
+            'Accepted top1 accuracy drop threshold: {}. (condition: (FP32_top1_acc - IN8_top1_acc) <= threshold)'.format(
+                threshold
+            )
         )
         _logger.info(
-            f'FP32: avg top1 accuracy: {fp32_acc1:.4f}, avg top5 accuracy: {fp32_acc5:.4f}'
+            'FP32: avg top1 accuracy: {:.4f}, avg top5 accuracy: {:.4f}'.format(
+                fp32_acc1, fp32_acc5
+            )
         )
         _logger.info(
-            f'INT8: avg top1 accuracy: {int8_acc1:.4f}, avg top5 accuracy: {int8_acc5:.4f}'
+            'INT8: avg top1 accuracy: {:.4f}, avg top5 accuracy: {:.4f}'.format(
+                int8_acc1, int8_acc5
+            )
         )
         assert fp32_acc1 > 0.0
         assert int8_acc1 > 0.0

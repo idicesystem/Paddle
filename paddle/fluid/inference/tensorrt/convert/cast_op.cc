@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class CastOpConverter : public OpConverter {
  public:
@@ -55,10 +57,12 @@ class CastOpConverter : public OpConverter {
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "cast", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "cast", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(cast, CastOpConverter);

@@ -20,7 +20,9 @@
 #include "paddle/phi/kernels/funcs/jit/macro.h"
 #include "paddle/phi/kernels/funcs/jit/registry.h"
 
-namespace phi::jit::gen {
+namespace phi {
+namespace jit {
+namespace gen {
 
 void LSTMJitCode::genCode() {
   if (use_peephole_) {
@@ -40,7 +42,7 @@ void LSTMJitCode::genCode() {
   }
 
   int offset = 0;
-  int d = num_ * sizeof(float);  // NOLINT
+  int d = num_ * sizeof(float);
   for (int i = 0; i < num_ / YMM_FLOAT_BLOCK; ++i) {
     /* gates: W_ch, W_ih, W_fh, W_oh */
     ymm_t ymm_c = ymm_t(0);
@@ -132,7 +134,9 @@ DECLARE_LSTM_CREATOR(LSTMC1H1);
 
 #undef DECLARE_LSTM_CREATOR
 
-}  // namespace phi::jit::gen
+}  // namespace gen
+}  // namespace jit
+}  // namespace phi
 
 namespace gen = phi::jit::gen;
 

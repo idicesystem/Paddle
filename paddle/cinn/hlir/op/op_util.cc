@@ -32,12 +32,8 @@ CINNSchedule GetElementwiseScheduleFunc(
     CHECK(!args.empty()) << "The input argument of ElementwiseSchedule is "
                             "empty! Please check.\n";
     cinn::common::CINNValuePack arg_pack = args[0];
-    PADDLE_ENFORCE_GT(
-        arg_pack.size(),
-        0U,
-        phi::errors::InvalidArgument("arg_pack.size() must contain at least "
-                                     "one element. Current size: %d",
-                                     arg_pack.size()));
+    CHECK_GT(arg_pack.size(), 0U)
+        << "arg_pack.size() must contains at least one element.";
     std::vector<Expr> vec_ast;
     for (int i = 0; i < arg_pack.size(); i++) {
       if (arg_pack[i].is_expr()) {
@@ -76,48 +72,16 @@ CINNSchedule GetInjectiveScheduleFunc(
     ir::IRSchedule ir_sch(mod_expr);
     ir_sch.MergeExprs();
     pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
+    /*if (target.arch == Target::Arch::NVGPU) {
+      pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target,
+    vectorizable);
+    }*/
     std::vector<cinn::common::CINNValue> res{
         cinn::common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
     *ret = cinn::common::CINNValuePack{res};
   });
-}
-
-std::string GetExternFuncNameArchPrefixImpl(common::UnknownArch,
-                                            const std::string& func_name) {
-  std::stringstream ss;
-  ss << func_name << " only supports X86 and NVGPU! Please Check.\n";
-  PADDLE_THROW(::common::errors::Fatal(ss.str()));
-}
-
-std::string GetExternFuncNameArchPrefixImpl(common::X86Arch,
-                                            const std::string& func_name) {
-  return "host_";
-}
-
-std::string GetExternFuncNameArchPrefixImpl(common::ARMArch,
-                                            const std::string& func_name) {
-  std::stringstream ss;
-  ss << func_name << " only supports X86 and NVGPU! Please Check.\n";
-  PADDLE_THROW(::common::errors::Fatal(ss.str()));
-}
-
-std::string GetExternFuncNameArchPrefixImpl(common::NVGPUArch,
-                                            const std::string& func_name) {
-  return "nvgpu_";
-}
-
-std::string GetExternFuncNameArchPrefixImpl(common::HygonDCUArchHIP,
-                                            const std::string& func_name) {
-  return "hygonDcuHip_";
-}
-
-std::string GetExternFuncNameArchPrefix(common::Arch arch,
-                                        const std::string& func_name) {
-  return std::visit(
-      [&](const auto& impl) {
-        return GetExternFuncNameArchPrefixImpl(impl, func_name);
-      },
-      arch.variant());
 }
 
 std::string GetExternFuncName(const cinn::common::Target& target,
@@ -131,8 +95,14 @@ std::string GetExternFuncName(const cinn::common::Target& target,
     func_proto_name.append("cinn_");
   }
   if (need_target) {
-    const auto& prefix = GetExternFuncNameArchPrefix(target.arch, func_name);
-    func_proto_name.append(prefix);
+    if (target.arch == cinn::common::Target::Arch::NVGPU) {
+      func_proto_name.append("nvgpu_");
+    } else if (target.arch == cinn::common::Target::Arch::X86) {
+      func_proto_name.append("host_");
+    } else {
+      LOG(FATAL) << func_name
+                 << " only supports X86 and NVGPU! Please Check.\n";
+    }
   }
   func_proto_name.append(func_name);
   if (!need_type) {
@@ -168,21 +138,10 @@ std::string GetExternFuncName(const cinn::common::Target& target,
   } else if (type.is_uint(64)) {
     func_proto_name.append("uint64");
   } else {
-    std::stringstream ss;
-    ss << "Can not find type: " << type
-       << " for extern function. Please Check.\n";
-    PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+    LOG(FATAL) << "Can not find type: " << type
+               << " for extern function. Please Check.\n";
   }
   return func_proto_name;
-}
-
-std::vector<Expr> ToCinnExprs(const std::vector<ir::Dim>& args) {
-  std::vector<Expr> exprs;
-  std::transform(args.begin(),
-                 args.end(),
-                 std::back_inserter(exprs),
-                 [](const ir::Dim& arg) { return arg->dim_expr; });
-  return exprs;
 }
 
 }  // namespace hlir

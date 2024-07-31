@@ -52,11 +52,12 @@ class VariableCompatTensor
         paddle::framework::IsRegisteredVarType<T>(),
         "Not registered type. Please register T inside var_type_traits.h");
     PADDLE_ENFORCE_NOT_NULL(
-        holder_, phi::errors::NotFound("Variable is not initialized."));
+        holder_,
+        paddle::platform::errors::NotFound("Variable is not initialized."));
     PADDLE_ENFORCE_EQ(
         holder_->Type(),
         paddle::framework::VarTypeTrait<T>::kId,
-        phi::errors::InvalidArgument(
+        paddle::platform::errors::InvalidArgument(
             "The Variable type must be %s, but the type it holds is %s.",
             paddle::framework::ToTypeName(
                 paddle::framework::VarTypeTrait<T>::kId),
@@ -74,7 +75,7 @@ class VariableCompatTensor
       PADDLE_ENFORCE_EQ(
           holder_->Type(),
           paddle::framework::VarTypeTrait<T>::kId,
-          phi::errors::InvalidArgument(
+          paddle::platform::errors::InvalidArgument(
               "The Variable type must be %s, but the type it holds is %s.",
               paddle::framework::ToTypeName(
                   paddle::framework::VarTypeTrait<T>::kId),
@@ -93,7 +94,8 @@ class VariableCompatTensor
 
   int Type() const {
     PADDLE_ENFORCE_NOT_NULL(
-        holder_, phi::errors::NotFound("Variable is not initialized."));
+        holder_,
+        paddle::platform::errors::NotFound("Variable is not initialized."));
     return holder_->Type();
   }
 
@@ -104,27 +106,27 @@ class VariableCompatTensor
   ~VariableCompatTensor() override = default;
 
   int64_t numel() const override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `numel` method."));
   }
 
   const phi::DDim& dims() const override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `dims` method."));
   }
 
   phi::DataType dtype() const override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `dtype` method."));
   }
 
   phi::DataLayout layout() const override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `layout` method."));
   }
 
   const phi::Place& place() const override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `place` method."));
   }
 
@@ -136,7 +138,7 @@ class VariableCompatTensor
                      phi::DataType dtype UNUSED,
                      size_t requested_size UNUSED = 0,
                      bool fake_alloc UNUSED = false) override {
-    PADDLE_THROW(phi::errors::Unavailable(
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
         "VariableCompatTensor does not support `AllocateFrom` method."));
   }
 
@@ -197,7 +199,7 @@ inline bool IsVariableCompatTensor(const paddle::Tensor& tensor) {
  * **/
 class EagerVariable final {
  public:
-  /* Default constructor and name constructor should only be used for construct
+  /* Default constructor and name constructor should only be used for contruct
    * output and in fluid*/
   EagerVariable() = default;
 
@@ -219,7 +221,7 @@ class EagerVariable final {
                      ->IsType<paddle::framework::Strings>()) {
         ConstructVariableFromCompatTensor<paddle::framework::Strings>(tensor);
       } else {
-        PADDLE_THROW(phi::errors::Fatal(
+        PADDLE_THROW(paddle::platform::errors::Fatal(
             "Unrecognized egr::EagerVariable type, only "
             "DenseTensor and SelectedRows are supported for now."));
       }
@@ -233,8 +235,8 @@ class EagerVariable final {
       auto* framework_tensor = var_.GetMutable<phi::DenseTensor>();
       auto tensor_dense = static_cast<phi::DenseTensor*>(src_tensor_.get());
       if (framework_tensor->memory_size() > 0 &&
-          (!phi::is_same_place(framework_tensor->place(),
-                               tensor_dense->place()) ||
+          (!paddle::platform::is_same_place(framework_tensor->place(),
+                                            tensor_dense->place()) ||
            framework_tensor->dtype() != tensor_dense->dtype())) {
         tensor_dense->ShareBufferWith(*framework_tensor);
       }
@@ -250,13 +252,13 @@ class EagerVariable final {
       } else if (var_.IsType<phi::SelectedRows>()) {
         return SetImplWithLegacyTensor<phi::SelectedRows>();
       } else {
-        PADDLE_THROW(
-            phi::errors::Fatal("Unable to fetch underlying tensor "
-                               "from EagerVariable, only LoDTensor and "
-                               "Tensor are supported for now"));
+        PADDLE_THROW(paddle::platform::errors::Fatal(
+            "Unable to fetch underlying tensor "
+            "from EagerVariable, only LoDTensor and "
+            "Tensor are supported for now"));
       }
     } else {
-      PADDLE_THROW(phi::errors::Fatal(
+      PADDLE_THROW(paddle::platform::errors::Fatal(
           "Can not Sync EagerVariable %s whose paddle::framework::Variable is "
           "not initialized!",
           name()));
@@ -283,15 +285,15 @@ class EagerVariable final {
   template <typename VarType>
   void ConstructVariableFromTensor(const paddle::Tensor& tensor) {
     auto* framework_tensor = var_.GetMutable<VarType>();
-    // Construct phi::DenseTensor from egr::EagerVariable
+    // Contruct phi::DenseTensor from egr::EagerVariable
     auto tensor_dense = std::dynamic_pointer_cast<VarType>(tensor.impl());
 
     PADDLE_ENFORCE_EQ(
         (tensor_dense.get() && tensor_dense),
         true,
-        phi::errors::Fatal(
+        paddle::platform::errors::Fatal(
             "Tensor %s does not hold phi::SelectedRows or phi::DenseTensor. "
-            "Or it holds empty impl, this should not happened since we should "
+            "Or it holds empty impl, this should not happend since we should "
             "treat all kinds of tensor as what they are.",
             tensor.name()));
     *framework_tensor = *tensor_dense;
@@ -306,15 +308,15 @@ class EagerVariable final {
   template <typename VarType>
   void ConstructVariableFromCompatTensor(const paddle::Tensor& tensor) {
     auto* framework_holder = var_.GetMutable<VarType>();
-    // Construct phi::DenseTensor from egr::EagerVariable
+    // Contruct phi::DenseTensor from egr::EagerVariable
     auto* compat_tensor =
         static_cast<VariableCompatTensor*>(tensor.impl().get());
-    PADDLE_ENFORCE_NOT_NULL(
-        compat_tensor,
-        phi::errors::Fatal("Tensor %s holds empty impl, this should not "
-                           "happened since we should "
-                           "treat all kinds of tensor as what they are.",
-                           tensor.name()));
+    PADDLE_ENFORCE_NOT_NULL(compat_tensor,
+                            paddle::platform::errors::Fatal(
+                                "Tensor %s holds empty impl, this should not "
+                                "happend since we should "
+                                "treat all kinds of tensor as what they are.",
+                                tensor.name()));
     *framework_holder = compat_tensor->Get<VarType>();
   }
 

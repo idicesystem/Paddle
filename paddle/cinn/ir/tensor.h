@@ -20,7 +20,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -186,6 +185,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   void Verify() const override;
 
+  bool IsReduceInited(poly::StageMap stages) const;
+
   //! Tell whether this tensor represents a tuple (consists of one or multiple
   //! tensors as output of a extern Call).
   bool is_tuple() const;
@@ -216,13 +217,15 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * Get a new tensor with the \p shape, but the underlying buffer shared.
    * NOTE the tensor to Reshape should not be an inlined computation.
    */
-  ir::Tensor Reshape(const std::vector<Expr>& shape) const;
+  ir::Tensor Reshape(const std::vector<Expr>& shape,
+                     poly::StageMap stages) const;
 
   /**
    * Get a new tensor with the \p shape with a newly allocated buffer.
    * NOTE the tensor to Reshape should not be an inlined computation.
    */
-  ir::Tensor ReshapeCopied(const std::vector<Expr>& shape) const;
+  ir::Tensor ReshapeCopied(const std::vector<Expr>& shape,
+                           poly::StageMap stages) const;
 
   /**
    * Tell whether this tensor has same shape with \p other.
@@ -301,10 +304,19 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void WithBuffer(const std::string& memory_type,
                   const std::string& buffer_name = "",
                   const Type& type = Void());
+  Tensor GetInitTensor(
+      poly::StageMap stages,
+      const Target& target = cinn::common::DefaultHostTarget()) const;
 
-  const std::optional<std::vector<Expr>>& value() const { return value_; }
-
-  void set_value(const std::vector<Expr>& value) { value_ = value; }
+  /**
+   * Create the initialization tensor.
+   * @param stages The stages.
+   * @param init_val The initial value.
+   * @return The initializing tensor.
+   */
+  ir::Tensor InitReduction(
+      poly::StageMap stages,
+      const Target& target = cinn::common::DefaultHostTarget()) const;
 
  private:
   //! Initialize the axis field after the shape field is assigned.
@@ -315,10 +327,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The names of the tensors depend the same buffer and should schedule before
   //! this.
   std::set<std::string> buffer_depended_tensor_names_;
-
-  // The flatten compute value of tensor, such as Tensor[[1, 2], [3, 4]] ->
-  // Tensor[1, 2, 3, 4]
-  std::optional<std::vector<Expr>> value_;
 
   friend Shared<poly::Stage> CreateStage(Tensor tensor);
 };

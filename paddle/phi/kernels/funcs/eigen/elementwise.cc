@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename T>
 struct EigenAdd<Eigen::DefaultDevice, T> {
@@ -71,4 +72,5 @@ struct EigenDiv<Eigen::DefaultDevice, T> {
 template struct EigenDiv<Eigen::DefaultDevice, float>;
 template struct EigenDiv<Eigen::DefaultDevice, double>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

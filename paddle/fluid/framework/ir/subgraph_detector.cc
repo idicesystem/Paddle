@@ -16,7 +16,9 @@ limitations under the License. */
 
 #include "glog/logging.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Graph;
 class Node;
@@ -287,7 +289,7 @@ std::vector<std::vector<Node *>> SubgraphDetector::ExtractSubGraphs() {
     node_map[n->id()] = n;
   }
 
-  // create brief node map
+  // create breif node map
   for (auto &itr : brief_node_map) {
     for (Node *node : itr.second->node->inputs) {
       if (!valid_node_ids.count(node->id())) {
@@ -394,14 +396,10 @@ void RemoveIntermediateOutputInSubgraph(const std::vector<Node *> &subgraph,
   std::unordered_set<Node *> valid_output;
 
   for (auto *output : *outputs) {
-    if (output->IsSubgraphOutput()) {
-      valid_output.insert(output);
-    } else {
-      int num_used = 0;
-      for (auto *node : output->outputs) {
-        if (!subgraph_set.count(node)) ++num_used;
-        if (num_used > 0) valid_output.insert(output);
-      }
+    int num_used = 0;
+    for (auto *node : output->outputs) {
+      if (!subgraph_set.count(node)) ++num_used;
+      if (num_used > 0) valid_output.insert(output);
     }
   }
 
@@ -422,20 +420,6 @@ void SubGraphFuser::ReplaceNodesWithSubGraphs() {
   auto subgraphs = SubgraphDetector(graph_, node_inside_subgraph_teller_)();
   for (auto &subgraph : subgraphs) {
     if (subgraph.size() <= static_cast<size_t>(min_subgraph_size_)) continue;
-
-    bool continue_run = true;
-
-    for (auto *node : subgraph) {
-      for (const auto tmp_name : node->outputs) {
-        if (std::find(trt_exclude_var_names_.begin(),
-                      trt_exclude_var_names_.end(),
-                      tmp_name->Name()) != trt_exclude_var_names_.end()) {
-          continue_run = false;
-        }
-      }
-    }
-
-    if (continue_run == false) continue;
     std::unordered_set<Node *> subgraph_uniq(subgraph.begin(), subgraph.end());
     // replace this sub-graph with the first node. Two steps: 1. Create a Block
     // Node that contains this subgraph 2. Mark the nodes inside the sub-graph
@@ -483,4 +467,6 @@ inline bool CheckNodeIndegreeEquals(const Node &node, size_t n) {
   return node.inputs.size() == n;
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

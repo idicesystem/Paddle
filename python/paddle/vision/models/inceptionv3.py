@@ -12,18 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import math
-from typing import (
-    TYPE_CHECKING,
-    TypedDict,
-)
-
-from typing_extensions import (
-    NotRequired,
-    Unpack,
-)
 
 import paddle
 from paddle import nn
@@ -33,14 +22,6 @@ from paddle.nn.initializer import Uniform
 from paddle.utils.download import get_weights_path_from_url
 
 from ..ops import ConvNormActivation
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-
-    class _InceptionV3Options(TypedDict):
-        num_classes: NotRequired[int]
-        with_pool: NotRequired[bool]
-
 
 __all__ = []
 
@@ -53,7 +34,7 @@ model_urls = {
 
 
 class InceptionStem(nn.Layer):
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__()
         self.conv_1a_3x3 = ConvNormActivation(
             in_channels=3,
@@ -95,7 +76,7 @@ class InceptionStem(nn.Layer):
             activation_layer=nn.ReLU,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = self.conv_1a_3x3(x)
         x = self.conv_2a_3x3(x)
         x = self.conv_2b_3x3(x)
@@ -107,7 +88,7 @@ class InceptionStem(nn.Layer):
 
 
 class InceptionA(nn.Layer):
-    def __init__(self, num_channels: int, pool_features: int) -> None:
+    def __init__(self, num_channels, pool_features):
         super().__init__()
         self.branch1x1 = ConvNormActivation(
             in_channels=num_channels,
@@ -165,7 +146,7 @@ class InceptionA(nn.Layer):
             activation_layer=nn.ReLU,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         branch1x1 = self.branch1x1(x)
         branch5x5 = self.branch5x5_1(x)
         branch5x5 = self.branch5x5_2(branch5x5)
@@ -183,7 +164,7 @@ class InceptionA(nn.Layer):
 
 
 class InceptionB(nn.Layer):
-    def __init__(self, num_channels: int) -> None:
+    def __init__(self, num_channels):
         super().__init__()
         self.branch3x3 = ConvNormActivation(
             in_channels=num_channels,
@@ -219,7 +200,7 @@ class InceptionB(nn.Layer):
 
         self.branch_pool = MaxPool2D(kernel_size=3, stride=2)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         branch3x3 = self.branch3x3(x)
 
         branch3x3dbl = self.branch3x3dbl_1(x)
@@ -234,7 +215,7 @@ class InceptionB(nn.Layer):
 
 
 class InceptionC(nn.Layer):
-    def __init__(self, num_channels: int, channels_7x7: int) -> None:
+    def __init__(self, num_channels, channels_7x7):
         super().__init__()
         self.branch1x1 = ConvNormActivation(
             in_channels=num_channels,
@@ -316,7 +297,7 @@ class InceptionC(nn.Layer):
             activation_layer=nn.ReLU,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         branch1x1 = self.branch1x1(x)
 
         branch7x7 = self.branch7x7_1(x)
@@ -340,7 +321,7 @@ class InceptionC(nn.Layer):
 
 
 class InceptionD(nn.Layer):
-    def __init__(self, num_channels: int) -> None:
+    def __init__(self, num_channels):
         super().__init__()
         self.branch3x3_1 = ConvNormActivation(
             in_channels=num_channels,
@@ -390,7 +371,7 @@ class InceptionD(nn.Layer):
 
         self.branch_pool = MaxPool2D(kernel_size=3, stride=2)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         branch3x3 = self.branch3x3_1(x)
         branch3x3 = self.branch3x3_2(branch3x3)
 
@@ -406,7 +387,7 @@ class InceptionD(nn.Layer):
 
 
 class InceptionE(nn.Layer):
-    def __init__(self, num_channels: int) -> None:
+    def __init__(self, num_channels):
         super().__init__()
         self.branch1x1 = ConvNormActivation(
             in_channels=num_channels,
@@ -477,7 +458,7 @@ class InceptionE(nn.Layer):
             activation_layer=nn.ReLU,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         branch1x1 = self.branch1x1(x)
 
         branch3x3 = self.branch3x3_1(x)
@@ -531,10 +512,7 @@ class InceptionV3(nn.Layer):
             [1, 1000]
     """
 
-    num_classes: int
-    with_pool: bool
-
-    def __init__(self, num_classes: int = 1000, with_pool: bool = True) -> None:
+    def __init__(self, num_classes=1000, with_pool=True):
         super().__init__()
         self.num_classes = num_classes
         self.with_pool = with_pool
@@ -592,7 +570,7 @@ class InceptionV3(nn.Layer):
                 bias_attr=ParamAttr(),
             )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = self.inception_stem(x)
         for inception_block in self.inception_block_list:
             x = inception_block(x)
@@ -607,9 +585,7 @@ class InceptionV3(nn.Layer):
         return x
 
 
-def inception_v3(
-    pretrained: bool = False, **kwargs: Unpack[_InceptionV3Options]
-) -> InceptionV3:
+def inception_v3(pretrained=False, **kwargs):
     """Inception v3 model from
     `"Rethinking the Inception Architecture for Computer Vision" <https://arxiv.org/pdf/1512.00567.pdf>`_.
 

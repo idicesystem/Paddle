@@ -88,7 +88,7 @@ def _measure_program_real_op_cost_multipass(program, place, run_iters, verbose):
         for op in cloned_main_block.ops:
             op: Operator
             if is_comm_op(op):
-                # ignore communication op from graph, because sometimes we want to profile a sub-graph
+                # ignore communication op from graph, bacause sometimes we want to profile a sub-graph
                 # and these dangling operators will not work (no graph to communicate to/from)
                 continue
             input_var_names, output_var_names = _collect_op_input_var_names(
@@ -121,7 +121,9 @@ def _measure_program_real_op_cost_multipass(program, place, run_iters, verbose):
             )
         )
         logger.info(
-            f'[+] var: "{var_name}", shape={var_shape}, dtype="{var_dtype}".\n'
+            '[+] var: "{}", shape={}, dtype="{}".\n'.format(
+                var_name, str(var_shape), str(var_dtype)
+            )
         ) if verbose else None
         np_dtype = (
             convert_dtype(var_dtype)
@@ -260,27 +262,30 @@ def measure_program_real_op_cost(
     >>> from paddle.distributed.auto_parallel.static.utils import measure_program_real_op_cost
     >>> place: str = paddle.device.get_device() # here we assume place = "cuda:x"
     >>> place = paddle.CUDAPlace(int(place.split(':')[1]))
-    >>> # here "program" is an inner object that has already been built before
+    >>> # here "program" is an inner object that has alredy been built before
     >>> measure_program_real_op_cost(program, verbose_level=1)
     '''
 
-    assert isinstance(
-        program, Program
-    ), f'"program" should be a instance of "paddle.base.framework.Program" but got type "{type(program).__name__}".'
+    assert isinstance(program, Program), (
+        '"program" should be a instance of "paddle.base.framework.Program" but got type "%s".'
+        % type(program).__name__
+    )
     supported_places = [
         paddle.CUDAPlace,
     ]
     assert any(
         isinstance(place, supported_place)
         for supported_place in supported_places
-    ), f'Current place ({place}) does not support runtime profiling. "place" should be one of the following: {supported_places}.'
+    ), 'Current place ({}) does not support runtime profiling. "place" should be one of the following: {}.'.format(
+        str(place), str(supported_places)
+    )
     assert isinstance(run_iters, int) and run_iters >= 1, (
         'Invalid parameter run_iters set. run_iters '
         'should be an integer >= 1.'
     )
     if run_iters == 1:
         warnings.warn(
-            'run_iters was set to 1, profiling results might be inaccurate due to outliers.'
+            'run_iters was set to 1, profiling results might be inaccurate due to outilers.'
         )
 
     logger = get_logger(log_level=logging.INFO)

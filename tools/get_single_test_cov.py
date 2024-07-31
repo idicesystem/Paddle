@@ -25,21 +25,21 @@ def getFNDAFile(rootPath, test):
     fnda_base_dict = {}
     find_file_cmd = os.popen(f"find {rootPath} -name {test}.cc")
     if find_file_cmd.read() != "":
-        print(f"{test} is a c++ unittest")
+        print("%s is a c++ unittest" % test)
         with open(
-            f"{rootPath}/build/ut_map/simple_precision_test/base_fnda.json",
+            "%s/build/ut_map/simple_precision_test/base_fnda.json" % rootPath,
             'r',
         ) as load_f:
             fnda_base_dict = json.load(load_f)
     # analyse fnda
     filename = f'{rootPath}/build/ut_map/{test}/coverage.info.tmp'
     fn_filename = f'{rootPath}/build/ut_map/{test}/fnda.tmp'
-    os.system(f'touch {fn_filename}')
+    os.system('touch %s' % fn_filename)
     try:
         f = open(filename)
-        print(f"oepn {filename} successfully")
+        print("oepn %s successfully" % filename)
     except FileNotFoundError:
-        print(f"{filename} is not found.")
+        print("%s is not found." % filename)
         return
     all_data = f.read().split('TN:')
     del all_data[0]
@@ -56,8 +56,9 @@ def getFNDAFile(rootPath, test):
                     symbol = tmp_data[1]
                     if symbol in fnda_base_dict:
                         if (hit - fnda_base_dict[symbol]) > 0:
-                            fnda_str = (
-                                f'FNDA:{hit - fnda_base_dict[symbol]},{symbol}'
+                            fnda_str = 'FNDA:{},{}'.format(
+                                str(hit - fnda_base_dict[symbol]),
+                                symbol,
                             )
                             os.system(f'echo {fnda_str} >> {fn_filename}')
                     else:
@@ -70,8 +71,8 @@ def analysisFNDAFile(rootPath, test):
     notrelated_ut_map_file = (
         f'{rootPath}/build/ut_map/{test}/notrelated_{test}.txt'
     )
-    os.system(f'touch {related_ut_map_file}')
-    os.system(f'touch {notrelated_ut_map_file}')
+    os.system('touch %s' % related_ut_map_file)
+    os.system('touch %s' % notrelated_ut_map_file)
 
     if os.path.isfile(related_ut_map_file) and os.path.isfile(
         notrelated_ut_map_file
@@ -86,9 +87,9 @@ def analysisFNDAFile(rootPath, test):
     fn_filename = f'{rootPath}/build/ut_map/{test}/fnda.tmp'
     try:
         f = open(fn_filename)
-        print(f"oepn {fn_filename} successfully")
+        print("oepn %s successfully" % fn_filename)
     except FileNotFoundError:
-        print(f"{fn_filename} is not found.")
+        print("%s is not found." % fn_filename)
         return
     data = f.read().split('SF:')
     related_file_list = []
@@ -133,9 +134,9 @@ def getBaseFnda(rootPath, test):
     filename = f'{rootPath}/build/ut_map/{test}/coverage.info.tmp'
     try:
         f = open(filename)
-        print(f"oepn {filename} successfully")
+        print("oepn %s successfully" % filename)
     except FileNotFoundError:
-        print(f"{filename} is not found.")
+        print("%s is not found." % filename)
     symbol_fnda = {}
     all_data = f.read().split('TN:')
     del all_data[0]
@@ -158,17 +159,26 @@ def getBaseFnda(rootPath, test):
 def getCovinfo(rootPath, test):
     ut_map_path = f'{rootPath}/build/ut_map/{test}'
     print("start get fluid ===>")
-    cmd_fluid = f'cd {ut_map_path} && lcov --capture -d paddle/fluid/ -o paddle/fluid/coverage_fluid.info --rc lcov_branch_coverage=0'
+    cmd_fluid = (
+        'cd %s && lcov --capture -d paddle/fluid/ -o paddle/fluid/coverage_fluid.info --rc lcov_branch_coverage=0'
+        % ut_map_path
+    )
     p_fluid = subprocess.Popen(cmd_fluid, shell=True, stdout=subprocess.DEVNULL)
 
     print("start get phi ===>")
-    cmd_phi = f'cd {ut_map_path} && lcov --capture -d paddle/phi -o paddle/phi/coverage_phi.info --rc lcov_branch_coverage=0'
-    if os.path.exists(f"{ut_map_path}/paddle/phi"):
+    cmd_phi = (
+        'cd %s && lcov --capture -d paddle/phi -o paddle/phi/coverage_phi.info --rc lcov_branch_coverage=0'
+        % ut_map_path
+    )
+    if os.path.exists("%s/paddle/phi" % ut_map_path):
         p_phi = subprocess.Popen(cmd_phi, shell=True, stdout=subprocess.DEVNULL)
 
     print("start get utils ===>")
-    cmd_utils = f'cd {ut_map_path} && lcov --capture -d paddle/utils -o paddle/utils/coverage_utils.info --rc lcov_branch_coverage=0'
-    if os.path.exists(f"{ut_map_path}/paddle/utils"):
+    cmd_utils = (
+        'cd %s && lcov --capture -d paddle/utils -o paddle/utils/coverage_utils.info --rc lcov_branch_coverage=0'
+        % ut_map_path
+    )
+    if os.path.exists("%s/paddle/utils" % ut_map_path):
         p_utils = subprocess.Popen(
             cmd_utils, shell=True, stdout=subprocess.DEVNULL
         )
@@ -179,29 +189,35 @@ def getCovinfo(rootPath, test):
     print("start wait utils ===>")
     p_utils.wait()
     print("end wait...")
-    coverage_utils_info_path = f"{ut_map_path}/paddle/utils/coverage_utils.info"
+    coverage_utils_info_path = (
+        "%s/paddle/utils/coverage_utils.info" % ut_map_path
+    )
     if (
         os.path.exists(coverage_utils_info_path)
         and os.path.getsize(coverage_utils_info_path) > 4
     ):
         os.system(
-            f'cd {ut_map_path} && lcov -a paddle/fluid/coverage_fluid.info -a paddle/phi/coverage_phi.info -a paddle/utils/coverage_utils.info -o coverage.info --rc lcov_branch_coverage=0 > /dev/null 2>&1'
+            'cd %s && lcov -a paddle/fluid/coverage_fluid.info -a paddle/phi/coverage_phi.info -a paddle/utils/coverage_utils.info -o coverage.info --rc lcov_branch_coverage=0 > /dev/null 2>&1'
+            % ut_map_path
         )
     else:
         os.system(
-            f'cd {ut_map_path} && lcov -a paddle/fluid/coverage_fluid.info -a paddle/phi/coverage_phi.info -o coverage.info --rc lcov_branch_coverage=0 > /dev/null 2>&1'
+            'cd %s && lcov -a paddle/fluid/coverage_fluid.info -a paddle/phi/coverage_phi.info -o coverage.info --rc lcov_branch_coverage=0 > /dev/null 2>&1'
+            % ut_map_path
         )
     coverage_info_path = ut_map_path + '/coverage.info'
     file_size = os.path.getsize(coverage_info_path)
     if file_size == 0:
         print(
-            f"coverage.info of {ut_map_path} is empty,collect coverage rate failed"
+            "coverage.info of %s is empty,collect coverage rate failed"
+            % ut_map_path
         )
         return
     else:
-        print(f"get coverage.info of {ut_map_path} successfully")
+        print("get coverage.info of %s successfully" % ut_map_path)
     os.system(
-        f"cd {ut_map_path} && lcov --extract coverage.info '/paddle/paddle/phi/*' '/paddle/paddle/utils/*' '/paddle/paddle/fluid/*' '/paddle/build/*' -o coverage.info.tmp --rc lcov_branch_coverage=0 > /dev/null 2>&1"
+        "cd %s && lcov --extract coverage.info '/paddle/paddle/phi/*' '/paddle/paddle/utils/*' '/paddle/paddle/fluid/*' '/paddle/build/*' -o coverage.info.tmp --rc lcov_branch_coverage=0 > /dev/null 2>&1"
+        % ut_map_path
     )
     coverage_info_tmp = ut_map_path + '/coverage.info.tmp'
     coverage_tmp_size = os.path.getsize(coverage_info_tmp)
@@ -211,8 +227,8 @@ def getCovinfo(rootPath, test):
     else:
         print("get coverage.info.tmp successfully")
 
-    os.system(f'rm -rf {ut_map_path}/paddle')
-    os.system(f'rm -rf {ut_map_path}/coverage.info')
+    os.system('rm -rf %s/paddle' % ut_map_path)
+    os.system('rm -rf %s/coverage.info' % ut_map_path)
     if test == "simple_precision_test":
         getBaseFnda(rootPath, test)
     else:
@@ -227,7 +243,7 @@ def getCovinfo(rootPath, test):
             "analysisFNDAFile time :",
             end_analysisFNDAFile - start_analysisFNDAFile,
         )
-    os.system(f'rm -rf {ut_map_path}/coverage.info.tmp')
+    os.system('rm -rf %s/coverage.info.tmp' % ut_map_path)
 
 
 if __name__ == "__main__":

@@ -81,7 +81,9 @@ add_subdirectory(details)
 add_subdirectory(fleet)
 add_subdirectory(io)
 add_subdirectory(new_executor)
-
+if(WITH_CINN)
+  add_subdirectory(paddle2cinn)
+endif()
 #ddim lib
 proto_library(framework_proto SRCS framework.proto)
 proto_library(pass_desc_proto SRCS pass_desc.proto DEPS framework_proto)
@@ -123,17 +125,17 @@ cc_library(
 cc_library(
   tensor
   SRCS tensor_util.cc
-  DEPS fluid_memory data_type device_context phi common)
+  DEPS place memory data_type device_context phi common)
 
 cc_library(
   lod_tensor
   SRCS lod_tensor.cc
-  DEPS phi common tensor framework_proto version)
+  DEPS phi common place tensor framework_proto version)
 
 cc_library(
   garbage_collector
   SRCS garbage_collector.cc
-  DEPS device_context allocator phi common glog)
+  DEPS device_context memory phi common glog)
 
 cc_library(
   reader
@@ -144,11 +146,17 @@ cc_library(
   var_type_traits
   SRCS var_type_traits.cc
   DEPS framework_proto scope phi common)
+if(WITH_GPU)
+  target_link_libraries(var_type_traits dynload_cuda)
+endif()
+if(WITH_XPU)
+  target_link_libraries(var_type_traits dynload_xpti)
+endif()
 
-# every source file that includes "dnnl.h" must depends on onednn
-# or, the first one should depends on onednn
-if(WITH_ONEDNN)
-  add_dependencies(var_type_traits onednn)
+# every source file that includes "dnnl.h" must depends on mkldnn
+# or, the first one should depends on mkldnn
+if(WITH_MKLDNN)
+  add_dependencies(var_type_traits mkldnn)
 endif()
 
 set(BRPC_DEPS "")
@@ -237,7 +245,7 @@ cc_library(
 cc_library(
   attribute
   SRCS attribute.cc
-  DEPS framework_proto phi common)
+  DEPS framework_proto enforce common)
 cc_library(
   op_version_proto
   SRCS op_version_proto.cc
@@ -265,10 +273,10 @@ cc_library(
   SRCS shape_inference.cc
   DEPS phi common attribute selected_rows_utils)
 
-# every source file that includes "dnnl.h" must depends on onednn
-# or, the first one should depends on onednn
-if(WITH_ONEDNN)
-  add_dependencies(shape_inference onednn)
+# every source file that includes "dnnl.h" must depends on mkldnn
+# or, the first one should depends on mkldnn
+if(WITH_MKLDNN)
+  add_dependencies(shape_inference mkldnn)
 endif()
 
 cc_library(
@@ -284,7 +292,7 @@ cc_library(
 cc_library(
   op_kernel_type
   SRCS op_kernel_type.cc
-  DEPS device_context phi common)
+  DEPS device_context place)
 
 if(WITH_XPU)
   cc_library(
@@ -292,6 +300,7 @@ if(WITH_XPU)
     SRCS phi_utils.cc
     DEPS lod_tensor
          selected_rows_utils
+         place
          phi
          common
          var_type_traits
@@ -301,7 +310,13 @@ else()
   cc_library(
     phi_utils
     SRCS phi_utils.cc
-    DEPS lod_tensor selected_rows_utils phi common var_type_traits op_info)
+    DEPS lod_tensor
+         selected_rows_utils
+         place
+         phi
+         common
+         var_type_traits
+         op_info)
 endif()
 
 if(WITH_XPU)
@@ -325,7 +340,7 @@ if(WITH_XPU)
          op_kernel_type
          op_call_stack
          unused_var_check
-         detail_op_handle
+         nan_inf_utils
          phi_utils
          infershape_utils
          phi
@@ -352,7 +367,7 @@ else()
          op_kernel_type
          op_call_stack
          unused_var_check
-         detail_op_handle
+         nan_inf_utils
          phi_utils
          infershape_utils
          phi
@@ -402,7 +417,7 @@ cc_library(
 cc_library(
   op_call_stack
   SRCS op_call_stack.cc
-  DEPS op_proto_maker phi common)
+  DEPS op_proto_maker enforce common)
 
 cc_library(
   program_utils
@@ -500,12 +515,6 @@ cc_library(
   feed_fetch_method
   SRCS feed_fetch_method.cc
   DEPS lod_tensor scope glog)
-
-cc_library(
-  feed_hook
-  SRCS feed_hook.cc
-  DEPS lod_tensor scope glog pir)
-
 cc_library(
   variable_helper
   SRCS variable_helper.cc
@@ -520,7 +529,6 @@ set(NAIVE_EXECUTOR_DEPS
     glog
     lod_rank_table
     feed_fetch_method
-    feed_hook
     graph_to_program_pass
     standalone_executor
     variable_helper)
@@ -542,6 +550,7 @@ cc_library(
   executor_gc_helper
   SRCS executor_gc_helper.cc
   DEPS while_op_helper
+       recurrent_op_helper
        conditional_block_op_helper
        pylayer_op_helper
        scope
@@ -576,6 +585,7 @@ if(WITH_DISTRIBUTE)
            device_worker_factory.cc
            data_set.cc
       DEPS fleet_wrapper
+           recurrent_op_helper
            op_registry
            device_context
            scope
@@ -590,7 +600,6 @@ if(WITH_DISTRIBUTE)
            lodtensor_printer
            lod_rank_table
            feed_fetch_method
-           feed_hook
            collective_helper
            ${GLOB_DISTRIBUTE_DEPS}
            graph_to_program_pass
@@ -621,7 +630,7 @@ if(WITH_DISTRIBUTE)
     #         pull_dense_worker.cc section_worker.cc heter_section_worker.cc device_worker_factory.cc data_set.cc DEPS op_registry
     #         device_context scope framework_proto data_feed_proto heter_service_proto trainer_desc_proto glog
     #         index_sampler index_wrapper sampler index_dataset_proto
-    #         lod_rank_table framework_io fleet_wrapper heter_wrapper box_wrapper metrics lodtensor_printer feed_fetch_method feed_hook
+    #         lod_rank_table framework_io fleet_wrapper heter_wrapper box_wrapper metrics lodtensor_printer feed_fetch_method
     #         graph_to_program_pass variable_helper timer monitor
     #         heter_service_proto fleet heter_server brpc fleet_executor
     #         graph_gpu_wrapper)
@@ -651,7 +660,8 @@ if(WITH_DISTRIBUTE)
            heter_section_worker.cc
            device_worker_factory.cc
            data_set.cc
-      DEPS op_registry
+      DEPS recurrent_op_helper
+           op_registry
            device_context
            scope
            framework_proto
@@ -661,6 +671,7 @@ if(WITH_DISTRIBUTE)
            glog
            index_sampler
            index_wrapper
+           sampler
            index_dataset_proto
            lod_rank_table
            framework_io
@@ -670,7 +681,6 @@ if(WITH_DISTRIBUTE)
            metrics
            lodtensor_printer
            feed_fetch_method
-           feed_hook
            graph_to_program_pass
            variable_helper
            timer
@@ -727,7 +737,8 @@ if(WITH_DISTRIBUTE)
            section_worker.cc
            device_worker_factory.cc
            data_set.cc
-      DEPS op_registry
+      DEPS recurrent_op_helper
+           op_registry
            device_context
            scope
            framework_proto
@@ -744,7 +755,6 @@ if(WITH_DISTRIBUTE)
            metrics
            lodtensor_printer
            feed_fetch_method
-           feed_hook
            graph_to_program_pass
            variable_helper
            timer
@@ -787,7 +797,8 @@ elseif(WITH_PSLIB)
          section_worker.cc
          device_worker_factory.cc
          data_set.cc
-    DEPS op_registry
+    DEPS recurrent_op_helper
+         op_registry
          device_context
          scope
          framework_proto
@@ -803,7 +814,6 @@ elseif(WITH_PSLIB)
          box_wrapper
          lodtensor_printer
          feed_fetch_method
-         feed_hook
          graph_to_program_pass
          variable_helper
          timer
@@ -834,7 +844,8 @@ else()
          section_worker.cc
          device_worker_factory.cc
          data_set.cc
-    DEPS op_registry
+    DEPS recurrent_op_helper
+         op_registry
          device_context
          scope
          framework_proto
@@ -850,7 +861,6 @@ else()
          box_wrapper
          lodtensor_printer
          feed_fetch_method
-         feed_hook
          graph_to_program_pass
          variable_helper
          timer
@@ -858,30 +868,27 @@ else()
 endif()
 
 target_link_libraries(
-  executor
-  while_op_helper
-  executor_gc_helper
-  static_prim_api
-  static_utils
-  get_expected_kernel_func
-  conditional_block_op_helper
-  pylayer_op_helper)
+  executor while_op_helper executor_gc_helper recurrent_op_helper
+  conditional_block_op_helper pylayer_op_helper)
 
 cc_library(
-  compiled_program
-  SRCS compiled_program.cc
-  DEPS graph
+  parallel_executor
+  SRCS parallel_executor.cc
+  DEPS threaded_ssa_graph_executor
+       scope_buffered_ssa_graph_executor
+       parallel_ssa_graph_executor
+       async_ssa_graph_executor
+       graph
        build_strategy
-       reference_count_pass
-       eager_deletion_pass
-       buffer_shared_inplace_op_pass
-       buffer_shared_cross_op_memory_reuse_pass
-       inplace_addto_op_pass)
+       bind_threaded_ssa_graph_executor
+       collective_helper
+       fast_threaded_ssa_graph_executor
+       variable_helper)
 
 cc_library(
   executor_cache
   SRCS executor_cache.cc
-  DEPS pir_transforms pir)
+  DEPS parallel_executor standalone_executor pir_adaptor pir_transforms pir)
 cc_library(
   prune
   SRCS prune.cc
@@ -907,6 +914,7 @@ cc_library(
   DEPS lod_tensor
        selected_rows_utils
        attribute
+       place
        var_type_traits
        phi
        common
@@ -941,31 +949,27 @@ cc_library(
        framework_proto
        op_registry
        operator
+       dynamic_loader
        string_helper
        phi
        common
        imperative_flag
-       layer
-       op_dialect_vjp)
+       layer)
 
-cc_library(
-  type_info
-  SRCS type_info.cc type_defs.cc
-  DEPS common)
-target_link_libraries(type_info pir op_dialect)
+cc_library(type_info SRCS type_info.cc)
 add_dependencies(type_info framework_proto auto_parallel_proto xxhash)
-if(WITH_ONEDNN)
-  add_dependencies(type_info onednn)
+if(WITH_MKLDNN)
+  add_dependencies(type_info mkldnn)
 endif()
 
 set(FLUID_FRAMEWORK_MODULES
     proto_desc
+    memory
     lod_tensor
     executor
     data_feed_proto
     layer
-    phi
-    common
+    dynamic_loader
     custom_operator)
 
 cc_library(paddle_framework DEPS ${FLUID_FRAMEWORK_MODULES})

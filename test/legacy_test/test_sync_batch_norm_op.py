@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-test for sync batchnorm op.
+test for sync bachnorm op.
 for both FP64 and FP16 input.
 """
 
@@ -217,7 +217,7 @@ class TestSyncBatchNormOpTraining(unittest.TestCase):
         for id in range(core.get_cuda_device_count()):
             filepath = os.path.join(
                 self.data_dir.name,
-                f'input_{id}_{only_forward}_{self.dtype.__name__}_{layout}.npy',
+                f'input_{id}_{only_forward}_{str(self.dtype.__name__)}_{layout}.npy',
             )
             np.save(filepath, data[id * stride : (id + 1) * stride])
         data = create_or_get_tensor(

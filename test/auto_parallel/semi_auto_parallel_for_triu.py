@@ -22,10 +22,10 @@ class TestTriuSemiAutoParallel(SemiAutoParallelTestBase):
     def __init__(self):
         super().__init__()
 
-    def check_placements(self, output, expected_placements):
+    def check_dim_mapping(self, output, expected_dim_mapping):
         assert (
-            output.placements == expected_placements
-        ), f"{output.placements}  vs {expected_placements}"
+            output.dist_attr.dims_mapping == expected_dim_mapping
+        ), f"{output.dist_attr.dims_mapping}  vs {expected_dim_mapping}"
 
     def test_triu_forward(self):
         shapes = [16, 4, 4]
@@ -36,7 +36,7 @@ class TestTriuSemiAutoParallel(SemiAutoParallelTestBase):
             op_func=paddle.triu,
             with_backward=True,
         )
-        self.check_placements(outputs, [dist.Shard(0)])
+        self.check_dim_mapping(outputs, [0, -1, -1])
 
     def test_triu_forward_shard(self):
         shapes = [16, 4, 4]
@@ -47,7 +47,7 @@ class TestTriuSemiAutoParallel(SemiAutoParallelTestBase):
             op_func=paddle.triu,
             with_backward=True,
         )
-        self.check_placements(outputs, [dist.Replicate()])
+        self.check_dim_mapping(outputs, [-1, -1, -1])
 
     def run_test_case(self):
         if self._backend == "cpu":

@@ -13,7 +13,8 @@ limitations under the License. */
 #include "paddle/phi/infermeta/spmd_rules/pow.h"
 #include "paddle/phi/infermeta/spmd_rules/elementwise.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 SpmdInfo PowInferSpmd(const DistMetaTensor& x, const Scalar& y) {
   return ElementwiseUnaryInferSpmd(x);
 }
@@ -22,4 +23,5 @@ SpmdInfo PowGradInferSpmd(const DistMetaTensor& x,
                           const Scalar y) {
   return ElementwiseUnaryGradInferSpmd(x, out_grad);
 }
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

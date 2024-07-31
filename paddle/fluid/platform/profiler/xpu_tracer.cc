@@ -19,7 +19,7 @@
 #include <unordered_map>
 
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/core/os_info.h"
+#include "paddle/fluid/platform/os_info.h"
 #ifdef PADDLE_WITH_XPU
 #include "paddle/phi/backends/device_manager.h"
 #endif
@@ -35,15 +35,16 @@
   } while (0)
 #endif  // PADDLE_WITH_XPTI
 
-namespace paddle::platform {
+namespace paddle {
+namespace platform {
 
 void XPUTracer::PrepareTracing() {
   PADDLE_ENFORCE_EQ(
       state_ == TracerState::UNINITED || state_ == TracerState::STOPED,
       true,
-      common::errors::PreconditionNotMet("XPUTracer must be UNINITED"));
+      platform::errors::PreconditionNotMet("XPUTracer must be UNINITED"));
 #ifdef PADDLE_WITH_XPTI
-  XPTI_CALL(phi::dynload::xptiActivityEnable());
+  XPTI_CALL(dynload::xptiActivityEnable());
   VLOG(3) << "enable xpti activity";
 #endif
   state_ = TracerState::READY;
@@ -53,11 +54,11 @@ void XPUTracer::StartTracing() {
   PADDLE_ENFORCE_EQ(
       state_ == TracerState::READY,
       true,
-      common::errors::PreconditionNotMet("Tracer must be READY or STOPPED"));
+      platform::errors::PreconditionNotMet("Tracer must be READY or STOPPED"));
 #ifdef PADDLE_WITH_XPTI
-  XPTI_CALL(phi::dynload::xptiStartTracing());
+  XPTI_CALL(dynload::xptiStartTracing());
 #endif
-  tracing_start_ns_ = phi::PosixInNsec();
+  tracing_start_ns_ = PosixInNsec();
   state_ = TracerState::STARTED;
 }
 
@@ -65,10 +66,10 @@ void XPUTracer::StopTracing() {
   PADDLE_ENFORCE_EQ(
       state_,
       TracerState::STARTED,
-      common::errors::PreconditionNotMet("Tracer must be STARTED"));
+      platform::errors::PreconditionNotMet("Tracer must be STARTED"));
 #ifdef PADDLE_WITH_XPTI
-  XPTI_CALL(phi::dynload::xptiStopTracing());
-  XPTI_CALL(phi::dynload::xptiActivityDisable());
+  XPTI_CALL(dynload::xptiStopTracing());
+  XPTI_CALL(dynload::xptiActivityDisable());
   VLOG(3) << "disable xpti activity";
 #endif
   state_ = TracerState::STOPED;
@@ -159,12 +160,12 @@ void XPUTracer::CollectTraceData(TraceEventCollector* collector) {
   PADDLE_ENFORCE_EQ(
       state_,
       TracerState::STOPED,
-      common::errors::PreconditionNotMet("Tracer must be STOPED"));
+      platform::errors::PreconditionNotMet("Tracer must be STOPED"));
 #ifdef PADDLE_WITH_XPTI
-  XPTI_CALL(phi::dynload::xptiActivityFlushAll());
+  XPTI_CALL(dynload::xptiActivityFlushAll());
   baidu::xpu::xpti::XPTIEvent* record = nullptr;
   while (true) {
-    XPTIResult status = phi::dynload::xptiActivityGetNextRecord(&record);
+    XPTIResult status = dynload::xptiActivityGetNextRecord(&record);
     if (status == XPTI_SUCCESS) {
       record->PrintForDebug();
       switch (record->type) {
@@ -208,4 +209,5 @@ void XPUTracer::CollectTraceData(TraceEventCollector* collector) {
 #endif
 }
 
-}  // namespace paddle::platform
+}  // namespace platform
+}  // namespace paddle

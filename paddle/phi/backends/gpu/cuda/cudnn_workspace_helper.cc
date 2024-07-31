@@ -17,7 +17,9 @@
 #include <cstdlib>
 #include <string>
 
-namespace phi::backends::gpu {
+namespace phi {
+namespace backends {
+namespace gpu {
 
 static int GetDefaultConvWorkspaceSizeLimitMBImpl() {
   const char *env_str = std::getenv("FLAGS_conv_workspace_size_limit");
@@ -29,4 +31,6 @@ int GetDefaultConvWorkspaceSizeLimitMB() {
   static auto workspace_size = GetDefaultConvWorkspaceSizeLimitMBImpl();
   return workspace_size;
 }
-}  // namespace phi::backends::gpu
+}  // namespace gpu
+}  // namespace backends
+}  // namespace phi

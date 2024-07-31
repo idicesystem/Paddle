@@ -77,7 +77,7 @@ class TestOneDNNElementwiseSubOp(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_pir_onednn=True)
+        self.check_output(check_pir=True)
 
     def if_check_prim(self):
         self.check_prim = self.axis == -1
@@ -197,7 +197,7 @@ class TestOneDNNElementwiseSubOpZeroDim3(TestOneDNNElementwiseSubOp):
 
 
 # Special cases for swin transformer, will ignore grad check
-class TestOneDNNElementwiseSubSrcDifferentShape(TestOneDNNElementwiseSubOp):
+class TestOneDNNlementwiseSubSrcDifferentShape(TestOneDNNElementwiseSubOp):
     def init_input_output(self):
         self.x = np.random.random((6, 1, 144)).astype(self.dtype)
         self.y = np.random.random((6, 144, 1)).astype(self.dtype)
@@ -242,7 +242,7 @@ class TestBf16(TestOneDNNElementwiseSubOp):
         self.out = np.subtract(self.x, self.y)
 
     def test_check_output(self):
-        self.check_output_with_place(core.CPUPlace(), check_pir_onednn=True)
+        self.check_output_with_place(core.CPUPlace())
 
     def test_check_grad_normal(self):
         self.check_grad_with_place(
@@ -251,7 +251,6 @@ class TestBf16(TestOneDNNElementwiseSubOp):
             "Out",
             user_defined_grads=[self.x, -self.x],
             user_defined_grad_outputs=[self.x_bf16],
-            check_pir_onednn=True,
         )
 
     def test_check_grad_ignore_x(self):
@@ -261,7 +260,6 @@ class TestBf16(TestOneDNNElementwiseSubOp):
             "Out",
             user_defined_grads=[-self.y],
             user_defined_grad_outputs=[self.y_bf16],
-            check_pir_onednn=True,
         )
 
     def test_check_grad_ignore_y(self):
@@ -271,7 +269,6 @@ class TestBf16(TestOneDNNElementwiseSubOp):
             "Out",
             user_defined_grads=[self.x],
             user_defined_grad_outputs=[self.x_bf16],
-            check_pir_onednn=True,
         )
 
 
@@ -294,7 +291,6 @@ class TestBf16Broadcasting(TestBf16):
             "Out",
             user_defined_grads=[self.x, self.compute_reduced_gradients(self.x)],
             user_defined_grad_outputs=[self.x_bf16],
-            check_pir_onednn=True,
         )
 
     def test_check_grad_ignore_x(self):
@@ -304,7 +300,6 @@ class TestBf16Broadcasting(TestBf16):
             "Out",
             user_defined_grads=[self.compute_reduced_gradients(self.x)],
             user_defined_grad_outputs=[self.x_bf16],
-            check_pir_onednn=True,
         )
 
 

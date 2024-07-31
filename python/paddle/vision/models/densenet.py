@@ -11,12 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
-
-from typing_extensions import Unpack
 
 import paddle
 from paddle import nn
@@ -33,32 +29,9 @@ from paddle.nn import (
 from paddle.nn.initializer import Uniform
 from paddle.utils.download import get_weights_path_from_url
 
-if TYPE_CHECKING:
-    from typing import Literal, TypedDict
-
-    from typing_extensions import NotRequired
-
-    from paddle import Tensor
-    from paddle._typing import Size2
-
-    _DenseNetArch = Literal[
-        "densenet121",
-        "densenet161",
-        "densenet169",
-        "densenet201",
-        "densenet264",
-    ]
-
-    class _DenseNetOptions(TypedDict):
-        bn_size: NotRequired[int]
-        dropout: NotRequired[float]
-        num_classes: NotRequired[int]
-        with_pool: NotRequired[bool]
-
-
 __all__ = []
 
-model_urls: dict[str, tuple[str, str]] = {
+model_urls = {
     'densenet121': (
         'https://paddle-imagenet-models-name.bj.bcebos.com/dygraph/DenseNet121_pretrained.pdparams',
         'db1b239ed80a905290fd8b01d3af08e4',
@@ -85,14 +58,14 @@ model_urls: dict[str, tuple[str, str]] = {
 class BNACConvLayer(nn.Layer):
     def __init__(
         self,
-        num_channels: int,
-        num_filters: int,
-        filter_size: Size2,
-        stride: Size2 = 1,
-        pad: Size2 = 0,
-        groups: int = 1,
-        act: str = "relu",
-    ) -> None:
+        num_channels,
+        num_filters,
+        filter_size,
+        stride=1,
+        pad=0,
+        groups=1,
+        act="relu",
+    ):
         super().__init__()
         self._batch_norm = BatchNorm(num_channels, act=act)
 
@@ -107,18 +80,14 @@ class BNACConvLayer(nn.Layer):
             bias_attr=False,
         )
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         y = self._batch_norm(input)
         y = self._conv(y)
         return y
 
 
 class DenseLayer(nn.Layer):
-    dropout: float
-
-    def __init__(
-        self, num_channels: int, growth_rate: int, bn_size: int, dropout: float
-    ) -> None:
+    def __init__(self, num_channels, growth_rate, bn_size, dropout):
         super().__init__()
         self.dropout = dropout
 
@@ -141,7 +110,7 @@ class DenseLayer(nn.Layer):
         if dropout:
             self.dropout_func = Dropout(p=dropout, mode="downscale_in_infer")
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         conv = self.bn_ac_func1(input)
         conv = self.bn_ac_func2(conv)
         if self.dropout:
@@ -151,17 +120,9 @@ class DenseLayer(nn.Layer):
 
 
 class DenseBlock(nn.Layer):
-    dropout: float
-
     def __init__(
-        self,
-        num_channels: int,
-        num_layers: int,
-        bn_size: int,
-        growth_rate: int,
-        dropout: float,
-        name: str | None = None,
-    ) -> None:
+        self, num_channels, num_layers, bn_size, growth_rate, dropout, name=None
+    ):
         super().__init__()
         self.dropout = dropout
         self.dense_layer_func = []
@@ -181,7 +142,7 @@ class DenseBlock(nn.Layer):
             )
             pre_channel = pre_channel + growth_rate
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         conv = input
         for func in self.dense_layer_func:
             conv = func(conv)
@@ -189,7 +150,7 @@ class DenseBlock(nn.Layer):
 
 
 class TransitionLayer(nn.Layer):
-    def __init__(self, num_channels: int, num_output_features: int) -> None:
+    def __init__(self, num_channels, num_output_features):
         super().__init__()
 
         self.conv_ac_func = BNACConvLayer(
@@ -202,7 +163,7 @@ class TransitionLayer(nn.Layer):
 
         self.pool2d_avg = AvgPool2D(kernel_size=2, stride=2, padding=0)
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         y = self.conv_ac_func(input)
         y = self.pool2d_avg(y)
         return y
@@ -211,14 +172,14 @@ class TransitionLayer(nn.Layer):
 class ConvBNLayer(nn.Layer):
     def __init__(
         self,
-        num_channels: int,
-        num_filters: int,
-        filter_size: Size2,
-        stride: Size2 = 1,
-        pad: Size2 = 0,
-        groups: int = 1,
-        act: str = "relu",
-    ) -> None:
+        num_channels,
+        num_filters,
+        filter_size,
+        stride=1,
+        pad=0,
+        groups=1,
+        act="relu",
+    ):
         super().__init__()
 
         self._conv = Conv2D(
@@ -233,7 +194,7 @@ class ConvBNLayer(nn.Layer):
         )
         self._batch_norm = BatchNorm(num_filters, act=act)
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         y = self._conv(input)
         y = self._batch_norm(y)
         return y
@@ -270,17 +231,14 @@ class DenseNet(nn.Layer):
             [1, 1000]
     """
 
-    num_classes: int
-    with_pool: bool
-
     def __init__(
         self,
-        layers: int = 121,
-        bn_size: int = 4,
-        dropout: float = 0.0,
-        num_classes: int = 1000,
-        with_pool: bool = True,
-    ) -> None:
+        layers=121,
+        bn_size=4,
+        dropout=0.0,
+        num_classes=1000,
+        with_pool=True,
+    ):
         super().__init__()
         self.num_classes = num_classes
         self.with_pool = with_pool
@@ -355,7 +313,7 @@ class DenseNet(nn.Layer):
                 bias_attr=ParamAttr(),
             )
 
-    def forward(self, input: Tensor) -> Tensor:
+    def forward(self, input):
         conv = self.conv1_func(input)
         conv = self.pool2d_max(conv)
 
@@ -376,12 +334,7 @@ class DenseNet(nn.Layer):
         return y
 
 
-def _densenet(
-    arch: _DenseNetArch,
-    layers: int,
-    pretrained: bool,
-    **kwargs: Unpack[_DenseNetOptions],
-) -> DenseNet:
+def _densenet(arch, layers, pretrained, **kwargs):
     model = DenseNet(layers=layers, **kwargs)
     if pretrained:
         assert (
@@ -397,9 +350,7 @@ def _densenet(
     return model
 
 
-def densenet121(
-    pretrained: bool = False, **kwargs: Unpack[_DenseNetOptions]
-) -> DenseNet:
+def densenet121(pretrained=False, **kwargs):
     """DenseNet 121-layer model from
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
 
@@ -432,9 +383,7 @@ def densenet121(
     return _densenet('densenet121', 121, pretrained, **kwargs)
 
 
-def densenet161(
-    pretrained: bool = False, **kwargs: Unpack[_DenseNetOptions]
-) -> DenseNet:
+def densenet161(pretrained=False, **kwargs):
     """DenseNet 161-layer model from
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
 
@@ -467,9 +416,7 @@ def densenet161(
     return _densenet('densenet161', 161, pretrained, **kwargs)
 
 
-def densenet169(
-    pretrained: bool = False, **kwargs: Unpack[_DenseNetOptions]
-) -> DenseNet:
+def densenet169(pretrained=False, **kwargs):
     """DenseNet 169-layer model from
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
 
@@ -502,9 +449,7 @@ def densenet169(
     return _densenet('densenet169', 169, pretrained, **kwargs)
 
 
-def densenet201(
-    pretrained: bool = False, **kwargs: Unpack[_DenseNetOptions]
-) -> DenseNet:
+def densenet201(pretrained=False, **kwargs):
     """DenseNet 201-layer model from
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
 
@@ -536,9 +481,7 @@ def densenet201(
     return _densenet('densenet201', 201, pretrained, **kwargs)
 
 
-def densenet264(
-    pretrained: bool = False, **kwargs: Unpack[_DenseNetOptions]
-) -> DenseNet:
+def densenet264(pretrained=False, **kwargs):
     """DenseNet 264-layer model from
     `"Densely Connected Convolutional Networks" <https://arxiv.org/pdf/1608.06993.pdf>`_.
 

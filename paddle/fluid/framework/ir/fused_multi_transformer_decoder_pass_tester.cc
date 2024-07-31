@@ -15,14 +15,16 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/pass_tester_helper.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 void AddVarToScope(Scope* param_scope,
                    const std::string& name,
                    const DDim& dims) {
   auto* tensor = param_scope->Var(name)->GetMutable<phi::DenseTensor>();
   tensor->Resize(dims);
-  tensor->mutable_data<float>(phi::CPUPlace());
+  tensor->mutable_data<float>(platform::CPUPlace());
 }
 
 Scope* CreateParamScope() {
@@ -207,7 +209,7 @@ TEST(FusedMultiTransformerDecoderPass, basic) {
 
   PADDLE_ENFORCE_EQ(num_nodes_before,
                     num_nodes_after + 60,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "After the fused_multi_transformer_decoder_pass, The "
                         "node num in graph "
                         "should be %d, but the result is %d",
@@ -215,7 +217,7 @@ TEST(FusedMultiTransformerDecoderPass, basic) {
                         num_nodes_after));
   PADDLE_ENFORCE_EQ(num_fused_nodes_after,
                     1,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "After the fused_multi_transformer_decoder pass, "
                         "there should be one fused_multi_transformer op, "
                         "but the result is %d",
@@ -362,14 +364,14 @@ TEST(FusedMultiTransformerDecoderFuseQKVPass, basic) {
   PADDLE_ENFORCE_EQ(
       num_nodes_before,
       num_nodes_after + 52,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "After the fused_multi_transformer_decoder_fuse_qkv_pass, "
           "The node num in graph should be %d, but the result is %d",
           num_nodes_before - 52,
           num_nodes_after));
   PADDLE_ENFORCE_EQ(num_fused_nodes_after,
                     1,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "After the fused_multi_transformer_decoder_fuse_qkv "
                         "pass, there should be one fused_multi_transformer "
                         "op, but the result is %d",
@@ -526,14 +528,14 @@ TEST(MultiDevicesFusedMultiTransformerDecoderFuseQKVPass, basic) {
   PADDLE_ENFORCE_EQ(
       num_nodes_before,
       num_nodes_after + 60,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "After the fused_multi_transformer_decoder_fuse_qkv_pass, "
           "The node num in graph should be %d, but the result is %d",
           num_nodes_before - 60,
           num_nodes_after));
   PADDLE_ENFORCE_EQ(num_fused_nodes_after,
                     1,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "After the fused_multi_transformer_decoder_fuse_qkv "
                         "multi-devices pass, there should be one "
                         "fused_multi_transformer op, but the result is %d",
@@ -548,7 +550,9 @@ TEST(MultiDevicesFusedMultiTransformerDecoderFuseQKVPass,
               "multi_devices_fused_multi_transformer_decoder_fuse_qkv_pass"));
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(fused_multi_transformer_decoder_pass);
 USE_PASS(fused_multi_transformer_decoder_fuse_qkv_pass);

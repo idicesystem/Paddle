@@ -305,4 +305,7 @@ class GatherGemmScatterOperation(GemmOperation):
         }
 
     def layout_name(self):
-        return f"{self.ShortLayoutTypeNames[self.A.layout]}{self.ShortLayoutTypeNames[self.B.layout]}"
+        return "{}{}".format(
+            self.ShortLayoutTypeNames[self.A.layout],
+            self.ShortLayoutTypeNames[self.B.layout],
+        )

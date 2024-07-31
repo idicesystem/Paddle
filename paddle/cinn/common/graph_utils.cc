@@ -23,7 +23,7 @@
 
 #include "paddle/cinn/common/common.h"
 #include "paddle/cinn/utils/dot_lang.h"
-#include "paddle/common/enforce.h"
+
 namespace cinn {
 namespace common {
 
@@ -32,7 +32,7 @@ namespace {
 void DFSSortUtil(const GraphNode *node, std::vector<GraphNode *> *order) {}
 
 std::vector<GraphNode *> DFSSort(const std::vector<GraphNode *> &nodes) {
-  PADDLE_THROW(::common::errors::Unimplemented("Not Implemented"));
+  LOG(FATAL) << "not implemented";
   return {};
 }
 
@@ -76,7 +76,7 @@ Graph::topological_order() const {
   std::vector<GraphEdge *> edge_order;
   std::deque<GraphNode *> queue;
 
-  // collect indegree.
+  // collect indegreee.
   std::map<std::string, int> indegree;
   for (auto *n : nodes()) {
     indegree[n->id()] = n->inlinks().size();
@@ -98,10 +98,7 @@ Graph::topological_order() const {
     queue.pop_front();
 
     for (auto &edge : top_node->outlinks()) {
-      PADDLE_ENFORCE_EQ(edge->source(),
-                        top_node,
-                        ::common::errors::InvalidArgument(
-                            "The edge's source is not equal to the top node."));
+      CHECK_EQ(edge->source(), top_node);
       edge_order.push_back(edge.get());
       auto *sink = edge->sink();
       if ((--indegree[sink->id()]) == 0) {
@@ -110,10 +107,9 @@ Graph::topological_order() const {
     }
   }
 
-  PADDLE_ENFORCE_EQ(node_order.size(),
-                    nodes().size(),
-                    ::common::errors::InvalidArgument(
-                        "The node_order size is not equal to the nodes size."));
+  CHECK_EQ(node_order.size(), nodes().size())
+      << "circle detected in the schedule graph:\n\n"
+      << Visualize();
 
   return std::make_tuple(node_order, edge_order);
 }

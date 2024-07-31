@@ -96,10 +96,11 @@ void PullDenseWorker::CreatePinVar() {
       InitializeVariable(ptr, proto::VarType::LOD_TENSOR);
       phi::DenseTensor* pin_tensor = ptr->GetMutable<phi::DenseTensor>();
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-      pin_tensor->mutable_data<float>(tensor->dims(), phi::GPUPinnedPlace());
+      pin_tensor->mutable_data<float>(tensor->dims(),
+                                      platform::CUDAPinnedPlace());
 #endif
 #ifdef PADDLE_WITH_XPU
-      pin_tensor->mutable_data<float>(tensor->dims(), phi::CPUPlace());
+      pin_tensor->mutable_data<float>(tensor->dims(), platform::CPUPlace());
 #endif
     }
   }
@@ -118,8 +119,8 @@ void PullDenseWorker::Wait(std::vector<::std::future<int32_t>>* status_vec) {
 
   size_t MAX_FAIL_NUM = 20;
   if (pull_dense_fail_times_ > MAX_FAIL_NUM) {
-    PADDLE_THROW(common::errors::Fatal("Pull dense failed more than %d times.",
-                                       MAX_FAIL_NUM));
+    PADDLE_THROW(platform::errors::Fatal(
+        "Pull dense failed more than %d times.", MAX_FAIL_NUM));
     exit(-1);
   }
   status_vec->resize(0);
@@ -143,7 +144,7 @@ void PullDenseWorker::Wait(std::vector<::std::future<int32_t>>* status_vec) {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
         memory::Copy(places_[i],
                      w,
-                     phi::GPUPinnedPlace(),
+                     platform::CUDAPinnedPlace(),
                      pin_w,
                      sizeof(float) * tensor->numel(),
                      copy_streams_[i]);
@@ -151,7 +152,7 @@ void PullDenseWorker::Wait(std::vector<::std::future<int32_t>>* status_vec) {
 #ifdef PADDLE_WITH_XPU
         memory::Copy(places_[i],
                      w,
-                     phi::CPUPlace(),
+                     platform::CPUPlace(),
                      pin_w,
                      sizeof(float) * tensor->numel());
 #endif

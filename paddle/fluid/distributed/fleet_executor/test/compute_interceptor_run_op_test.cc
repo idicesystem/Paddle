@@ -64,7 +64,7 @@ TEST(ComputeInterceptor, Compute) {
   std::vector<framework::OperatorBase*> ops = GetOps();
   framework::Scope* scope = GetScope();
   std::vector<framework::Scope*> scopes = {scope, scope};
-  phi::Place place = phi::CPUPlace();
+  platform::Place place = platform::CPUPlace();
 
   std::string carrier_id = "0";
   Carrier* carrier =

@@ -15,7 +15,7 @@ limitations under the License. */
 #pragma once
 
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace memory {
@@ -31,7 +31,7 @@ namespace memory {
  *
  */
 template <typename DstPlace, typename SrcPlace>
-TEST_API void Copy(DstPlace, void* dst, SrcPlace, const void* src, size_t num);
+void Copy(DstPlace, void* dst, SrcPlace, const void* src, size_t num);
 
 /**
  * \brief   Copy memory from one place to another place.
@@ -51,7 +51,7 @@ TEST_API void Copy(DstPlace, void* dst, SrcPlace, const void* src, size_t num);
  *
  */
 template <typename DstPlace, typename SrcPlace>
-TEST_API void Copy(
+void Copy(
     DstPlace, void* dst, SrcPlace, const void* src, size_t num, void* stream);
 }  // namespace memory
 }  // namespace paddle

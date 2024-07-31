@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+# TODO: define activation functions of neural network
 
 from paddle.framework import get_default_dtype
 
@@ -23,9 +20,6 @@ from .. import functional as F
 from ..initializer import Constant
 from .layers import Layer
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import DataLayoutND, ParamAttrLike
 __all__ = []
 
 
@@ -39,7 +33,7 @@ class CELU(Layer):
 
     Parameters:
         alpha (float, optional): The 'alpha' value of the CELU formulation. Default is 1.0.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -60,15 +54,15 @@ class CELU(Layer):
              [ 1.        , 15.60000038]])
     """
 
-    def __init__(self, alpha: float = 1.0, name: str | None = None) -> None:
+    def __init__(self, alpha=1.0, name=None):
         super().__init__()
         self._alpha = alpha
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.celu(x, self._alpha, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'alpha={self._alpha}{name_str}'
 
@@ -89,7 +83,7 @@ class ELU(Layer):
 
     Parameters:
         alpha (float, optional): The 'alpha' value of the ELU formulation. Default is 1.0.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -110,15 +104,15 @@ class ELU(Layer):
              [ 1.        , 15.60000038]])
     """
 
-    def __init__(self, alpha: float = 1.0, name: str | None = None) -> None:
+    def __init__(self, alpha=1.0, name=None):
         super().__init__()
         self._alpha = alpha
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.elu(x, self._alpha, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'alpha={self._alpha}{name_str}'
 
@@ -136,12 +130,12 @@ class GLU(Layer):
             should be in range [-D, D), where D is the dimensions of ``x`` .
             If ``axis`` < 0, it works the same way as :math:`axis + D` .
             Default is -1.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
-        - input: Tensor which the size of the given axis is even.
-        - output: Tensor which the size of the given axis is halved.
+        - input: Tensor which the size of the given aixs is even.
+        - output: Tensor which the size of the given aixs is halved.
 
     Examples:
         .. code-block:: python
@@ -159,15 +153,15 @@ class GLU(Layer):
             [-1.05778778, -0.46985325]])
     """
 
-    def __init__(self, axis: int = -1, name: str | None = None) -> None:
+    def __init__(self, axis=-1, name=None):
         super().__init__()
         self._axis = axis
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.glu(x, self._axis, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'axis={self._axis}{name_str}'
 
@@ -190,7 +184,7 @@ class GELU(Layer):
 
     Parameters:
         approximate (bool, optional): Wether to enable approximation. Default is False.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -216,17 +210,15 @@ class GELU(Layer):
              [ 0.84119201,  1.39957154]])
     """
 
-    def __init__(
-        self, approximate: bool = False, name: str | None = None
-    ) -> None:
+    def __init__(self, approximate=False, name=None):
         super().__init__()
         self._approximate = approximate
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.gelu(x, self._approximate, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'approximate={self._approximate}{name_str}'
 
@@ -248,7 +240,7 @@ class Hardshrink(Layer):
 
     Parameters:
         threshold (float, optional): The value of threshold for hardthrink. Default is 0.5
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -269,15 +261,15 @@ class Hardshrink(Layer):
             [-1.       ,  0.       , 2.50000000])
     """
 
-    def __init__(self, threshold: float = 0.5, name: str | None = None) -> None:
+    def __init__(self, threshold=0.5, name=None):
         super().__init__()
         self._threshold = threshold
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.hardshrink(x, self._threshold, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'threshold={self._threshold}{name_str}'
 
@@ -302,7 +294,7 @@ class Hardswish(Layer):
 
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -323,14 +315,14 @@ class Hardswish(Layer):
             [-0.       , 5.        , 0.66666669])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.hardswish(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -343,7 +335,7 @@ class Tanh(Layer):
         Tanh(x) = \frac{e^{x} - e^{-x}}{e^{x} + e^{-x}}
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -364,14 +356,14 @@ class Tanh(Layer):
             [-0.37994900, -0.19737528,  0.09966799,  0.29131261])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.tanh(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -395,7 +387,7 @@ class Hardtanh(Layer):
     Parameters:
         min (float, optional): The value of min for Hardtanh. Default is -1.
         max (float, optional): The value of max for Hardtanh. Default is 1.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -415,18 +407,16 @@ class Hardtanh(Layer):
             [-1.       , 0.30000001,  1.       ])
     """
 
-    def __init__(
-        self, min: float = -1.0, max: float = 1.0, name: str | None = None
-    ) -> None:
+    def __init__(self, min=-1.0, max=1.0, name=None):
         super().__init__()
         self._min = min
         self._max = max
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.hardtanh(x, self._min, self._max, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'min={self._min}, max={self._max}{name_str}'
 
@@ -451,10 +441,10 @@ class PReLU(Layer):
         init (float, optional): Init value of learnable `weight`. Default is 0.25.
         weight_attr(ParamAttr, optional): The parameter attribute for the learnable `weight`.
             Default is None. For more information, please refer to :ref:`api_paddle_ParamAttr`.
+        name (str, optional): Name for the operation (optional, default is None).
+            For more information, please refer to :ref:`api_guide_Name`.
         data_format(str, optional): Data format that specifies the layout of input.
             It may be "NC", "NCL", "NCHW", "NCDHW", "NLC", "NHWC" or "NDHWC". Default: "NCHW".
-        name (str|None, optional): Name for the operation (optional, default is None).
-            For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
         - input: Tensor with any shape. Default dtype is float32.
@@ -486,12 +476,12 @@ class PReLU(Layer):
 
     def __init__(
         self,
-        num_parameters: int = 1,
-        init: float = 0.25,
-        weight_attr: ParamAttrLike | None = None,
-        data_format: DataLayoutND = "NCHW",
-        name: str | None = None,
-    ) -> None:
+        num_parameters=1,
+        init=0.25,
+        weight_attr=None,
+        data_format="NCHW",
+        name=None,
+    ):
         super().__init__()
         self._num_parameters = num_parameters
         self._init = init
@@ -507,12 +497,18 @@ class PReLU(Layer):
             default_initializer=Constant(self._init),
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.prelu(x, self._weight, data_format=self._data_format)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
-        return f'num_parameters={self._num_parameters}, data_format={self._data_format}, init={self._init}, dtype={self._dtype}{name_str}'
+        return 'num_parameters={}, data_format={}, init={}, dtype={}{}'.format(
+            self._num_parameters,
+            self._data_format,
+            self._init,
+            self._dtype,
+            name_str,
+        )
 
 
 class RReLU(Layer):
@@ -556,7 +552,7 @@ class RReLU(Layer):
     Parameters:
         lower (float, optional): The lower bound of uniform distribution. Default: 1.0/8.0.
         upper (float, optional): The upper bound of uniform distribution. Default: 1.0/3.0.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -588,25 +584,22 @@ class RReLU(Layer):
                [ 6.        ,  7.        ,  8.        ,  9.        ]]]])
     """
 
-    def __init__(
-        self,
-        lower: float = 1.0 / 8.0,
-        upper: float = 1.0 / 3.0,
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, lower=1.0 / 8.0, upper=1.0 / 3.0, name=None):
         super().__init__()
         self._lower = lower
         self._upper = upper
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.rrelu(
             x, lower=self._lower, upper=self._upper, training=self.training
         )
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
-        return f'lower={self._lower}, upper={self._upper}, training={self.training}, dtype={self._dtype}{name_str}'
+        return 'lower={}, upper={}, training={}, dtype={}{}'.format(
+            self._lower, self._upper, self.training, self._dtype, name_str
+        )
 
 
 class ReLU(Layer):
@@ -620,7 +613,7 @@ class ReLU(Layer):
     x is input Tensor.
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -640,14 +633,14 @@ class ReLU(Layer):
             [0., 0., 1.])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.relu(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -663,7 +656,7 @@ class ReLU6(Layer):
     x is input Tensor.
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -683,14 +676,14 @@ class ReLU6(Layer):
             [0.        , 0.30000000, 6.        ])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.relu6(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -712,7 +705,7 @@ class SELU(Layer):
     Parameters:
         scale (float, optional): The value of scale(must be greater than 1.0) for SELU. Default is 1.0507009873554804934193349852946.
         alpha (float, optional): The value of alpha(must be no less than zero) for SELU. Default is 1.6732632423543772848170429916717.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -735,19 +728,19 @@ class SELU(Layer):
 
     def __init__(
         self,
-        scale: float = 1.0507009873554804934193349852946,
-        alpha: float = 1.6732632423543772848170429916717,
-        name: str | None = None,
-    ) -> None:
+        scale=1.0507009873554804934193349852946,
+        alpha=1.6732632423543772848170429916717,
+        name=None,
+    ):
         super().__init__()
         self._scale = scale
         self._alpha = alpha
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.selu(x, self._scale, self._alpha, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'scale={self._scale:.16f}, alpha={self._alpha:.16f}{name_str}'
 
@@ -771,7 +764,7 @@ class LeakyReLU(Layer):
     Parameters:
         negative_slope (float, optional): Slope of the activation function at
             :math:`x < 0` . Default is 0.01.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -791,31 +784,29 @@ class LeakyReLU(Layer):
             [-0.02000000,  0.        ,  1.        ])
     """
 
-    def __init__(
-        self, negative_slope: float = 0.01, name: str | None = None
-    ) -> None:
+    def __init__(self, negative_slope=0.01, name=None):
         super().__init__()
         self._negative_slope = negative_slope
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.leaky_relu(x, self._negative_slope, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'negative_slope={self._negative_slope}{name_str}'
 
 
 class Sigmoid(Layer):
     r"""
-    this interface is used to construct a callable object of the ``Sigmoid`` class. This layer calculate the `sigmoid` of input x.
+    this interface is used to construct a callable object of the ``Sigmoid`` class. This layer calcluate the `sigmoid` of input x.
 
     .. math::
 
         sigmoid(x) = \frac{1}{1 + e^{-x}}
 
     Parameters:
-        name (str|None, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
+        name (str, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
 
     Shape:
         x: N-D tensor, available dtype is float16, float32, float64.
@@ -837,22 +828,22 @@ class Sigmoid(Layer):
             [0.73105860, 0.88079703, 0.95257413, 0.98201376])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self.name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.sigmoid(x, self.name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self.name}' if self.name else ''
         return name_str
 
 
 class Hardsigmoid(Layer):
     r"""
-    ``Hardsigmoid`` Activation Layers, Construct a callable object of
-    the ``Hardsigmoid`` class. This layer calculate the `hardsigmoid` of input x.
+    ``Hardsigmoid`` Activiation Layers, Construct a callable object of
+    the ``Hardsigmoid`` class. This layer calcluate the `hardsigmoid` of input x.
 
     A 3-part piecewise linear approximation of sigmoid(https://arxiv.org/abs/1603.00391),
     which is much faster than sigmoid.
@@ -869,7 +860,7 @@ class Hardsigmoid(Layer):
             \right.
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
         x: N-D tensor, available dtype is float32, float64.
@@ -891,14 +882,14 @@ class Hardsigmoid(Layer):
             [0.        , 1.        , 0.66666669])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self.name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.hardsigmoid(x, name=self.name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self.name}' if self.name else ''
         return name_str
 
@@ -916,7 +907,7 @@ class Softplus(Layer):
     Parameters:
         beta (float, optional): The value of :math:`\beta` for Softplus. Default is 1
         threshold (float, optional): The value of :math:`\varepsilon` for Softplus. Default is 20
-        name (str|None, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
+        name (str, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
 
     Shape:
         - input: Tensor with any shape.
@@ -935,18 +926,16 @@ class Softplus(Layer):
             [0.51301527, 0.59813893, 0.74439669, 0.85435522])
     """
 
-    def __init__(
-        self, beta: float = 1, threshold: float = 20, name: str | None = None
-    ) -> None:
+    def __init__(self, beta=1, threshold=20, name=None):
         super().__init__()
         self._beta = beta
         self._threshold = threshold
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.softplus(x, self._beta, self._threshold, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'beta={self._beta}, threshold={self._threshold}{name_str}'
 
@@ -969,7 +958,7 @@ class Softshrink(Layer):
 
     Parameters:
         threshold (float, optional): The value of threshold(must be no less than zero) for softplus. Default is 0.5
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -989,15 +978,15 @@ class Softshrink(Layer):
             [-0.39999998,  0.        ,  0.        ,  0.30000001])
     """
 
-    def __init__(self, threshold: float = 0.5, name: str | None = None) -> None:
+    def __init__(self, threshold=0.5, name=None):
         super().__init__()
         self._threshold = threshold
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.softshrink(x, self._threshold, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'threshold={self._threshold}{name_str}'
 
@@ -1011,7 +1000,7 @@ class Softsign(Layer):
         Softsign(x) = \frac{x}{1 + |x|}
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1031,14 +1020,14 @@ class Softsign(Layer):
             [-0.28571430, -0.16666666,  0.09090909,  0.23076925])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.softsign(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1052,7 +1041,7 @@ class Swish(Layer):
         Swish(x) = \frac{x}{1 + e^{-x}}
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1072,14 +1061,14 @@ class Swish(Layer):
             [-0.23840584,  0.        ,  0.73105860])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.swish(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1098,7 +1087,7 @@ class Mish(Layer):
         Mish(x) = x * \tanh(softplus(x))
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1120,14 +1109,14 @@ class Mish(Layer):
 
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.mish(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1161,14 +1150,14 @@ class Tanhshrink(Layer):
             [-0.02005100, -0.00262472,  0.00033201,  0.00868741])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.tanhshrink(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1183,15 +1172,14 @@ class ThresholdedReLU(Layer):
             \left\{
                 \begin{array}{rl}
                 x,& \text{if } \ x > threshold \\
-                value,& \text{otherwise}
+                0,& \text{otherwise}
                 \end{array}
             \right.
 
 
     Parameters:
         threshold (float, optional): The value of threshold for ThresholdedReLU. Default is 1.0
-        value (float, optinal): The value to replace with when x is less than threshold. Default is 0.0
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1211,23 +1199,17 @@ class ThresholdedReLU(Layer):
             [2., 0., 0.])
     """
 
-    def __init__(
-        self,
-        threshold: float = 1.0,
-        value: float = 0.0,
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, threshold=1.0, name=None):
         super().__init__()
         self._threshold = threshold
-        self._value = value
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
-        return F.thresholded_relu(x, self._threshold, self._value, self._name)
+    def forward(self, x):
+        return F.thresholded_relu(x, self._threshold, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
-        return f'threshold={self._threshold}, value={self._value}{name_str}'
+        return f'threshold={self._threshold}{name_str}'
 
 
 class Silu(Layer):
@@ -1241,7 +1223,7 @@ class Silu(Layer):
     Where :math:`x` is the input Tensor.
 
     Parameters:
-        name (str|None, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
+        name (str, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
 
     Shape:
         - input: Tensor with any shape.
@@ -1260,14 +1242,14 @@ class Silu(Layer):
             [0.73105860, 1.76159406, 2.85772228, 3.92805505])
     """
 
-    def __init__(self, name: str | None = None) -> str:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.silu(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1282,7 +1264,7 @@ class LogSigmoid(Layer):
 
     Parameters:
         x (Tensor): The input Tensor with data type float32, or float64.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1302,14 +1284,14 @@ class LogSigmoid(Layer):
             [-0.31326166, -0.12692805, -0.04858733, -0.01814996])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.log_sigmoid(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -1397,7 +1379,7 @@ class Softmax(Layer):
             calculations. It should be in range [-D, D), where D is the
             dimensions of ``x`` . If ``axis`` < 0, it works the same way as
             :math:`axis + D` . Default is -1.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1428,16 +1410,16 @@ class Softmax(Layer):
 
     """
 
-    def __init__(self, axis: int = -1, name: str | None = None) -> None:
+    def __init__(self, axis=-1, name=None):
         super().__init__()
         self._axis = axis
         self._dtype = None
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.softmax(x, self._axis, name=self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'axis={self._axis}{name_str}'
 
@@ -1458,7 +1440,7 @@ class LogSoftmax(Layer):
             calculations. It should be in range [-D, D), where D is the
             dimensions of the input Tensor . If ``axis`` < 0, it works the
             same way as :math:`axis + D` . Default is -1.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1490,15 +1472,15 @@ class LogSoftmax(Layer):
 
     """
 
-    def __init__(self, axis: int = -1, name: str | None = None) -> None:
+    def __init__(self, axis=-1, name=None):
         super().__init__()
         self._axis = axis
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.log_softmax(x, self._axis)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'axis={self._axis}{name_str}'
 
@@ -1530,7 +1512,7 @@ class Maxout(Layer):
             It should be 1 when data format is NCHW, be -1 or 3 when data format
             is NHWC. If ``axis`` < 0, it works the same way as :math:`axis + D` ,
             where D is the dimensions of ``x`` . Default is 1.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -1553,18 +1535,16 @@ class Maxout(Layer):
                [0.59444654, 0.78120756, 0.78364515, 0.90572405]]]])
     """
 
-    def __init__(
-        self, groups: int, axis: int = 1, name: str | None = None
-    ) -> None:
+    def __init__(self, groups, axis=1, name=None):
         super().__init__()
         self._groups = groups
         self._axis = axis
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.maxout(x, self._groups, self._axis, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f', name={self._name}' if self._name else ''
         return f'groups={self._groups}, axis={self._axis}{name_str}'
 
@@ -1603,17 +1583,17 @@ class Softmax2D(Layer):
 
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._dtype = None
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         assert (
             x.ndim == 3 or x.ndim == 4
         ), f"Softmax2D requires a 3D or 4D tensor as input. Received: {x.ndim}D."
         return F.softmax(x, axis=-3, dtype=self._dtype, name=self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str

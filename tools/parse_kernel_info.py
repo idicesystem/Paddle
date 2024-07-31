@@ -119,7 +119,9 @@ def parse_paddle_kernels(lib="phi", kernel_type="function", print_detail=False):
 
     if print_detail:
         print(
-            f"==================== lib={lib}, kernel_type={kernel_type} ===================="
+            "==================== lib={}, kernel_type={} ====================".format(
+                lib, kernel_type
+            )
         )
         print(
             "{} : {}".format(
@@ -129,7 +131,10 @@ def parse_paddle_kernels(lib="phi", kernel_type="function", print_detail=False):
         )
         for key, value in sorted(kernel_info_dict.items()):
             print(
-                f"{value.op_type.ljust(max_op_type_lengths + 4)} : {value.supported_dtypes}"
+                "{} : {}".format(
+                    value.op_type.ljust(max_op_type_lengths + 4),
+                    value.supported_dtypes,
+                )
             )
         print("")
     return stats

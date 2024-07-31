@@ -12,14 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Sequence
-
 from paddle.distribution import distribution
-
-if TYPE_CHECKING:
-    from paddle import Tensor
 
 
 class Independent(distribution.Distribution):
@@ -55,9 +48,7 @@ class Independent(distribution.Distribution):
                     -0.45687842)
     """
 
-    def __init__(
-        self, base: distribution.Distribution, reinterpreted_batch_rank: int
-    ) -> None:
+    def __init__(self, base, reinterpreted_batch_rank):
         if not isinstance(base, distribution.Distribution):
             raise TypeError(
                 f"Expected type of 'base' is Distribution, but got {type(base)}"
@@ -80,28 +71,28 @@ class Independent(distribution.Distribution):
         )
 
     @property
-    def mean(self) -> Tensor:
+    def mean(self):
         return self._base.mean
 
     @property
-    def variance(self) -> Tensor:
+    def variance(self):
         return self._base.variance
 
-    def sample(self, shape: Sequence[int] = ()) -> Tensor:
+    def sample(self, shape=()):
         return self._base.sample(shape)
 
-    def log_prob(self, value: Tensor) -> Tensor:
+    def log_prob(self, value):
         return self._sum_rightmost(
             self._base.log_prob(value), self._reinterpreted_batch_rank
         )
 
-    def prob(self, value: Tensor) -> Tensor:
+    def prob(self, value):
         return self.log_prob(value).exp()
 
-    def entropy(self) -> Tensor:
+    def entropy(self):
         return self._sum_rightmost(
             self._base.entropy(), self._reinterpreted_batch_rank
         )
 
-    def _sum_rightmost(self, value: Tensor, n: int) -> Tensor:
+    def _sum_rightmost(self, value, n):
         return value.sum(list(range(-n, 0))) if n > 0 else value

@@ -109,9 +109,14 @@ class TestSemiAutoParallelShardOptimizer:
                         v, self._mesh, [dist.Replicate()]
                     )
                 else:
-                    opt._accumulators[key][k] = dist.shard_tensor(
-                        v, self._mesh, [dist.Shard(0)]
-                    )
+                    if 'w' in k:
+                        opt._accumulators[key][k] = dist.shard_tensor(
+                            v, self._mesh, [dist.Shard(0)]
+                        )
+                    else:
+                        opt._accumulators[key][k] = dist.shard_tensor(
+                            v, self._mesh, [dist.Shard(0)]
+                        )
         for _ in range(5):
             loss = linear(batch)
             loss.backward()

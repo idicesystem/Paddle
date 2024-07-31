@@ -14,7 +14,6 @@
 
 import copy
 import itertools
-import os
 import unittest
 
 import numpy as np
@@ -204,13 +203,7 @@ class TestLUAPI(unittest.TestCase):
             min_mn = min(m, n)
             pivot = True
 
-            places = []
-            if (
-                os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-                in ['1', 'true', 'on']
-                or not core.is_compiled_with_cuda()
-            ):
-                places.append(base.CPUPlace())
+            places = [base.CPUPlace()]
             if core.is_compiled_with_cuda():
                 places.append(base.CUDAPlace(0))
             for place in places:
@@ -262,12 +255,7 @@ class TestLUAPI(unittest.TestCase):
             pivot = True
 
             places = []
-            if (
-                os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-                in ['1', 'true', 'on']
-                or not core.is_compiled_with_cuda()
-            ):
-                places.append(base.CPUPlace())
+            places = [base.CPUPlace()]
             if core.is_compiled_with_cuda():
                 places.append(base.CUDAPlace(0))
             for place in places:

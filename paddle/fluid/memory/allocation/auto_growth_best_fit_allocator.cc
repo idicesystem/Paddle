@@ -16,14 +16,12 @@
 
 #include <algorithm>
 #include <mutex>  // NOLINT
-#include <utility>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/memory/allocation/aligned_allocator.h"
+#include "paddle/fluid/platform/flags.h"
 #include "paddle/fluid/platform/profiler/event_tracing.h"
-#include "paddle/phi/backends/device_manager.h"
 
-PHI_DEFINE_EXPORTED_READONLY_bool(
+PADDLE_DEFINE_EXPORTED_READONLY_bool(
     free_idle_chunk,
     false,
     "Whether to free idle chunk when each allocation is freed. "
@@ -31,7 +29,7 @@ PHI_DEFINE_EXPORTED_READONLY_bool(
     "allocation request. If true, no allocation would be cached. This "
     "flag only works when FLAGS_allocator_strategy=auto_growth.");
 
-PHI_DEFINE_EXPORTED_READONLY_bool(
+PADDLE_DEFINE_EXPORTED_READONLY_bool(
     free_when_no_cache_hit,
     false,
     "Whether to free idle chunks when no cache hit. If true, idle "
@@ -39,22 +37,23 @@ PHI_DEFINE_EXPORTED_READONLY_bool(
     "chunk would be freed when out of memory occurs. This flag "
     "only works when FLAGS_allocator_strategy=auto_growth.");
 
-PHI_DEFINE_EXPORTED_READONLY_bool(print_allocator_trace_info,
-                                  false,
-                                  "print trace memory info");
-namespace paddle::memory::allocation {
+PADDLE_DEFINE_EXPORTED_READONLY_bool(print_allocator_trace_info,
+                                     false,
+                                     "print trace memory info");
+
+namespace paddle {
+namespace memory {
+namespace allocation {
 
 AutoGrowthBestFitAllocator::AutoGrowthBestFitAllocator(
-    std::shared_ptr<Allocator> underlying_allocator,
+    const std::shared_ptr<Allocator> &underlying_allocator,
     size_t alignment,
     size_t chunk_size,
-    bool allow_free_idle_chunk,
-    int extra_padding_size)
-    : underlying_allocator_(std::move(underlying_allocator)),
+    bool allow_free_idle_chunk)
+    : underlying_allocator_(underlying_allocator),
       alignment_(alignment),
       chunk_size_(std::max(AlignedSize(chunk_size, alignment), alignment)),
-      allow_free_idle_chunk_(allow_free_idle_chunk),
-      extra_padding_size_(extra_padding_size) {
+      allow_free_idle_chunk_(allow_free_idle_chunk) {
   total_alloc_times_ = 0;
   total_alloc_size_ = 0;
   total_free_times_ = 0;
@@ -67,11 +66,8 @@ phi::Allocation *AutoGrowthBestFitAllocator::AllocateImpl(
   platform::RecordEvent record("AutoGrowthBestFitAllocator::Allocate",
                                platform::TracerEventType::UserDefined,
                                9 /*level*/);
-
-  size_t size = AlignedSize(unaligned_size + extra_padding_size_, alignment_);
-
-  VLOG(10) << "Allocate " << unaligned_size << " bytes, aligned to " << size
-           << ", extra size " << extra_padding_size_;
+  size_t size = AlignedSize(unaligned_size, alignment_);
+  VLOG(10) << "Allocate " << unaligned_size << " bytes, aligned to " << size;
 
   std::lock_guard<SpinLock> guard(spinlock_);
   auto iter = free_blocks_.lower_bound(std::make_pair(size, nullptr));
@@ -224,4 +220,6 @@ void AutoGrowthBestFitAllocator::Trace() const {
           << " curr_chunks_num:" << chunks_.size();
 }
 
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle

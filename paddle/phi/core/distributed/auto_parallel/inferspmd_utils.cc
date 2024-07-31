@@ -17,17 +17,6 @@ limitations under the License. */
 namespace phi {
 namespace distributed {
 
-InferSpmdContext::InferSpmdContext(
-    paddle::small_vector<DistMetaTensor, phi::kInputSmallVectorSize> inputs,
-    paddle::small_vector<Attribute, phi::kAttrSmallVectorSize> attrs) {
-  for (size_t i = 0; i < inputs.size(); i++) {
-    EmplaceBackInput(inputs[i]);
-  }
-  for (size_t i = 0; i < attrs.size(); i++) {
-    EmplaceBackAttr(attrs[i]);
-  }
-}
-
 void InferSpmdContext::EmplaceBackInput(DistMetaTensor input) {
   int index = static_cast<int>(inputs_.size());
   inputs_.emplace_back(std::move(input));
@@ -155,7 +144,7 @@ bool SpmdRuleFactory::ContainsSpmdRule(const std::string& kernel_name) const {
 }
 
 int SpmdRuleFactory::InsertSpmdRule(std::string kernel_name, SpmdRule rule) {
-  spmd_rule_map_.insert({std::move(kernel_name), rule});
+  spmd_rule_map_.insert({std::move(kernel_name), std::move(rule)});
   return 0;
 }
 

@@ -61,7 +61,7 @@ class TestPostTrainingQuantization(unittest.TestCase):
             os.system("mkdir -p " + self.int8_model_path)
             os.system("mkdir -p " + self.cache_folder)
         except Exception as e:
-            print(f"Failed to create {self.int8_model_path} due to {e}")
+            print(f"Failed to create {self.int8_model_path} due to {str(e)}")
             sys.exit(-1)
 
     def tearDown(self):
@@ -285,7 +285,9 @@ class TestPostTrainingQuantization(unittest.TestCase):
         origin_model_path = os.path.join(origin_model_path, model_name)
 
         print(
-            f"Start FP32 inference for {model_name} on {infer_iterations * batch_size} images ..."
+            "Start FP32 inference for {} on {} images ...".format(
+                model_name, infer_iterations * batch_size
+            )
         )
 
         (fp32_throughput, fp32_latency, fp32_acc1) = self.run_program(
@@ -297,7 +299,9 @@ class TestPostTrainingQuantization(unittest.TestCase):
         )
 
         print(
-            f"Start INT8 post training quantization for {model_name} on {quant_iterations * batch_size} images ..."
+            "Start INT8 post training quantization for {} on {} images ...".format(
+                model_name, quant_iterations * batch_size
+            )
         )
         self.generate_quantized_model(
             origin_model_path,
@@ -317,7 +321,9 @@ class TestPostTrainingQuantization(unittest.TestCase):
         )
 
         print(
-            f"Start INT8 inference for {model_name} on {infer_iterations * batch_size} images ..."
+            "Start INT8 inference for {} on {} images ...".format(
+                model_name, infer_iterations * batch_size
+            )
         )
         (int8_throughput, int8_latency, int8_acc1) = self.run_program(
             self.int8_model_path,
@@ -329,10 +335,14 @@ class TestPostTrainingQuantization(unittest.TestCase):
 
         print(f"---Post training quantization of {algo} method---")
         print(
-            f"FP32 {model_name}: batch_size {batch_size}, throughput {fp32_throughput} img/s, latency {fp32_latency} s, acc1 {fp32_acc1}."
+            "FP32 {}: batch_size {}, throughput {} img/s, latency {} s, acc1 {}.".format(
+                model_name, batch_size, fp32_throughput, fp32_latency, fp32_acc1
+            )
         )
         print(
-            f"INT8 {model_name}: batch_size {batch_size}, throughput {int8_throughput} img/s, latency {int8_latency} s, acc1 {int8_acc1}.\n"
+            "INT8 {}: batch_size {}, throughput {} img/s, latency {} s, acc1 {}.\n".format(
+                model_name, batch_size, int8_throughput, int8_latency, int8_acc1
+            )
         )
         sys.stdout.flush()
 

@@ -14,7 +14,9 @@
 
 #include "paddle/fluid/framework/details/var_handle.h"
 
-namespace paddle::framework::details {
+namespace paddle {
+namespace framework {
+namespace details {
 
 VarHandleBase::~VarHandleBase() = default;
 
@@ -32,4 +34,6 @@ std::string DummyVarHandle::DebugString() const { return node_->Name(); }
 DummyVarHandle::~DummyVarHandle() {
   VLOG(4) << "deleting dummy var handle " << DebugString();
 }
-}  // namespace paddle::framework::details
+}  // namespace details
+}  // namespace framework
+}  // namespace paddle

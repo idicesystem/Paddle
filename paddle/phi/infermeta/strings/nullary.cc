@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #include "paddle/phi/infermeta/strings/nullary.h"
 
-namespace phi::strings {
+namespace phi {
+namespace strings {
 
 void CreateInferMeta(const IntArray& shape, MetaTensor* out) {
   const auto& out_dims = common::make_ddim(shape.GetData());
@@ -22,4 +23,5 @@ void CreateInferMeta(const IntArray& shape, MetaTensor* out) {
   out->set_layout(DataLayout::PSTRING_UNION);
 }
 
-}  // namespace phi::strings
+}  // namespace strings
+}  // namespace phi

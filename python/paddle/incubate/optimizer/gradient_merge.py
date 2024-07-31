@@ -160,10 +160,14 @@ class GradientMergeOptimizer:
         var_attr = op.all_attrs()[op_maker.kOpRoleVarAttrName()]
         assert (
             param.name in var_attr
-        ), f'when using GradientMergeOptimizer, param={param.name} must be in var_attr={var_attr}'
+        ), 'when using GradientMergeOptimizer, param={} must be in var_attr={}'.format(
+            param.name, var_attr
+        )
         assert (
             grad.name in var_attr
-        ), f'when using GradientMergeOptimizer, grad={param.name} must be in var_attr={var_attr}'
+        ), 'when using GradientMergeOptimizer, grad={} must be in var_attr={}'.format(
+            param.name, var_attr
+        )
 
         # remove (param, grad) from op_role_var
         var_attr.remove(param.name)
@@ -229,7 +233,7 @@ class GradientMergeOptimizer:
                 type='elementwise_mod',
                 inputs={'X': step_var, 'Y': k_step_var},
                 outputs={'Out': step_var},
-                attrs={'axis': -1},
+                attrs={'axis': -1, 'use_mkldnn': False},
             )
 
             # cond_var = (step_var == 0)
@@ -298,7 +302,7 @@ class GradientMergeOptimizer:
                 type="elementwise_add",
                 inputs={'X': grad, 'Y': gradient_merge_var},
                 outputs={'Out': gradient_merge_var},
-                attrs={'axis': -1},
+                attrs={'axis': -1, 'use_mkldnn': False},
             )
             self._add_gm_op_role_var(
                 new_grad_op, param, gradient_merge_var, cond

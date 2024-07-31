@@ -47,12 +47,7 @@ namespace internal {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 class EigenGpuStreamDevice : public Eigen::StreamInterface {
  public:
-  EigenGpuStreamDevice()
-      : stream_(nullptr),
-        allocator_(nullptr),
-        device_prop_(nullptr),
-        semaphore_(nullptr),
-        allocations_() {
+  EigenGpuStreamDevice() : scratch_(nullptr), semaphore_(nullptr) {
     Eigen::initializeDeviceProp();
   }
   ~EigenGpuStreamDevice() override = default;
@@ -135,26 +130,15 @@ void CPUContextResource::InitCPUResource() {
   cpu_eigen_device_ = std::make_unique<Eigen::DefaultDevice>();
 }
 
-CPUContextResource::CPUContextResource() : cpu_eigen_device_(nullptr) {
-  InitCPUResource();
-}
+CPUContextResource::CPUContextResource() { InitCPUResource(); }
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 GPUContextResource::GPUContextResource(const phi::Place& place, void* stream)
-    : place_(place),
-      compute_capability_(0),
-      runtime_version_(0),
-      driver_version_(0),
-      multi_process_(0),
-      max_threads_per_mp_(0),
-      max_threads_per_block_(0),
-      stream_(nullptr),
-      gpu_eigen_device_(nullptr),
-      eigen_stream_(nullptr) {
+    : place_(place) {
   InitGPUResource(stream);
 }
 
-GPUContextResource::~GPUContextResource() { DestroyGPUResource(); }  // NOLINT
+GPUContextResource::~GPUContextResource() { DestroyGPUResource(); }
 
 void GPUContextResource::InitGPUResource(void* stream) {
   phi::backends::gpu::GPUDeviceGuard guard(place_.device);
@@ -207,7 +191,7 @@ void GPUContextResource::InitGpuEigenDevice() {
   gpu_eigen_device_ = std::make_unique<Eigen::GpuDevice>(eigen_stream_.get());
 }
 
-void GPUContextResource::InitDnnHandle() {
+void GPUContextResource::InitDnnHanlde() {
   phi::InitDnnHandle(&dnn_handle_, stream_, place_);
 }
 
@@ -253,7 +237,7 @@ dnnHandle_t GPUContextResource::GetDnnHandle() const { return dnn_handle_; }
 
 std::function<phi::dnnHandle_t()> GPUContextResource::GetDnnHandleCreator() {
   return [&]() -> phi::dnnHandle_t {
-    InitDnnHandle();
+    InitDnnHanlde();
     return dnn_handle_;
   };
 }
@@ -371,7 +355,7 @@ int GPUContextResource::GetGpuMaxThreadsPerBlock() const {
   return max_threads_per_block_;
 }
 
-std::array<unsigned int, 3> GPUContextResource::GetGpuMaxGridDimSize() const {
+std::array<int, 3> GPUContextResource::GetGpuMaxGridDimSize() const {
   return max_grid_dim_size_;
 }
 
@@ -383,7 +367,7 @@ ResourceManager& ResourceManager::Instance() {
 }
 
 void ResourceManager::InitCPUResource() {
-  std::lock_guard<std::mutex> lock_guard(cpu_mutex_);
+  std::lock_guard<std::mutex> lock_gurad(cpu_mutex_);
   if (cpu_resource_ == nullptr) {
     cpu_resource_ = std::make_unique<CPUContextResource>();
   }
@@ -392,13 +376,13 @@ void ResourceManager::InitCPUResource() {
 CPUContextResource* ResourceManager::GetCPUResource() const {
   PADDLE_ENFORCE_NOT_NULL(
       cpu_resource_.get(),
-      common::errors::PreconditionNotMet("cpu_resource should be not null!"));
+      platform::errors::PreconditionNotMet("cpu_resource should be not null!"));
   return cpu_resource_.get();
 }
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 void* ResourceManager::InitGPUResource(const phi::Place& place, void* stream) {
-  std::lock_guard<std::mutex> lock_guard(gpu_mutex_);
+  std::lock_guard<std::mutex> lock_gurad(gpu_mutex_);
   if (gpu_resources_.count(stream)) {
     Increase(stream);
     return stream;
@@ -415,7 +399,7 @@ void* ResourceManager::InitGPUResource(const phi::Place& place, void* stream) {
 void ResourceManager::DestroyGPUResource(void* stream) {
   PADDLE_ENFORCE_EQ(gpu_resources_.count(stream),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The stream[%p] not found in gpu_resources.", stream));
   Decrease(stream);
 }
@@ -435,7 +419,7 @@ void ResourceManager::Increase(void* stream) { ++ref_count_[stream]; }
 GPUContextResource* ResourceManager::GetGPUResource(void* stream) const {
   PADDLE_ENFORCE_EQ(gpu_resources_.count(stream),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The stream[%p] not found in gpu_resources.", stream));
   return gpu_resources_.at(stream).get();
 }
@@ -443,12 +427,12 @@ GPUContextResource* ResourceManager::GetGPUResource(void* stream) const {
 void ResourceManager::GpuResourceSwitchStream(void* old_stream,
                                               void* new_stream) {
   // NOTE: add lock to support stream rebind in multi-thread
-  std::lock_guard<std::mutex> lock_guard(gpu_mutex_);
+  std::lock_guard<std::mutex> lock_gurad(gpu_mutex_);
   if (old_stream == new_stream) return;
   PADDLE_ENFORCE_EQ(
       gpu_resources_.count(old_stream),
       true,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "The stream[%p] not found in gpu_resources.", old_stream));
 
   // NOTE: stream may be used by multiple predictor, skip resource

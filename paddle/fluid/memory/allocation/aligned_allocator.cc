@@ -14,13 +14,11 @@
 
 #include "paddle/fluid/memory/allocation/aligned_allocator.h"
 
-#include <utility>
-
-#include "paddle/common/macros.h"
 #include "paddle/fluid/platform/enforce.h"
 
-REGISTER_FILE_SYMBOLS(aligned_allocator);
-namespace paddle::memory::allocation {
+namespace paddle {
+namespace memory {
+namespace allocation {
 
 // For memory address alignment
 class AlignedAllocation : public Allocation {
@@ -38,16 +36,15 @@ class AlignedAllocation : public Allocation {
 };
 
 AlignedAllocator::AlignedAllocator(
-    std::shared_ptr<Allocator> underlying_allocator, size_t alignment)
-    : underlying_allocator_(std::move(underlying_allocator)),
-      alignment_(alignment) {
+    const std::shared_ptr<Allocator>& underlyning_allocator, size_t alignment)
+    : underlying_allocator_(underlyning_allocator), alignment_(alignment) {
   PADDLE_ENFORCE_GT(
       alignment_,
       0,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Alignment should be larger than 0, but got %d", alignment_));
   if (alignment_ & (alignment_ - 1)) {
-    PADDLE_THROW(common::errors::InvalidArgument(
+    PADDLE_THROW(platform::errors::InvalidArgument(
         "Alignment should be power of 2 (2^N), but got %d", alignment_));
   }
 }
@@ -68,4 +65,6 @@ void AlignedAllocator::FreeImpl(phi::Allocation* allocation) {
   delete allocation;
 }
 
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle

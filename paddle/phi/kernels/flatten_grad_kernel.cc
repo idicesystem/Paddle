@@ -69,7 +69,6 @@ PD_REGISTER_KERNEL(flatten_grad,
                    phi::FlattenGradKernel,
                    float,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
                    int8_t,
                    int,
                    int64_t) {}

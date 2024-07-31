@@ -21,7 +21,6 @@ import op_test
 import paddle
 from paddle import base
 from paddle.base import core
-from paddle.framework import in_pir_mode
 from paddle.pir_utils import test_with_pir_api
 
 
@@ -46,7 +45,7 @@ def create_test_class(op_type, typename, callback, check_pir=False):
             ):
                 a = paddle.static.data(name='a', shape=[-1, 2], dtype='int16')
                 b = paddle.static.data(name='b', shape=[-1, 2], dtype='int16')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % self.op_type)
 
                 try:
                     result = op(x=a, y=b)
@@ -102,7 +101,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.static.data(name='x', shape=[4], dtype='int64')
                 y = paddle.static.data(name='y', shape=[4], dtype='int64')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = base.Executor(self.place)
                 (res,) = exe.run(
@@ -120,7 +119,7 @@ def create_paddle_case(op_type, callback):
                 ):
                     x = paddle.static.data(name='x', shape=[4], dtype='int64')
                     y = paddle.static.data(name='y', shape=[], dtype='int64')
-                    op = eval(f"paddle.{self.op_type}")
+                    op = eval("paddle.%s" % (self.op_type))
                     out = op(x, y)
                     exe = base.Executor(self.place)
                     (res,) = exe.run(
@@ -133,7 +132,7 @@ def create_paddle_case(op_type, callback):
             paddle.disable_static()
             x = paddle.to_tensor(self.input_x)
             y = paddle.to_tensor(self.input_y)
-            op = eval(f"paddle.{self.op_type}")
+            op = eval("paddle.%s" % (self.op_type))
             out = op(x, y)
             self.assertEqual((out.numpy() == self.real_result).all(), True)
             paddle.enable_static()
@@ -142,7 +141,7 @@ def create_paddle_case(op_type, callback):
             if self.op_type == "equal":
                 paddle.disable_static()
                 x = paddle.to_tensor(self.input_x)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, 1)
                 self.real_result = np.array([1, 0, 0, 0]).astype(np.int64)
                 self.assertEqual((out.numpy() == self.real_result).all(), True)
@@ -152,7 +151,7 @@ def create_paddle_case(op_type, callback):
             if self.op_type == "equal":
                 paddle.disable_static()
                 x = paddle.to_tensor(self.input_x)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, 1.0)
                 self.real_result = np.array([1, 0, 0, 0]).astype(np.int64)
                 self.assertEqual((out.numpy() == self.real_result).all(), True)
@@ -162,7 +161,7 @@ def create_paddle_case(op_type, callback):
             paddle.disable_static()
             x = paddle.to_tensor(self.input_x, dtype="float16")
             y = paddle.to_tensor(self.input_y, dtype="float16")
-            op = eval(f"paddle.{self.op_type}")
+            op = eval("paddle.%s" % (self.op_type))
             out = op(x, y)
             self.assertEqual((out.numpy() == self.real_result).all(), True)
             paddle.enable_static()
@@ -174,7 +173,7 @@ def create_paddle_case(op_type, callback):
                 x = paddle.to_tensor(x1)
                 y1 = np.array([1, float('-inf'), float('inf')]).astype(np.int64)
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -194,7 +193,7 @@ def create_paddle_case(op_type, callback):
                     np.float32
                 )
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -212,7 +211,7 @@ def create_paddle_case(op_type, callback):
                 x = paddle.to_tensor(x1)
                 y1 = np.array([1, 2, 3]).astype(np.float32)
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -228,7 +227,7 @@ def create_paddle_case(op_type, callback):
                 x = paddle.to_tensor(x1)
                 y1 = np.array([1, float('-nan'), float('nan')]).astype(np.int64)
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -248,7 +247,7 @@ def create_paddle_case(op_type, callback):
                     np.float32
                 )
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -266,7 +265,7 @@ def create_paddle_case(op_type, callback):
                 x = paddle.to_tensor(x1)
                 y1 = np.array([1, 2, 1]).astype(np.float32)
                 y = paddle.to_tensor(y1)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = (x1 == y1).astype(np.int64)
                 self.assertEqual(
@@ -284,7 +283,7 @@ def create_paddle_case(op_type, callback):
                 y = paddle.to_tensor(
                     np.array([1.1e-8, 2, 2, 1]), dtype="float32"
                 )
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 self.real_result = np.array([0, 0, 0, 0]).astype(np.int64)
                 self.assertEqual((out.numpy() == self.real_result).all(), True)
@@ -295,7 +294,7 @@ def create_paddle_case(op_type, callback):
                 if self.op_type == "equal":
                     paddle.disable_static()
                     x = paddle.to_tensor(self.input_x)
-                    op = eval(f"paddle.{self.op_type}")
+                    op = eval("paddle.%s" % (self.op_type))
                     out = op(x, "1.0")
                     paddle.enable_static()
 
@@ -305,7 +304,7 @@ def create_paddle_case(op_type, callback):
             if self.op_type == "equal":
                 paddle.disable_static()
                 x = paddle.to_tensor(self.input_x)
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, True)
                 self.real_result = np.array([1, 0, 0, 0]).astype(np.int64)
                 self.assertEqual((out.numpy() == self.real_result).all(), True)
@@ -321,7 +320,7 @@ def create_paddle_case(op_type, callback):
                     name='x', shape=[1, 2, 1, 3], dtype='int32'
                 )
                 y = paddle.static.data(name='y', shape=[1, 2, 3], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 input_x = np.arange(1, 7).reshape((1, 2, 1, 3)).astype(np.int32)
@@ -342,7 +341,7 @@ def create_paddle_case(op_type, callback):
                 y = paddle.static.data(
                     name='y', shape=[1, 2, 1, 3], dtype='int32'
                 )
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 input_x = np.arange(0, 6).reshape((1, 2, 3)).astype(np.int32)
@@ -361,7 +360,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.static.data(name='x', shape=[5], dtype='int32')
                 y = paddle.static.data(name='y', shape=[3, 1], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 input_x = np.arange(0, 5).reshape(5).astype(np.int32)
@@ -380,7 +379,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.randint(-3, 3, shape=[], dtype='int32')
                 y = paddle.randint(-3, 3, shape=[], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 (
@@ -399,7 +398,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.randint(-3, 3, shape=[2, 3, 4], dtype='int32')
                 y = paddle.randint(-3, 3, shape=[], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 (
@@ -418,7 +417,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.randint(-3, 3, shape=[], dtype='int32')
                 y = paddle.randint(-3, 3, shape=[2, 3, 4], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 (
@@ -437,7 +436,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.static.data(name='x', shape=[3, 1], dtype='bool')
                 y = paddle.static.data(name='y', shape=[3, 1], dtype='bool')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 input_x = np.array([True, False, True]).astype(np.bool_)
@@ -456,7 +455,7 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.static.data(name='x', shape=[3, 1], dtype='bool')
                 y = paddle.static.data(name='y', shape=[1], dtype='bool')
-                op = eval(f"paddle.{self.op_type}")
+                op = eval("paddle.%s" % (self.op_type))
                 out = op(x, y)
                 exe = paddle.static.Executor(self.place)
                 input_x = np.array([True, False, True]).astype(np.bool_)
@@ -474,10 +473,9 @@ def create_paddle_case(op_type, callback):
             ):
                 x = paddle.static.data(name='x', shape=[-1, 4], dtype='int32')
                 y = paddle.static.data(name='y', shape=[-1, 4], dtype='int32')
-                op = eval(f"paddle.{self.op_type}")
-                out = op(x=x, y=y, name=f"name_{self.op_type}")
-            if not in_pir_mode():
-                self.assertEqual(f"name_{self.op_type}" in out.name, True)
+                op = eval("paddle.%s" % (self.op_type))
+                out = op(x=x, y=y, name="name_%s" % (self.op_type))
+            self.assertEqual("name_%s" % (self.op_type) in out.name, True)
 
     cls_name = f"TestCase_{op_type}"
     PaddleCls.__name__ = cls_name
@@ -526,7 +524,6 @@ create_bf16_case('not_equal', lambda _a, _b: _a != _b, True)
 
 
 class TestCompareOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_int16_support(self):
         paddle.enable_static()
         with paddle.static.program_guard(

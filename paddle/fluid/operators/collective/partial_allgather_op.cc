@@ -26,19 +26,19 @@ class PartialAllGatherOp : public framework::OperatorWithKernel {
     int nranks = ctx->Attrs().Get<int>("nranks");
     int rank = ctx->Attrs().Get<int>("rank");
 
-    PADDLE_ENFORCE_GE(
-        nranks,
-        2,
-        common::errors::InvalidArgument("The value of nranks should be >=2."));
+    PADDLE_ENFORCE_GE(nranks,
+                      2,
+                      platform::errors::InvalidArgument(
+                          "The value of nranks should be >=2."));
     PADDLE_ENFORCE_EQ(
         (rank >= 0 && rank < nranks),
         true,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The rank (%d) for partial_allgather op must >=0 and <nranks (%d)",
             rank,
             nranks));
 
-    phi::DDim dim = ctx->GetInputDim("X");
+    framework::DDim dim = ctx->GetInputDim("X");
     ctx->SetOutputDim("Out", dim);
   }
 };
@@ -75,6 +75,7 @@ DECLARE_INPLACE_OP_INFERER(PartialAllGatherOpInplaceInferer, {"X", "Out"});
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OPERATOR(
     partial_allgather,
@@ -92,4 +93,4 @@ PD_REGISTER_STRUCT_KERNEL(partial_allgather,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

@@ -14,12 +14,9 @@
 
 import re
 import sys
-import unittest
 
 import numpy as np
 from op_test import OpTest
-
-sys.path.append("../../fft")
 from spectral_op_np import fft_c2c, fft_c2r, fft_r2c
 
 import paddle
@@ -168,7 +165,7 @@ class TestFFTC2COp(OpTest):
             ).astype(np.complex128),
             [0, 1],
             'forward',
-            False,
+            True,
             26,
         ),
         (
@@ -198,7 +195,7 @@ class TestFFTC2COp(OpTest):
             ).astype(np.complex128),
             (0,),
             "backward",
-            False,
+            True,
             22,
         ),
         (
@@ -259,7 +256,7 @@ class TestFFTC2ROp(OpTest):
             (0, 1),
             "backward",
             False,
-            False,
+            True,
         ),
         (
             'test_norm_forward',
@@ -312,7 +309,3 @@ class TestFFTR2COp(OpTest):
             ["X"],
             "Out",
         )
-
-
-if __name__ == "__main__":
-    unittest.main()

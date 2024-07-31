@@ -23,7 +23,7 @@ from paddle.distributed import fleet
 
 
 def set_random_seed(seed):
-    """Set random seed for reproducibility."""
+    """Set random seed for reproducability."""
     random.seed(seed)
     np.random.seed(seed)
     paddle.seed(seed)

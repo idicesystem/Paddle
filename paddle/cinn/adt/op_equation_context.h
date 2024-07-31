@@ -21,7 +21,7 @@
 #include "paddle/cinn/adt/adt.h"
 #include "paddle/cinn/adt/dim_expr.h"
 #include "paddle/cinn/adt/equation.h"
-#include "paddle/cinn/utils/type_defs.h"
+#include "paddle/cinn/hlir/framework/node.h"
 
 namespace cinn::adt::config {
 

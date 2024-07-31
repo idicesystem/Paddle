@@ -197,11 +197,6 @@ class TestModelCastBF16(unittest.TestCase):
         )
 
 
-@unittest.skipIf(
-    core.is_compiled_with_xpu()
-    and core.get_xpu_device_version(0) < core.XPUVersion.XPU3,
-    "run test when xpu's compute capability >= xpu3.",
-)
 class TestProgramBF16(AmpTestBase):
     def _check_optimizer(self, program, expected_num_mp):
         optimizers = []
@@ -217,7 +212,7 @@ class TestProgramBF16(AmpTestBase):
         self.assertEqual(
             actual_num_mp,
             expected_num_mp,
-            f"The number of optimizers with multi_precision = True is expected to be {expected_num_mp}, but received {actual_num_mp}.",
+            f"The number of optimizers with multi_precison = True is expected to be {expected_num_mp}, but received {actual_num_mp}.",
         )
 
     def test_amp_bf16_o1(self):
@@ -265,11 +260,6 @@ class TestProgramBF16(AmpTestBase):
         self._check_op_calls(op_stats_list[0], expected_bf16_calls)
 
 
-@unittest.skipIf(
-    core.is_compiled_with_xpu()
-    and core.get_xpu_device_version(0) < core.XPUVersion.XPU3,
-    "run test when xpu's compute capability >= xpu3.",
-)
 class TestStaticBF16(AmpTestBase):
     def _generate_feed_x(self):
         x = np.random.random(size=[16, 16]).astype("float32")
@@ -304,12 +294,7 @@ class TestStaticBF16(AmpTestBase):
 
         max_iters = 2
         x_fp32, x_bf16 = self._generate_feed_x()
-        if paddle.is_compiled_with_cuda():
-            place = paddle.CUDAPlace(0)
-        elif paddle.is_compiled_with_xpu():
-            place = paddle.device.XPUPlace(0)
-        else:
-            raise ValueError("Only support CUDA or XPU Place.")
+        place = paddle.CUDAPlace(0)
         exe = paddle.static.Executor(place)
         losses_o1 = _run(place, exe, x_fp32, max_iters, 'O1')
         losses_o2 = _run(place, exe, x_bf16, max_iters, 'O2')

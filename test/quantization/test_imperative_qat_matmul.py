@@ -138,7 +138,8 @@ class TestImperativeQatMatmul(unittest.TestCase):
 
         seed = 100
         np.random.seed(seed)
-        paddle.seed(seed)
+        paddle.static.default_main_program().random_seed = seed
+        paddle.static.default_startup_program().random_seed = seed
         paddle.disable_static()
         lenet = ImperativeLenet()
         lenet = fix_model_dict(lenet)
@@ -180,7 +181,9 @@ class TestImperativeQatMatmul(unittest.TestCase):
 
                 if batch_id % 100 == 0:
                     _logger.info(
-                        f"Train | At epoch {epoch} step {batch_id}: loss = {avg_loss.numpy()}, acc= {acc.numpy()}"
+                        "Train | At epoch {} step {}: loss = {:}, acc= {:}".format(
+                            epoch, batch_id, avg_loss.numpy(), acc.numpy()
+                        )
                     )
 
             lenet.eval()
@@ -209,7 +212,12 @@ class TestImperativeQatMatmul(unittest.TestCase):
                     if batch_id % 100 == 0:
                         eval_acc_top1_list.append(float(acc_top1.numpy()))
                         _logger.info(
-                            f"Test | At epoch {epoch} step {batch_id}: acc1 = {acc_top1.numpy()}, acc5 = {acc_top5.numpy()}"
+                            "Test | At epoch {} step {}: acc1 = {:}, acc5 = {:}".format(
+                                epoch,
+                                batch_id,
+                                acc_top1.numpy(),
+                                acc_top5.numpy(),
+                            )
                         )
 
             # check eval acc

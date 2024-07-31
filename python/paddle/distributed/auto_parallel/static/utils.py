@@ -22,7 +22,6 @@ from functools import reduce
 import numpy as np
 
 import paddle
-from paddle.base.framework import use_pir_api
 from paddle.base.wrapped_decorator import wrap_decorator
 from paddle.framework import core
 from paddle.framework.io_utils import is_belong_to_optimizer, is_parameter
@@ -298,8 +297,8 @@ def _get_comm_group(processes, shape, axis, rank):
     assert (
         rank in processes
     ), f"rank [{rank}] is NOT in processes group {processes}"
-    rank_relative = processes.index(rank)
-    coordinate = _linear_idx2coordinate(shape, rank_relative)
+    rank_relatvie = processes.index(rank)
+    coordinate = _linear_idx2coordinate(shape, rank_relatvie)
     coordinates_in_group = [coordinate[:] for i in range(shape[axis])]
 
     # select comm group
@@ -320,7 +319,7 @@ def _get_idx_in_axis(processes, shape, axis, rank):
     Given a rank and the processes mesh the rank belongs to,
     compute the index of the rank in given axis.
 
-    Example: 27 processes managed in a 3-Dimensional mesh with shape of [3, 3, 3].
+    Example: 27 processes managed in a 3-Dimensinal mesh with shape of [3, 3, 3].
     the index of rank 22 are:
     in axis 0: 1
     in axis 1: 1
@@ -329,8 +328,8 @@ def _get_idx_in_axis(processes, shape, axis, rank):
 
     # NOTE _linear_idx2coordinate assume processes mesh start with 0 and continuous
     #  tricks to support processes mesh when it is not start with 0 or continuous
-    rank_relative = processes.index(rank)
-    coordinate = _linear_idx2coordinate(shape, rank_relative)
+    rank_relatvie = processes.index(rank)
+    coordinate = _linear_idx2coordinate(shape, rank_relatvie)
     return coordinate[axis]
 
 
@@ -365,14 +364,18 @@ def _coordinate2linear_idx(mesh_shape, coordinate):
 
     assert len(mesh_shape) == len(
         coordinate
-    ), f"coordinate should have the same size as mesh shape, but got shape: {mesh_shape}, coordinate: {coordinate}"
+    ), "coordinate should have the same size as mesh shape, but got shape: {}, coordinate: {}".format(
+        mesh_shape, coordinate
+    )
     for i in range(len(mesh_shape)):
         assert (
             coordinate[i] >= 0
         ), f"index in dimension [{i}] is least than zero. coordinate: {coordinate}"
         assert (
             coordinate[i] < mesh_shape[i]
-        ), f"index beyond extent in dimension [{i}]. shape: {mesh_shape}, coordinate: {coordinate}"
+        ), "index beyond extent in dimension [{}]. shape: {}, coordinate: {}".format(
+            i, mesh_shape, coordinate
+        )
 
     base = mesh_shape[-1]
     linear_idx = coordinate[-1]
@@ -407,7 +410,9 @@ def _linear_idx2coordinate(mesh_shape, linear_idx):
     assert linear_idx >= 0, f"linear index [{linear_idx}] is least than zero"
     assert linear_idx < np.prod(
         mesh_shape
-    ), f"linear index beyond the extent of mesh shape. shape: {mesh_shape}, linear index: {linear_idx}"
+    ), "linear index beyond the extent of mesh shape. shape: {}, linear index: {}".format(
+        mesh_shape, linear_idx
+    )
 
     base = 1
     coordinate = [-1] * len(mesh_shape)
@@ -488,19 +493,19 @@ def _update_addition_info(addition_info):
     elif not isinstance(addition_info, dict):
         raise TypeError(
             "The type of 'addition_info' should be 'dict', "
-            f"but got '{type(addition_info)}'."
+            f"but got '{str(type(addition_info))}'."
         )
     else:
         for item, value in addition_info.items():
             if item not in ["epoch", "batch", "batch_size"]:
                 raise ValueError(
                     "The key of 'addition_info' should be one of the "
-                    f"['epoch', 'batch', 'batch_size'], but got '{item}'."
+                    f"['epoch', 'batch', 'batch_size'], but got '{str(item)}'."
                 )
             if not isinstance(value, int):
                 raise ValueError(
                     "The value of 'addition_info' should be 'int', "
-                    f"but got '{type(value)}'."
+                    f"but got '{str(type(value))}'."
                 )
             add_info[item] = value
         return add_info
@@ -515,7 +520,7 @@ def _check_valid_path(file_path):
             if not isinstance(file, str):
                 raise TypeError(
                     "The type of file path should be 'str', "
-                    f"but got '{type(file)}'."
+                    f"but got '{str(type(file))}'."
                 )
             if not os.path.exists(file):
                 raise ValueError(f"The file path '{file}' does not exist.")
@@ -523,7 +528,7 @@ def _check_valid_path(file_path):
     else:
         raise TypeError(
             "The type of file path should be 'list', "
-            f"but got '{type(file_path)}'."
+            f"but got '{str(type(file_path))}'."
         )
 
 
@@ -533,19 +538,19 @@ def _check_param_dict(param_dict):
     elif not isinstance(param_dict, dict):
         raise TypeError(
             "The type of 'param_dict' should be 'dict', "
-            f"but got '{type(param_dict)}'."
+            f"but got '{str(type(param_dict))}'."
         )
     else:
         for name, value in param_dict.items():
             if not isinstance(name, str):
                 raise TypeError(
                     "The type of key of 'param_dict' should be 'str', "
-                    f"but got '{type(name)}'."
+                    f"but got '{str(type(name))}'."
                 )
             if not isinstance(value, paddle.base.LoDTensor):
                 raise TypeError(
                     "The type of value of 'param_dict' should be 'LoDTensor', "
-                    f"but got '{type(value)}'."
+                    f"but got '{str(type(value))}'."
                 )
         return param_dict
 
@@ -556,26 +561,26 @@ def _check_dist_attr(dist_attr):
     elif not isinstance(dist_attr, dict):
         raise TypeError(
             "The type of 'dist_attr' should be 'dict', "
-            f"but got '{type(dist_attr)}'."
+            f"but got '{str(type(dist_attr))}'."
         )
     else:
         for name, value in dist_attr.items():
             if not isinstance(name, str):
                 raise TypeError(
                     "The type of param name of 'dist_attr' should be 'str', "
-                    f"but got '{type(name)}'."
+                    f"but got '{str(type(name))}'."
                 )
             if not isinstance(value, dict):
                 raise TypeError(
                     "The type of distributed attribute should be 'dict', "
-                    f"but got '{type(value)}'"
+                    f"but got '{str(type(value))}'"
                 )
             attr = ['process_shape', 'process_group', 'dims_mapping']
             if list(value.keys()) != attr:
                 raise ValueError(
                     "The key of distributed attribute should be "
                     "'['process_shape', 'process_group', 'dims_mapping']', "
-                    f"but got {value.keys()}."
+                    f"but got {str(value.keys())}."
                 )
         return dist_attr
 
@@ -831,46 +836,24 @@ def get_dist_attr(program, dist_context=None):
     Args:
         program(Program): main program for training
     """
-    dist_attr = {}
-    if use_pir_api():
-        ops = program.global_block().ops
-        for op in ops:
-            if op.name() == "builtin.parameter" or (
-                op.name() == "pd_op.data"
-                and op.has_attr("persistable")
-                and op.attrs()["persistable"]
-            ):
-                op_dist_attr = op.dist_attr
-                var_dist_attr = op_dist_attr.result(0).as_tensor_dist_attr()
-                var_name = (
-                    op.str_attr("parameter_name")
-                    if op.name() == "builtin.parameter"
-                    else op.str_attr("name")
-                )
-                process_mesh = var_dist_attr.process_mesh
-                dist_attr[var_name] = {
-                    "process_shape": process_mesh.shape,
-                    "process_group": process_mesh.process_ids,
-                    "dims_mapping": var_dist_attr.dims_mapping,
-                }
-    else:
-        from .dist_context import get_default_distributed_context
+    from .dist_context import get_default_distributed_context
 
-        assert isinstance(program, paddle.static.Program)
-        if dist_context is None:
-            dist_context = get_default_distributed_context()
-        for var in program.list_vars():
-            if is_parameter(var) or is_belong_to_optimizer(var):
-                tensor_dist_attr = (
-                    dist_context.get_tensor_dist_attr_for_program(var)
-                )
-                process_mesh = tensor_dist_attr.process_mesh
-                dims_mapping = tensor_dist_attr.dims_mapping
-                dist_attr[var.name] = {
-                    "process_shape": process_mesh.shape,
-                    "process_group": process_mesh.process_ids,
-                    "dims_mapping": dims_mapping,
-                }
+    assert isinstance(program, paddle.static.Program)
+    if dist_context is None:
+        dist_context = get_default_distributed_context()
+    dist_attr = {}
+    for var in program.list_vars():
+        if is_parameter(var) or is_belong_to_optimizer(var):
+            tensor_dist_attr = dist_context.get_tensor_dist_attr_for_program(
+                var
+            )
+            process_mesh = tensor_dist_attr.process_mesh
+            dims_mapping = tensor_dist_attr.dims_mapping
+            dist_attr[var.name] = {
+                "process_shape": process_mesh.shape,
+                "process_group": process_mesh.process_ids,
+                "dims_mapping": dims_mapping,
+            }
     return dist_attr
 
 
@@ -878,7 +861,7 @@ def merge_and_slice_parameter(dist_param_dict, pre_dist_attr, cur_dist_attr):
     """
     Merge parameters with previous dist_attr and slice parameters with current dist_attr
 
-    Args:
+    Arags:
         dist_param_dict(dict): parameters' value of all ranks.
         pre_dist_attr(dict): parameters' dist_attr of last training process.
         cur_dist_attr(dict): parameters' dist_attr of current training process.
@@ -889,12 +872,14 @@ def merge_and_slice_parameter(dist_param_dict, pre_dist_attr, cur_dist_attr):
     assert _check_dist_attr(pre_dist_attr), "'pre_dist_attr' cannot be None."
     assert isinstance(
         dist_param_dict, dict
-    ), f"The type of 'dist_param_dict' should be 'dict', but got {type(dist_param_dict)}."
+    ), "The type of 'dist_param_dict' should be 'dict', but got {}.".format(
+        str(type(dist_param_dict))
+    )
     for name, value in dist_param_dict.items():
         if not isinstance(name, str):
             raise TypeError(
                 "The key of 'dist_param_dict' is parameter's name, "
-                f"and its type should be 'str', but got {type(name)}."
+                f"and its type should be 'str', but got {str(type(name))}."
             )
         if not isinstance(value, list) or not all(
             isinstance(v, np.ndarray) for v in value
@@ -950,11 +935,15 @@ def merge_and_slice_parameter(dist_param_dict, pre_dist_attr, cur_dist_attr):
 
     if param_not_in_pre:
         warnings.warn(
-            f"Parameters '{param_not_in_pre}' are not found in last training process."
+            "Parameters '{}' are not found in last training process.".format(
+                str(param_not_in_pre)
+            )
         )
     if param_not_in_cur:
         warnings.warn(
-            f"Parameters '{param_not_in_cur}' are not found in current training process."
+            "Parameters '{}' are not found in current training process.".format(
+                str(param_not_in_cur)
+            )
         )
 
     return dist_param_dict
@@ -973,14 +962,14 @@ def _merge_parameter_with_dist_attr(param_list, dist_attr):
     )
     # merge the parameter with dist_attr
     partition_param_list = []
-    merged_partition = []
+    merged_partiton = []
     for process in process_group:
         partition_index = Resharder.compute_partition_index(
             process, complete_shape, dims_mapping, process_shape, process_group
         )
         index = process_group.index(process)
-        if partition_index not in merged_partition:
-            merged_partition.append(partition_index)
+        if partition_index not in merged_partiton:
+            merged_partiton.append(partition_index)
             _merge_parameter(
                 partition_param_list,
                 param_list[index],
@@ -1023,7 +1012,7 @@ def _merge_parameter(
     partition_param_list, param, partition_index, complete_shape
 ):
     """
-    Merge partial parameters to a complete one.
+    Merge partitial parameters to a complete one.
 
     Returns:
         None
@@ -1306,7 +1295,9 @@ def set_var_dist_attr(dist_context, var, dims_mapping, process_mesh, **kwargs):
         tensor_dist_attr.process_mesh = process_mesh
     else:
         raise ValueError(
-            f"{process_mesh} must be a instance of ProcessMesh or list, but receive {type(process_mesh)}"
+            "{} must be a instance of ProcessMesh or list, but receive {}".format(
+                process_mesh, type(process_mesh)
+            )
         )
     if "mark_annotated" in kwargs and kwargs["mark_annotated"]:
         tensor_dist_attr.mark_annotated("dims_mapping")
@@ -1364,7 +1355,7 @@ def update_op_dims_mapping_by_default_dist_impl(dist_op):
     changed = False
     op_dist_attr = dist_op.dist_attr
     op_desc = dist_op.serial_op.desc
-    # The following statement will be replaced by a more elegant way
+    # The following statement will be replaced by a more elegent way
     if op_desc.type() == "shape" or op_desc.type() == "slice":
         return False
     output_names = op_desc.output_names()
@@ -1381,7 +1372,9 @@ def update_op_dims_mapping_by_default_dist_impl(dist_op):
             for idx, mapping in enumerate(dims_mapping[1:]):
                 assert (
                     mapping == -1
-                ), f"{op_desc.type()} only the batch dimension (0-dim) can be sharded, but the dimension {idx} is sharded by {mapping} part."
+                ), "{} only the batch dimension (0-dim) can be sharded, but the dimension {} is sharded by {} part.".format(
+                    op_desc.type(), idx, mapping
+                )
         if len(dims_mapping) >= 1:
             batch_dim_mappings.append(dims_mapping[0])
     for arg_name in op_desc.output_arg_names():
@@ -1394,18 +1387,24 @@ def update_op_dims_mapping_by_default_dist_impl(dist_op):
                 for idx, mapping in enumerate(dims_mapping[1:]):
                     assert (
                         mapping == -1
-                    ), f"{op_desc.type()} only the batch dimension (0-dim) can be sharded, but the dimension {idx} is sharded by {mapping} part."
+                    ), "{} only the batch dimension (0-dim) can be sharded, but the dimension {} is sharded by {} part.".format(
+                        op_desc.type(), idx, mapping
+                    )
             if len(dims_mapping) >= 1:
                 batch_dim_mappings.append(dims_mapping[0])
         else:
             assert (
                 dims_mapping[0] == -1
-            ), f"{op_desc.type()} only the batch dimension (1-dim) of XShape can be sharded, but the dimension 0 is sharded by {mapping} part."
+            ), "{} only the batch dimension (1-dim) of XShape can be sharded, but the dimension 0 is sharded by {} part.".format(
+                op_desc.type(), mapping
+            )
             if len(dims_mapping) > 2:
                 for idx, mapping in enumerate(dims_mapping[2:]):
                     assert (
                         mapping == -1
-                    ), f"{op_desc.type()} only the batch dimension (1-dim) of XShape can be sharded, but the dimension {idx} is sharded by {mapping} part."
+                    ), "{} only the batch dimension (1-dim) of XShape can be sharded, but the dimension {} is sharded by {} part.".format(
+                        op_desc.type(), idx, mapping
+                    )
             batch_dim_mappings.append(dims_mapping[1])
 
     compatible_dim_mapping = compute_compatible_dim_mapping(batch_dim_mappings)
@@ -1540,10 +1539,10 @@ def get_all_distributed_main_program(
 
 class SerialProgramInfo:
     def __init__(
-        self, train_program, startup_program, loss, optimizer, cluster=None
+        self, train_program, satrtup_program, loss, optimizer, cluster=None
     ):
         self._train_program = train_program
-        self._startup_program = startup_program
+        self._startup_program = satrtup_program
         self._loss = loss
         self._optimizer = optimizer
         self._cluster = cluster
@@ -1701,7 +1700,7 @@ def set_dist_op_desc_original_id(dist_op_desc, op_desc, dist_context):
     elif op_original_id in dist_context._dist_ops_for_program:
         dist_op_desc.set_original_id(op_original_id)
         return
-    # Third, print error information if we cannot find the original id
+    # Third, print error infomation if we cannot find the original id
     else:
         raise AssertionError(
             "Cannot find the original id in the distributed context"
@@ -1749,7 +1748,7 @@ def get_var_numel(var):
     input:
         - var: variable
     return:
-        number of element in var
+        number of elemnet in var
     """
     assert isinstance(var, Variable)
     assert -1 not in var.shape
@@ -1811,11 +1810,15 @@ def initialize_pg_in_full_mode(all_process_groups, cur_rank):
                 rank = int(rank)
                 if rank != recv_rank:
                     raise ValueError(
-                        f"Please check comm pair, the recv rank should be {recv_rank} but got {rank}."
+                        "Please check comm pair, the recv rank should be {} but got {}.".format(
+                            recv_rank, rank
+                        )
                     )
                 else:
                     print(
-                        f"It is able to instantiate {process_group.ranks} as sender now."
+                        "It is able to instantiate {} as sender now.".format(
+                            process_group.ranks
+                        )
                     )
                 client_socket.close()
             else:
@@ -1832,7 +1835,9 @@ def initialize_pg_in_full_mode(all_process_groups, cur_rank):
                         )
                         client_sockets[send_rank].close()
                         print(
-                            f"It is able to instantiate {process_group.ranks} as receiver now."
+                            "It is able to instantiate {} as recver now.".format(
+                                process_group.ranks
+                            )
                         )
                         break
         process_group.instantiate()
@@ -1977,7 +1982,7 @@ def set_data_parallel(x):
 
 
 def is_naive_data_parallel(dist_context):
-    # Naive data parallel only completes dist_attr once from the front to back.
+    # Navie data parallel only completes dist_attr once from the front to back.
     if not dist_context.data_parallel:
         return False
 
@@ -2129,10 +2134,10 @@ def insert_dependencies_for_two_ops(
 
     assert (
         len(prior_op.output_arg_names) >= 1
-    ), f"first op of dependency should at least have one output. [{prior_op}]"
+    ), f"first op of dependency should at least have one output. [{str(prior_op)}]"
     assert (
         len(posterior_op.input_arg_names) >= 1
-    ), f"second op of dependency should at least have one input. [{posterior_op}]"
+    ), f"second op of dependency should at least have one input. [{str(posterior_op)}]"
     prior_op_mesh = dist_context.get_op_dist_attr_for_program(
         prior_op
     ).process_mesh
@@ -2141,7 +2146,9 @@ def insert_dependencies_for_two_ops(
     ).process_mesh
     assert (
         prior_op_mesh == posterior_mesh
-    ), f"two ops of dependency should have same mesh but got [{prior_op_mesh}] and [{posterior_mesh}]"
+    ), "two ops of dependency should have same mesh but got [{}] and [{}]".format(
+        str(prior_op_mesh), str(posterior_mesh)
+    )
 
     def _select_best_depend_var(vars):
         # parameter should not be dep var since it maybe partition in sharding pass
@@ -2186,13 +2193,12 @@ def insert_dependencies_for_vars(
     sync=False,
     op_namescope=None,
     use_nop=False,
-    skip_insert_when_sequential_run=True,
 ):
     """
     dependency: op that generates prior_vars should be run before op that generates post_vars
     """
 
-    if skip_insert_when_sequential_run and is_sequential_run():
+    if is_sequential_run():
         return
 
     if isinstance(prior_vars, Variable):
@@ -2204,9 +2210,10 @@ def insert_dependencies_for_vars(
     for post_var in post_vars:
         assert block.has_var(post_var.name)
 
-    post_dist_attr = dist_context.get_tensor_dist_attr_for_program(post_vars[0])
     if process_mesh is None:
-        process_mesh = post_dist_attr.process_mesh
+        process_mesh = dist_context.get_tensor_dist_attr_for_program(
+            post_vars[0]
+        ).process_mesh
     assert process_mesh is not None
 
     use_nop = True
@@ -2238,7 +2245,6 @@ def insert_dependencies_for_vars(
         depend_op_dist_attr.impl_type = "default"
         depend_op_dist_attr.process_mesh = process_mesh
         depend_op_dist_attr.is_recompute = is_recompute
-        depend_op_dist_attr.chunk_id = post_dist_attr.chunk_id
         for input_varname in depend_op.desc.input_arg_names():
             var = block.var(input_varname)
             mapping = dist_context.get_tensor_dist_attr_for_program(
@@ -2305,31 +2311,6 @@ def is_sequential_run():
             "FLAGS_new_executor_sequential_run"
         ]
     )
-
-
-def get_pp_degree(dist_context):
-    if len(dist_context.process_meshes) < 2:
-        return 0, []
-
-    process_ids = set()
-    process_meshes = copy.deepcopy(dist_context.process_meshes)
-
-    for pm in process_meshes:
-        process_ids |= set(pm.process_ids)
-
-    global_pm_idx = []
-    has_sub_pm = False
-    for idx, pm in enumerate(process_meshes):
-        if len(set(pm.process_ids)) == len(process_ids):
-            global_pm_idx.append(idx)
-        elif set(pm.process_ids) < process_ids:
-            has_sub_pm = True
-
-    if has_sub_pm:
-        for idx in reversed(global_pm_idx):
-            process_meshes.pop(idx)
-
-    return len(process_meshes), process_meshes
 
 
 def get_pp_stage(dist_context, rank):
@@ -2418,83 +2399,3 @@ def get_dist_tensor_spec(dist_op, name, is_input=True):
     else:
         tensor_dist_attr = dist_op.dist_attr.get_output_dist_attr(name)
     return DistTensorSpec(tensor_shape, tensor_dist_attr)
-
-
-# get grad_var_to_var from distributed context, recording the mapping from backward grad variable to forward variable
-# which is used for decomposing backward ops when enabling prim after distributed
-def get_grad_var_to_var(dist_context):
-    # get grad_var_to_var in distributed context
-    grad_var_to_var_map = dist_context._dist_op_context.grad_var_to_var
-    assert len(grad_var_to_var_map.keys()) == 1, "invalid grad_var_to_var"
-    grad_var_to_var = grad_var_to_var_map[1]
-    return grad_var_to_var
-
-
-# update grad_var_to_var manually according to different distributed pass or strategy, thus recording complete and correct mapping between backward to forward
-def update_grad_var_to_var(program, strategy, grad_var_to_var):
-    from paddle.distributed.fleet.meta_optimizers.common import (
-        OP_ROLE_KEY,
-        OpRole,
-    )
-
-    # update grad_var_to_var according to different distributed pass
-    first_backward_op_idx = -1
-    for idx, op in enumerate(program.global_block().ops):
-        # process @RESHARD variable in distributed training
-        if (
-            op.has_attr("op_namescope")
-            and op.attr("op_namescope") == "/auto_parallel/reshard"
-        ):
-            reshard_op_types = [
-                "split",
-                "assign",
-                "cast",
-                "c_concat",
-                "concat",
-                "slice",
-                "all_gather",
-            ]
-            if op.desc.type() in reshard_op_types:
-                input_names = op.desc.input_names()
-                if (
-                    "X" in input_names
-                    or "Input" in input_names
-                    or "x" in input_names
-                ):
-                    inputs = (
-                        op.desc.input("X")
-                        if "X" in input_names
-                        else (
-                            op.desc.input("Input")
-                            if "Input" in input_names
-                            else op.desc.input("x")
-                        )
-                    )
-                output_names = op.desc.output_names()
-                if "Out" in output_names or "out" in output_names:
-                    outputs = (
-                        op.desc.output("Out")
-                        if "Out" in output_names
-                        else op.desc.output("out")
-                    )
-                if inputs[0] in grad_var_to_var.keys():
-                    for output in outputs:
-                        grad_var_to_var[output] = grad_var_to_var[inputs[0]]
-
-        # process amp pass in distributed training
-        if (
-            strategy.amp.enable
-            and op.has_attr(OP_ROLE_KEY)
-            and (op.attr(OP_ROLE_KEY) & int(OpRole.Backward))
-            and (op.attr(OP_ROLE_KEY) & int(OpRole.Loss))
-        ):
-            first_backward_op_idx = idx
-
-    # process amp pass in distributed training
-    if first_backward_op_idx != -1:
-        scale_loss_op = program.global_block().ops[first_backward_op_idx - 1]
-        scale_loss_var_name = scale_loss_op.desc.output("Out")[0]
-        first_backward_op = program.global_block().ops[first_backward_op_idx]
-        scale_loss_grad_var_name = first_backward_op.desc.output("Out")[0]
-        if scale_loss_grad_var_name not in grad_var_to_var.keys():
-            grad_var_to_var[scale_loss_grad_var_name] = scale_loss_var_name

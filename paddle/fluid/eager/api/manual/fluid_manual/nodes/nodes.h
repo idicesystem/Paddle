@@ -90,65 +90,65 @@ class fused_gate_attentionGradNodeCompat : public egr::GradNodeBase {
   }
 
   // SetX, SetY, ...
-  void SetTensorWrapper_FMHAOut(const paddle::Tensor& FMHAOut) {
+  void SetTensorWrapperFMHAOut(const paddle::Tensor& FMHAOut) {
     FMHAOut_ = egr::TensorWrapper(FMHAOut, false);
   }
-  void SetTensorWrapper_GateBias(const paddle::Tensor& GateBias) {
+  void SetTensorWrapperGateBias(const paddle::Tensor& GateBias) {
     GateBias_ = egr::TensorWrapper(GateBias, false);
   }
-  void SetTensorWrapper_GateOut(const paddle::Tensor& GateOut) {
+  void SetTensorWrapperGateOut(const paddle::Tensor& GateOut) {
     GateOut_ = egr::TensorWrapper(GateOut, false);
   }
-  void SetTensorWrapper_GateWeight(const paddle::Tensor& GateWeight) {
+  void SetTensorWrapperGateWeight(const paddle::Tensor& GateWeight) {
     GateWeight_ = egr::TensorWrapper(GateWeight, false);
   }
-  void SetTensorWrapper_NonbatchedBias(const paddle::Tensor& NonbatchedBias) {
+  void SetTensorWrapperNonbatchedBias(const paddle::Tensor& NonbatchedBias) {
     NonbatchedBias_ = egr::TensorWrapper(NonbatchedBias, false);
   }
-  void SetTensorWrapper_SrcMask(const paddle::Tensor& SrcMask) {
+  void SetTensorWrapperSrcMask(const paddle::Tensor& SrcMask) {
     SrcMask_ = egr::TensorWrapper(SrcMask, false);
   }
-  void SetTensorWrapper_OutLinearBias(const paddle::Tensor& OutLinearBias) {
+  void SetTensorWrapperOutLinearBias(const paddle::Tensor& OutLinearBias) {
     OutLinearBias_ = egr::TensorWrapper(OutLinearBias, false);
   }
-  void SetTensorWrapper_OutLinearWeight(const paddle::Tensor& OutLinearWeight) {
+  void SetTensorWrapperOutLinearWeight(const paddle::Tensor& OutLinearWeight) {
     OutLinearWeight_ = egr::TensorWrapper(OutLinearWeight, false);
   }
-  void SetTensorWrapper_QKVTransposeOut(const paddle::Tensor& QKVTransposeOut) {
+  void SetTensorWrapperQKVTransposeOut(const paddle::Tensor& QKVTransposeOut) {
     QKVTransposeOut_ = egr::TensorWrapper(QKVTransposeOut, false);
   }
-  void SetTensorWrapper_QKVWeight(const paddle::Tensor& QKVWeight) {
+  void SetTensorWrapperQKVWeight(const paddle::Tensor& QKVWeight) {
     QKVWeight_ = egr::TensorWrapper(QKVWeight, false);
   }
-  void SetTensorWrapper_Query(const paddle::Tensor& Query) {
+  void SetTensorWrapperQuery(const paddle::Tensor& Query) {
     Query_ = egr::TensorWrapper(Query, false);
   }
-  void SetTensorWrapper_SoftmaxOut(const paddle::Tensor& SoftmaxOut) {
+  void SetTensorWrapperSoftmaxOut(const paddle::Tensor& SoftmaxOut) {
     SoftmaxOut_ = egr::TensorWrapper(SoftmaxOut, false);
   }
-  void SetTensorWrapper_SoftmaxLse(const paddle::Tensor& SoftmaxLse) {
+  void SetTensorWrapperSoftmaxLse(const paddle::Tensor& SoftmaxLse) {
     SoftmaxLse_ = egr::TensorWrapper(SoftmaxLse, false);
   }
-  void SetTensorWrapper_Key(const paddle::Tensor& Key) {
+  void SetTensorWrapperKey(const paddle::Tensor& Key) {
     Key_ = egr::TensorWrapper(Key, false);
   }
-  void SetTensorWrapper_QueryWeight(const paddle::Tensor& QueryWeight) {
+  void SetTensorWrapperQueryWeight(const paddle::Tensor& QueryWeight) {
     QueryWeight_ = egr::TensorWrapper(QueryWeight, false);
   }
-  void SetTensorWrapper_KeyWeight(const paddle::Tensor& KeyWeight) {
+  void SetTensorWrapperKeyWeight(const paddle::Tensor& KeyWeight) {
     KeyWeight_ = egr::TensorWrapper(KeyWeight, false);
   }
-  void SetTensorWrapper_ValueWeight(const paddle::Tensor& ValueWeight) {
+  void SetTensorWrapperValueWeight(const paddle::Tensor& ValueWeight) {
     ValueWeight_ = egr::TensorWrapper(ValueWeight, false);
   }
-  void SetTensorWrapper_QueryTransposeOut(
+  void SetTensorWrapperQueryTransposeOut(
       const paddle::Tensor& QueryTransposeOut) {
     QueryTransposeOut_ = egr::TensorWrapper(QueryTransposeOut, false);
   }
-  void SetTensorWrapper_KeyTransposeOut(const paddle::Tensor& KeyTransposeOut) {
+  void SetTensorWrapperKeyTransposeOut(const paddle::Tensor& KeyTransposeOut) {
     KeyTransposeOut_ = egr::TensorWrapper(KeyTransposeOut, false);
   }
-  void SetTensorWrapper_ValueTransposeOut(
+  void SetTensorWrapperValueTransposeOut(
       const paddle::Tensor& ValueTransposeOut) {
     ValueTransposeOut_ = egr::TensorWrapper(ValueTransposeOut, false);
   }
@@ -240,63 +240,63 @@ class fused_feedforwardGradNodeCompat : public egr::GradNodeBase {
   }
 
   // SetX, SetY, ...
-  void SetTensorWrapper_Dropout1Mask(const paddle::Tensor& Dropout1Mask) {
+  void SetTensorWrapperDropout1Mask(const paddle::Tensor& Dropout1Mask) {
     Dropout1Mask_ = egr::TensorWrapper(Dropout1Mask, false);
   }
-  void SetTensorWrapper_Dropout1Out(const paddle::Tensor& Dropout1Out) {
+  void SetTensorWrapperDropout1Out(const paddle::Tensor& Dropout1Out) {
     Dropout1Out_ = egr::TensorWrapper(Dropout1Out, false);
   }
-  void SetTensorWrapper_Dropout2Mask(const paddle::Tensor& Dropout2Mask) {
+  void SetTensorWrapperDropout2Mask(const paddle::Tensor& Dropout2Mask) {
     Dropout2Mask_ = egr::TensorWrapper(Dropout2Mask, false);
   }
-  void SetTensorWrapper_Dropout2Out(const paddle::Tensor& Dropout2Out) {
+  void SetTensorWrapperDropout2Out(const paddle::Tensor& Dropout2Out) {
     auto pre_layer_norm = GetAttrWithDefault<bool>(
         attr_map_, default_attr_map_, "pre_layer_norm");
     Dropout2Out_ = egr::TensorWrapper(Dropout2Out, pre_layer_norm);
   }
-  void SetTensorWrapper_Linear1Bias(const paddle::Tensor& Linear1Bias) {
+  void SetTensorWrapperLinear1Bias(const paddle::Tensor& Linear1Bias) {
     Linear1Bias_ = egr::TensorWrapper(Linear1Bias, false);
   }
-  void SetTensorWrapper_Linear1Out(const paddle::Tensor& Linear1Out) {
+  void SetTensorWrapperLinear1Out(const paddle::Tensor& Linear1Out) {
     Linear1Out_ = egr::TensorWrapper(Linear1Out, false);
   }
-  void SetTensorWrapper_Linear1Weight(const paddle::Tensor& Linear1Weight) {
+  void SetTensorWrapperLinear1Weight(const paddle::Tensor& Linear1Weight) {
     Linear1Weight_ = egr::TensorWrapper(Linear1Weight, false);
   }
-  void SetTensorWrapper_Linear2Bias(const paddle::Tensor& Linear2Bias) {
+  void SetTensorWrapperLinear2Bias(const paddle::Tensor& Linear2Bias) {
     Linear2Bias_ = egr::TensorWrapper(Linear2Bias, false);
   }
-  void SetTensorWrapper_Linear2Weight(const paddle::Tensor& Linear2Weight) {
+  void SetTensorWrapperLinear2Weight(const paddle::Tensor& Linear2Weight) {
     Linear2Weight_ = egr::TensorWrapper(Linear2Weight, false);
   }
-  void SetTensorWrapper_Ln2Bias(const paddle::Tensor& Ln2Bias) {
+  void SetTensorWrapperLn2Bias(const paddle::Tensor& Ln2Bias) {
     Ln2Bias_ = egr::TensorWrapper(Ln2Bias, false);
   }
-  void SetTensorWrapper_Ln2Mean(const paddle::Tensor& Ln2Mean) {
+  void SetTensorWrapperLn2Mean(const paddle::Tensor& Ln2Mean) {
     Ln2Mean_ = egr::TensorWrapper(Ln2Mean, false);
   }
-  void SetTensorWrapper_Ln2Scale(const paddle::Tensor& Ln2Scale) {
+  void SetTensorWrapperLn2Scale(const paddle::Tensor& Ln2Scale) {
     Ln2Scale_ = egr::TensorWrapper(Ln2Scale, false);
   }
-  void SetTensorWrapper_Ln2Variance(const paddle::Tensor& Ln2Variance) {
+  void SetTensorWrapperLn2Variance(const paddle::Tensor& Ln2Variance) {
     Ln2Variance_ = egr::TensorWrapper(Ln2Variance, false);
   }
-  void SetTensorWrapper_X(const paddle::Tensor& X) {
+  void SetTensorWrapperX(const paddle::Tensor& X) {
     X_ = egr::TensorWrapper(X, false);
   }
-  void SetTensorWrapper_Ln1Scale(const paddle::Tensor& Ln1Scale) {
+  void SetTensorWrapperLn1Scale(const paddle::Tensor& Ln1Scale) {
     Ln1Scale_ = egr::TensorWrapper(Ln1Scale, false);
   }
-  void SetTensorWrapper_Ln1Bias(const paddle::Tensor& Ln1Bias) {
+  void SetTensorWrapperLn1Bias(const paddle::Tensor& Ln1Bias) {
     Ln1Bias_ = egr::TensorWrapper(Ln1Bias, false);
   }
-  void SetTensorWrapper_Ln1Out(const paddle::Tensor& Ln1Out) {
+  void SetTensorWrapperLn1Out(const paddle::Tensor& Ln1Out) {
     Ln1Out_ = egr::TensorWrapper(Ln1Out, false);
   }
-  void SetTensorWrapper_Ln1Mean(const paddle::Tensor& Ln1Mean) {
+  void SetTensorWrapperLn1Mean(const paddle::Tensor& Ln1Mean) {
     Ln1Mean_ = egr::TensorWrapper(Ln1Mean, false);
   }
-  void SetTensorWrapper_Ln1Variance(const paddle::Tensor& Ln1Variance) {
+  void SetTensorWrapperLn1Variance(const paddle::Tensor& Ln1Variance) {
     Ln1Variance_ = egr::TensorWrapper(Ln1Variance, false);
   }
   // SetAttrMap
@@ -393,90 +393,90 @@ class fused_attentionGradNodeCompat : public egr::GradNodeBase {
   }
 
   // SetX, SetY, ...
-  void SetTensorWrapper_AttnDropoutMaskOut(
+  void SetTensorWrapperAttnDropoutMaskOut(
       const paddle::Tensor& AttnDropoutMaskOut) {
     AttnDropoutMaskOut_ = egr::TensorWrapper(AttnDropoutMaskOut, false);
   }
-  void SetTensorWrapper_AttnDropoutOut(const paddle::Tensor& AttnDropoutOut) {
+  void SetTensorWrapperAttnDropoutOut(const paddle::Tensor& AttnDropoutOut) {
     AttnDropoutOut_ = egr::TensorWrapper(AttnDropoutOut, false);
   }
-  void SetTensorWrapper_BiasDropoutResidualOut(
+  void SetTensorWrapperBiasDropoutResidualOut(
       const paddle::Tensor& BiasDropoutResidualOut) {
     BiasDropoutResidualOut_ = egr::TensorWrapper(BiasDropoutResidualOut, false);
   }
-  void SetTensorWrapper_DropoutMaskOut(const paddle::Tensor& DropoutMaskOut) {
+  void SetTensorWrapperDropoutMaskOut(const paddle::Tensor& DropoutMaskOut) {
     DropoutMaskOut_ = egr::TensorWrapper(DropoutMaskOut, false);
   }
-  void SetTensorWrapper_FMHAOut(const paddle::Tensor& FMHAOut) {
+  void SetTensorWrapperFMHAOut(const paddle::Tensor& FMHAOut) {
     FMHAOut_ = egr::TensorWrapper(FMHAOut, false);
   }
-  void SetTensorWrapper_Ln2Bias(const paddle::Tensor& Ln2Bias) {
+  void SetTensorWrapperLn2Bias(const paddle::Tensor& Ln2Bias) {
     Ln2Bias_ = egr::TensorWrapper(Ln2Bias, false);
   }
-  void SetTensorWrapper_Ln2Mean(const paddle::Tensor& Ln2Mean) {
+  void SetTensorWrapperLn2Mean(const paddle::Tensor& Ln2Mean) {
     Ln2Mean_ = egr::TensorWrapper(Ln2Mean, false);
   }
-  void SetTensorWrapper_Ln2Scale(const paddle::Tensor& Ln2Scale) {
+  void SetTensorWrapperLn2Scale(const paddle::Tensor& Ln2Scale) {
     Ln2Scale_ = egr::TensorWrapper(Ln2Scale, false);
   }
-  void SetTensorWrapper_Ln2Variance(const paddle::Tensor& Ln2Variance) {
+  void SetTensorWrapperLn2Variance(const paddle::Tensor& Ln2Variance) {
     Ln2Variance_ = egr::TensorWrapper(Ln2Variance, false);
   }
-  void SetTensorWrapper_OutLinearBias(const paddle::Tensor& OutLinearBias) {
+  void SetTensorWrapperOutLinearBias(const paddle::Tensor& OutLinearBias) {
     OutLinearBias_ = egr::TensorWrapper(OutLinearBias, false);
   }
-  void SetTensorWrapper_OutLinearOut(const paddle::Tensor& OutLinearOut) {
+  void SetTensorWrapperOutLinearOut(const paddle::Tensor& OutLinearOut) {
     OutLinearOut_ = egr::TensorWrapper(OutLinearOut, true);
   }
-  void SetTensorWrapper_OutLinearW(const paddle::Tensor& OutLinearW) {
+  void SetTensorWrapperOutLinearW(const paddle::Tensor& OutLinearW) {
     OutLinearW_ = egr::TensorWrapper(OutLinearW, false);
   }
-  void SetTensorWrapper_QKOut(const paddle::Tensor& QKOut) {
+  void SetTensorWrapperQKOut(const paddle::Tensor& QKOut) {
     QKOut_ = egr::TensorWrapper(QKOut, true);
   }
-  void SetTensorWrapper_QKTVOut(const paddle::Tensor& QKTVOut) {
+  void SetTensorWrapperQKTVOut(const paddle::Tensor& QKTVOut) {
     QKTVOut_ = egr::TensorWrapper(QKTVOut, true);
   }
-  void SetTensorWrapper_QKVBias(const paddle::Tensor& QKVBias) {
+  void SetTensorWrapperQKVBias(const paddle::Tensor& QKVBias) {
     QKVBias_ = egr::TensorWrapper(QKVBias, false);
   }
-  void SetTensorWrapper_QKVBiasOut(const paddle::Tensor& QKVBiasOut) {
+  void SetTensorWrapperQKVBiasOut(const paddle::Tensor& QKVBiasOut) {
     QKVBiasOut_ = egr::TensorWrapper(QKVBiasOut, true);
   }
-  void SetTensorWrapper_QKVOut(const paddle::Tensor& QKVOut) {
+  void SetTensorWrapperQKVOut(const paddle::Tensor& QKVOut) {
     QKVOut_ = egr::TensorWrapper(QKVOut, true);
   }
-  void SetTensorWrapper_QKVW(const paddle::Tensor& QKVW) {
+  void SetTensorWrapperQKVW(const paddle::Tensor& QKVW) {
     QKVW_ = egr::TensorWrapper(QKVW, false);
   }
-  void SetTensorWrapper_SoftmaxOut(const paddle::Tensor& SoftmaxOut) {
+  void SetTensorWrapperSoftmaxOut(const paddle::Tensor& SoftmaxOut) {
     SoftmaxOut_ = egr::TensorWrapper(SoftmaxOut, false);
   }
-  void SetTensorWrapper_SrcMask(const paddle::Tensor& SrcMask) {
+  void SetTensorWrapperSrcMask(const paddle::Tensor& SrcMask) {
     SrcMask_ = egr::TensorWrapper(SrcMask, true);
   }
-  void SetTensorWrapper_SrcMaskOut(const paddle::Tensor& SrcMaskOut) {
+  void SetTensorWrapperSrcMaskOut(const paddle::Tensor& SrcMaskOut) {
     SrcMaskOut_ = egr::TensorWrapper(SrcMaskOut, false);
   }
-  void SetTensorWrapper_TransposeOut2(const paddle::Tensor& TransposeOut2) {
+  void SetTensorWrapperTransposeOut2(const paddle::Tensor& TransposeOut2) {
     TransposeOut2_ = egr::TensorWrapper(TransposeOut2, false);
   }
-  void SetTensorWrapper_X(const paddle::Tensor& X) {
+  void SetTensorWrapperX(const paddle::Tensor& X) {
     X_ = egr::TensorWrapper(X, false);
   }
-  void SetTensorWrapper_LnScale(const paddle::Tensor& LnScale) {
+  void SetTensorWrapperLnScale(const paddle::Tensor& LnScale) {
     LnScale_ = egr::TensorWrapper(LnScale, false);
   }
-  void SetTensorWrapper_LnBias(const paddle::Tensor& LnBias) {
+  void SetTensorWrapperLnBias(const paddle::Tensor& LnBias) {
     LnBias_ = egr::TensorWrapper(LnBias, false);
   }
-  void SetTensorWrapper_LnOut(const paddle::Tensor& LnOut) {
+  void SetTensorWrapperLnOut(const paddle::Tensor& LnOut) {
     LnOut_ = egr::TensorWrapper(LnOut, false);
   }
-  void SetTensorWrapper_LnMean(const paddle::Tensor& LnMean) {
+  void SetTensorWrapperLnMean(const paddle::Tensor& LnMean) {
     LnMean_ = egr::TensorWrapper(LnMean, false);
   }
-  void SetTensorWrapper_LnVariance(const paddle::Tensor& LnVariance) {
+  void SetTensorWrapperLnVariance(const paddle::Tensor& LnVariance) {
     LnVariance_ = egr::TensorWrapper(LnVariance, false);
   }
 
@@ -563,10 +563,10 @@ class fused_gemm_epilogueGradNodeCompat : public egr::GradNodeBase {
   }
 
   // SetX, SetY, ...
-  void SetTensorWrapper_X(const paddle::Tensor& X) {
+  void SetTensorWrapperX(const paddle::Tensor& X) {
     X_ = egr::TensorWrapper(X, false);
   }
-  void SetTensorWrapper_Y(const paddle::Tensor& Y) {
+  void SetTensorWrapperY(const paddle::Tensor& Y) {
     Y_ = egr::TensorWrapper(Y, false);
   }
 
@@ -640,32 +640,32 @@ class fused_bias_dropout_residual_layer_normGradNodeCompat
   }
 
   // SetX, SetY, ...
-  void SetTensorWrapper_Bias(const paddle::Tensor& Bias) {
+  void SetTensorWrapperBias(const paddle::Tensor& Bias) {
     Bias_ = egr::TensorWrapper(Bias, false);
   }
-  void SetTensorWrapper_BiasDropoutResidualOut(
+  void SetTensorWrapperBiasDropoutResidualOut(
       const paddle::Tensor& BiasDropoutResidualOut) {
     BiasDropoutResidualOut_ = egr::TensorWrapper(BiasDropoutResidualOut, false);
   }
-  void SetTensorWrapper_DropoutMaskOut(const paddle::Tensor& DropoutMaskOut) {
+  void SetTensorWrapperDropoutMaskOut(const paddle::Tensor& DropoutMaskOut) {
     DropoutMaskOut_ = egr::TensorWrapper(DropoutMaskOut, false);
   }
-  void SetTensorWrapper_LnBias(const paddle::Tensor& LnBias) {
+  void SetTensorWrapperLnBias(const paddle::Tensor& LnBias) {
     LnBias_ = egr::TensorWrapper(LnBias, false);
   }
-  void SetTensorWrapper_LnMean(const paddle::Tensor& LnMean) {
+  void SetTensorWrapperLnMean(const paddle::Tensor& LnMean) {
     LnMean_ = egr::TensorWrapper(LnMean, false);
   }
-  void SetTensorWrapper_LnScale(const paddle::Tensor& LnScale) {
+  void SetTensorWrapperLnScale(const paddle::Tensor& LnScale) {
     LnScale_ = egr::TensorWrapper(LnScale, false);
   }
-  void SetTensorWrapper_LnVariance(const paddle::Tensor& LnVariance) {
+  void SetTensorWrapperLnVariance(const paddle::Tensor& LnVariance) {
     LnVariance_ = egr::TensorWrapper(LnVariance, false);
   }
-  void SetTensorWrapper_Residual(const paddle::Tensor& Residual) {
+  void SetTensorWrapperResidual(const paddle::Tensor& Residual) {
     Residual_ = egr::TensorWrapper(Residual, false);
   }
-  void SetTensorWrapper_X(const paddle::Tensor& X) {
+  void SetTensorWrapperX(const paddle::Tensor& X) {
     X_ = egr::TensorWrapper(X, false);
   }
 

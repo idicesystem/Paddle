@@ -23,48 +23,42 @@ paddle.enable_static()
 
 def get_ir_divide_program():
     paddle.enable_static()
-    with paddle.pir_utils.OldIrGuard():
-        main_program, start_program = (
-            paddle.static.Program(),
-            paddle.static.Program(),
+    main_program, start_program = (
+        paddle.static.Program(),
+        paddle.static.Program(),
+    )
+    with paddle.static.program_guard(main_program, start_program):
+        x = paddle.tensor.fill_constant(
+            shape=[1, 4], dtype='float32', value=2.0
         )
-        with paddle.static.program_guard(main_program, start_program):
-            x = paddle.tensor.fill_constant(
-                shape=[1, 4], dtype='float32', value=2.0
-            )
-            x.stop_gradient = False
-            y = paddle.tensor.fill_constant(
-                shape=[4], dtype='float32', value=1.0
-            )
-            y.stop_gradient = False
-            dout = paddle.tensor.fill_constant(
-                shape=[1, 4], dtype='float32', value=1.0
-            )
-            dout.stop_gradient = False
-            out = paddle.divide(x, y)
-        pir_program = pir.translate_to_pir(main_program.desc)
-        return pir_program
+        x.stop_gradient = False
+        y = paddle.tensor.fill_constant(shape=[4], dtype='float32', value=1.0)
+        y.stop_gradient = False
+        dout = paddle.tensor.fill_constant(
+            shape=[1, 4], dtype='float32', value=1.0
+        )
+        dout.stop_gradient = False
+        out = paddle.divide(x, y)
+    pir_program = pir.translate_to_pir(main_program.desc)
+    return pir_program
 
 
 def get_ir_sum_program():
     paddle.enable_static()
-    with paddle.pir_utils.OldIrGuard():
-        main_program, start_program = (
-            paddle.static.Program(),
-            paddle.static.Program(),
+    main_program, start_program = (
+        paddle.static.Program(),
+        paddle.static.Program(),
+    )
+    with paddle.static.program_guard(main_program, start_program):
+        x = paddle.tensor.fill_constant(
+            shape=[4, 5], dtype='float32', value=2.0
         )
-        with paddle.static.program_guard(main_program, start_program):
-            x = paddle.tensor.fill_constant(
-                shape=[4, 5], dtype='float32', value=2.0
-            )
-            x.stop_gradient = False
-            dout = paddle.tensor.fill_constant(
-                shape=[], dtype='float32', value=1.0
-            )
-            dout.stop_gradient = False
-            out = paddle.sum(x)
-        pir_program = pir.translate_to_pir(main_program.desc)
-        return pir_program
+        x.stop_gradient = False
+        dout = paddle.tensor.fill_constant(shape=[], dtype='float32', value=1.0)
+        dout.stop_gradient = False
+        out = paddle.sum(x)
+    pir_program = pir.translate_to_pir(main_program.desc)
+    return pir_program
 
 
 class TestVjpPrim(unittest.TestCase):
@@ -85,17 +79,18 @@ class TestVjpPrim(unittest.TestCase):
                     stop_gradients,
                 )
             reshape_op2 = pir_program.global_block().ops[-1]
-            reshape_op1 = pir_program.global_block().ops[-4]
+            reshape_op1 = pir_program.global_block().ops[-8]
             self.assertEqual(len(grad_outs), 2)
-            self.assertEqual(len(pir_program.global_block().ops), 16)
-            self.assertTrue(reshape_op2.result(0).is_same(grad_outs[0][0]))
-            self.assertTrue(reshape_op1.result(0).is_same(grad_outs[1][0]))
+            self.assertEqual(len(pir_program.global_block().ops), 21)
+            self.assertEqual(reshape_op2.result(0), grad_outs[0][0])
+            self.assertEqual(reshape_op1.result(0), grad_outs[1][0])
             all_op_names = [
                 "pd_op.full",
                 "pd_op.full",
                 "pd_op.full",
                 "pd_op.divide",
-                "pd_op.multiply",
+                "pd_op.full",
+                "pd_op.elementwise_pow",
                 "pd_op.divide",
                 "pd_op.full",
                 "pd_op.scale",
@@ -107,6 +102,10 @@ class TestVjpPrim(unittest.TestCase):
                 "pd_op.full",
                 "pd_op.divide",
                 "pd_op.multiply",
+                "pd_op.full_int_array",
+                "pd_op.sum",
+                "pd_op.full_int_array",
+                "pd_op.reshape",
             ]
             for idx, op in enumerate(pir_program.global_block().ops):
                 self.assertEqual(op.name(), all_op_names[idx])
@@ -155,7 +154,7 @@ class TestVjpPrim(unittest.TestCase):
             expand_op = pir_program.global_block().ops[-1]
             self.assertEqual(len(grad_outs), 1)
             self.assertEqual(len(pir_program.global_block().ops), 8)
-            self.assertTrue(expand_op.result(0).is_same(grad_outs[0][0]))
+            self.assertEqual(expand_op.result(0), grad_outs[0][0])
             all_op_names = [
                 "pd_op.full",
                 "pd_op.full",

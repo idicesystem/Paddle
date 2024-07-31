@@ -29,7 +29,13 @@ def train(prefix):
     worker_endpoints = worker_endpoints_env
     trainers_num = len(worker_endpoints.split(','))
 
-    name = f"selected_devices:{selected_devices} worker_endpoints:{worker_endpoints} trainers_num:{trainers_num} current_endpoint:{current_endpoint} trainer_id:{trainer_id}"
+    name = "selected_devices:{} worker_endpoints:{} trainers_num:{} current_endpoint:{} trainer_id:{}".format(
+        selected_devices,
+        worker_endpoints,
+        trainers_num,
+        current_endpoint,
+        trainer_id,
+    )
 
     print(name)
     with open(f"{prefix}.check_{trainer_id}.log", "w") as f:

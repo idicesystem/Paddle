@@ -15,7 +15,7 @@ endif()
 cc_library(
   task_loop_thread_pool
   SRCS task_loop_thread_pool.cc task_loop_thread.cc task_loop.cc
-  DEPS phi glog common)
+  DEPS enforce glog common)
 cc_library(
   fleet_executor
   SRCS fleet_executor.cc
@@ -35,6 +35,7 @@ cc_library(
        dist_model_tensor_wrapper.cc
   DEPS naive_executor
        proto_desc
+       standalone_executor
        fleet_executor_desc_proto
        interceptor_message_proto
        task_loop_thread_pool

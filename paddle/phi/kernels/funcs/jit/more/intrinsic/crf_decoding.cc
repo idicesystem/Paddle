@@ -19,7 +19,10 @@
 #include "paddle/phi/backends/cpu/cpu_info.h"
 #include "paddle/phi/kernels/funcs/jit/registry.h"
 
-namespace phi::jit::more::intrinsic {
+namespace phi {
+namespace jit {
+namespace more {
+namespace intrinsic {
 // Note: intrinsic code is not runtime build.
 // For example, if you build code on AVX, and run on AVX512 it can only use AVX
 
@@ -85,7 +88,7 @@ void CRFDecoding(const int seq_len,
       /* Calculate the offset of transition_weights.*/
       int trans_offset = state_trans_base_idx * tag_num + j_offset;
       for (int i = 0; i < tag_num; ++i) {
-/* Initialize the content of alpha variable with related offset.*/
+/* Initalize the content of alpha variable with related offset.*/
 #ifdef __AVX512F__
         __m512 alpha_content = _mm512_set1_ps(*(alpha + seq_offset + i));
         /* Obtain the content of weights from un-aligned address.*/
@@ -171,7 +174,10 @@ bool CRFDecodingKernel::CanBeUsed(const int& d) const {
   return phi::backends::cpu::MayIUse(phi::backends::cpu::avx) && d >= block;
 }
 
-}  // namespace phi::jit::more::intrinsic
+}  // namespace intrinsic
+}  // namespace more
+}  // namespace jit
+}  // namespace phi
 
 namespace intrinsic = phi::jit::more::intrinsic;
 

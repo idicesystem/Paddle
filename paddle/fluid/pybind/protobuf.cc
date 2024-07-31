@@ -35,7 +35,8 @@ limitations under the License. */
 
 namespace py = pybind11;
 
-namespace paddle::pybind {
+namespace paddle {
+namespace pybind {
 
 PyTypeObject *g_vartype_pytype = nullptr;
 PyTypeObject *g_blockdesc_pytype = nullptr;
@@ -50,7 +51,7 @@ static pybind11::bytes SerializeMessage(
   std::string retv;
   PADDLE_ENFORCE_EQ(self.Proto()->SerializePartialToString(&retv),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Failed to serialize input Desc to string."));
   return retv;
 }
@@ -77,7 +78,7 @@ pybind11::bytes SerializeProgramDesc(
 
   PADDLE_ENFORCE_EQ(copy.Proto()->SerializePartialToString(&retv),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Failed to serialize input Desc to string."));
   return retv;
 }
@@ -87,7 +88,7 @@ static void DeserializeMessage(T *self, const std::string &str) {
   PADDLE_ENFORCE_EQ(
       self->Proto()->ParsePartialFromString(str),
       true,
-      common::errors::InvalidArgument("Failed to parse pb from string"));
+      platform::errors::InvalidArgument("Failed to parse pb from string"));
   return;
 }
 
@@ -96,13 +97,15 @@ void BindProgramDesc(pybind11::module *m) {
   pybind11::class_<pd::ProgramDesc, std::shared_ptr<pd::ProgramDesc>>(
       *m, "ProgramDesc", "")
       .def(pybind11::init<>())
-      .def(py::init([](const pd::ProgramDesc &other) {
-        return std::make_unique<pd::ProgramDesc>(other);
-      }))
-      .def(py::init([](const pybind11::bytes &binary_str) {
-        std::string str(binary_str);
-        return std::make_unique<pd::ProgramDesc>(str);
-      }))
+      .def("__init__",
+           [](pd::ProgramDesc &self, const pd::ProgramDesc &other) {
+             new (&self) pd::ProgramDesc(other);
+           })
+      .def("__init__",
+           [](pd::ProgramDesc &self, const pybind11::bytes &binary_str) {
+             std::string str(binary_str);
+             new (&self) pd::ProgramDesc(str);
+           })
       .def("append_block",
            &pd::ProgramDesc::AppendBlock,
            pybind11::return_value_policy::reference)
@@ -123,7 +126,7 @@ void BindProgramDesc(pybind11::module *m) {
              PADDLE_ENFORCE_EQ(
                  desc->ParseFromString(data),
                  true,
-                 common::errors::InvalidArgument(
+                 platform::errors::InvalidArgument(
                      "Failed to parse ProgramDesc from binary string."));
            })
       .def(
@@ -220,7 +223,7 @@ void BindBlockDesc(pybind11::module *m) {
       .def("_move_from", &pd::BlockDesc::MoveFrom);
 }
 
-void BindVarDesc(pybind11::module *m) {
+void BindVarDsec(pybind11::module *m) {
   pybind11::class_<pd::VarDesc> var_desc(*m, "VarDesc", "");
   var_desc.def(pybind11::init<const std::string &>())
       .def("name", &pd::VarDesc::Name, pybind11::return_value_policy::reference)
@@ -293,8 +296,6 @@ void BindVarDesc(pybind11::module *m) {
       .value("BF16", pd::proto::VarType::BF16)
       .value("COMPLEX64", pd::proto::VarType::COMPLEX64)
       .value("COMPLEX128", pd::proto::VarType::COMPLEX128)
-      .value("FP8_E4M3FN", pd::proto::VarType::FP8_E4M3FN)
-      .value("FP8_E5M2", pd::proto::VarType::FP8_E5M2)
       .value("LOD_TENSOR", pd::proto::VarType::LOD_TENSOR)
       .value("SELECTED_ROWS", pd::proto::VarType::SELECTED_ROWS)
       .value("FEED_MINIBATCH", pd::proto::VarType::FEED_MINIBATCH)
@@ -334,8 +335,10 @@ void BindOpDesc(pybind11::module *m) {
 
   pybind11::class_<pd::OpDesc> op_desc(*m, "OpDesc", "");
   op_desc
-      .def(py::init([]() { return std::make_unique<pd::OpDesc>(); }),
-           pybind11::return_value_policy::reference)
+      .def(
+          "__init__",
+          [](pd::OpDesc &self) { new (&self) pd::OpDesc(); },
+          pybind11::return_value_policy::reference)
       .def("copy_from", &pd::OpDesc::CopyFrom)
       .def("type", &pd::OpDesc::Type)
       .def("set_type", &pd::OpDesc::SetType)
@@ -499,8 +502,10 @@ void BindOpDesc(pybind11::module *m) {
 void BindJitProperty(pybind11::module *m) {
   pybind11::class_<jit::Property> property(*m, "Property");
   property
-      .def(py::init([]() { return std::make_unique<jit::Property>(); }),
-           pybind11::return_value_policy::reference)
+      .def(
+          "__init__",
+          [](jit::Property &self) { new (&self) jit::Property(); },
+          pybind11::return_value_policy::reference)
       .def("size", &jit::Property::Size)
       .def("set_float",
            py::overload_cast<const std::string &, const float &>(
@@ -548,4 +553,5 @@ void BindJitProperty(pybind11::module *m) {
       .def("parse_from_string", DeserializeMessage<jit::Property>);
 }
 
-}  // namespace paddle::pybind
+}  // namespace pybind
+}  // namespace paddle

@@ -27,7 +27,10 @@
 #include "gtest/gtest.h"
 #include "paddle/fluid/distributed/ps/table/common_graph_table.h"
 #include "paddle/fluid/distributed/the_one_ps.pb.h"
-
+namespace framework = paddle::framework;
+namespace platform = paddle::platform;
+namespace operators = paddle::operators;
+namespace memory = paddle::memory;
 namespace distributed = paddle::distributed;
 
 std::vector<std::string> edges = {std::string("37\t45\t0.34"),
@@ -43,7 +46,7 @@ std::vector<std::string> edges = {std::string("37\t45\t0.34"),
                                   std::string("97\t247\t0.31"),
                                   std::string("97\t111\t0.21")};
 // odd id:96 48 122 112
-char edge_file_name[] = "edges.txt";  // NOLINT
+char edge_file_name[] = "edges.txt";
 
 std::vector<std::string> nodes = {
     std::string("user\t37\ta 0.34\tb 13 14\tc hello\td abc"),
@@ -62,9 +65,9 @@ std::vector<std::string> nodes = {
     std::string("item\t49\ta 0.21"),
     std::string("item\t248\ta 0.21"),
     std::string("item\t113\ta 0.21")};
-char node_file_name[] = "nodes.txt";  // NOLINT
+char node_file_name[] = "nodes.txt";
 
-void prepare_file(char file_name[], std::vector<std::string> data) {  // NOLINT
+void prepare_file(char file_name[], std::vector<std::string> data) {
   std::ofstream ofile;
   ofile.open(file_name);
   for (auto x : data) {

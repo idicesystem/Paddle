@@ -27,17 +27,17 @@
 #include "paddle/fluid/framework/data_type.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #ifdef PADDLE_WITH_NCCL
-#include "paddle/phi/backends/dynload/nccl.h"
+#include "paddle/fluid/platform/dynload/nccl.h"
 #endif
 #ifdef PADDLE_WITH_RCCL
-#include "paddle/phi/backends/dynload/rccl.h"
+#include "paddle/fluid/platform/dynload/rccl.h"
 #endif
 #include "paddle/fluid/framework/scope.h"
 #include "paddle/fluid/memory/allocation/allocator_facade.h"
+#include "paddle/fluid/platform/bfloat16.h"
 #include "paddle/fluid/platform/device/gpu/gpu_dnn.h"
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/common/bfloat16.h"
-#include "paddle/phi/common/float16.h"
+#include "paddle/fluid/platform/float16.h"
 
 #define NCCL_ID_VARNAME "NCCLID"
 
@@ -61,13 +61,12 @@ inline ncclDataType_t ToNCCLDataType(framework::proto::VarType::Type type) {
     return ncclUint8;
   } else if (type == framework::proto::VarType::BOOL) {
     return ncclUint8;
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+#if NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000
   } else if (type == framework::proto::VarType::BF16) {
     return ncclBfloat16;
 #endif
   } else {
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(platform::errors::Unimplemented(
         "This datatype in nccl is not supported."));
   }
 }
@@ -89,13 +88,12 @@ inline ncclDataType_t ToNCCLDataType(phi::DataType type) {
     return ncclInt8;
   } else if (type == phi::DataType::BOOL) {
     return ncclUint8;
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+#if NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000
   } else if (type == phi::DataType::BFLOAT16) {
     return ncclBfloat16;
 #endif
   } else {
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(platform::errors::Unimplemented(
         "This datatype in nccl is not supported."));
   }
 }
@@ -114,11 +112,11 @@ class NCCLGroupGuard {
 
   inline NCCLGroupGuard() {
     NCCLMutex().lock();
-    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclGroupStart());
+    PADDLE_ENFORCE_GPU_SUCCESS(dynload::ncclGroupStart());
   }
 
   inline ~NCCLGroupGuard() PADDLE_MAY_THROW {
-    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclGroupEnd());
+    PADDLE_ENFORCE_GPU_SUCCESS(dynload::ncclGroupEnd());
     NCCLMutex().unlock();
   }
 };
@@ -128,25 +126,25 @@ struct NCCLContext {
   ncclComm_t comm_;
 
   explicit NCCLContext(int dev_id) : comm_{nullptr} {
-    ctx_.reset(new phi::GPUContext(phi::GPUPlace(dev_id)));
+    ctx_.reset(new phi::GPUContext(CUDAPlace(dev_id)));
     ctx_->SetAllocator(paddle::memory::allocation::AllocatorFacade::Instance()
-                           .GetAllocator(phi::GPUPlace(dev_id), ctx_->stream())
+                           .GetAllocator(CUDAPlace(dev_id), ctx_->stream())
                            .get());
     ctx_->SetHostAllocator(
         paddle::memory::allocation::AllocatorFacade::Instance()
-            .GetAllocator(phi::CPUPlace())
+            .GetAllocator(paddle::platform::CPUPlace())
             .get());
     ctx_->SetZeroAllocator(
         paddle::memory::allocation::AllocatorFacade::Instance()
-            .GetZeroAllocator(phi::GPUPlace(dev_id))
+            .GetZeroAllocator(CUDAPlace(dev_id))
             .get());
     ctx_->SetHostZeroAllocator(
         paddle::memory::allocation::AllocatorFacade::Instance()
-            .GetZeroAllocator(phi::CPUPlace())
+            .GetZeroAllocator(paddle::platform::CPUPlace())
             .get());
     ctx_->SetPinnedAllocator(
         paddle::memory::allocation::AllocatorFacade::Instance()
-            .GetAllocator(phi::GPUPinnedPlace())
+            .GetAllocator(paddle::platform::CUDAPinnedPlace())
             .get());
     ctx_->PartialInitWithAllocator();
   }
@@ -157,19 +155,18 @@ struct NCCLContext {
   int device_id() const { return ctx_->GetPlace().device; }
 };
 
-class NCCLContextMap {
- public:
+struct NCCLContextMap {
   std::unordered_map<int, NCCLContext> contexts_;
   std::vector<int> order_;
 
-  explicit NCCLContextMap(const std::vector<phi::Place> &places,
+  explicit NCCLContextMap(const std::vector<platform::Place> &places,
                           ncclUniqueId *nccl_id = nullptr,
                           size_t num_trainers = 1,
                           size_t trainer_id = 0) {
-    PADDLE_ENFORCE_EQ(
-        !places.empty(),
-        true,
-        common::errors::InvalidArgument("The NCCL place should not be empty."));
+    PADDLE_ENFORCE_EQ(!places.empty(),
+                      true,
+                      platform::errors::InvalidArgument(
+                          "The NCCL place should not be empty."));
     order_.reserve(places.size());
     for (auto &p : places) {
       int dev_id = p.device;
@@ -179,19 +176,19 @@ class NCCLContextMap {
     PADDLE_ENFORCE_EQ(
         order_.size(),
         contexts_.size(),
-        common::errors::Unavailable("NCCL Context Map does not support "
-                                    "contain two or more same device."));
+        platform::errors::Unavailable("NCCL Context Map does not support "
+                                      "contain two or more same device."));
 
     std::unique_ptr<ncclComm_t[]> comms(new ncclComm_t[order_.size()]);
     // if num_trainers == 1, should create a new nccl id for local comms.
     if (num_trainers == 1 && nccl_id == nullptr) {
       std::lock_guard<std::mutex> guard(NCCLGroupGuard::NCCLMutex());
-      PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::ncclCommInitAll(
+      PADDLE_RETRY_CUDA_SUCCESS(platform::dynload::ncclCommInitAll(
           comms.get(), static_cast<int>(order_.size()), order_.data()));
     } else {
       PADDLE_ENFORCE_NOT_NULL(
           nccl_id,
-          common::errors::InvalidArgument("The NCCL id should not be null."));
+          platform::errors::InvalidArgument("The NCCL id should not be null."));
       {
         int nranks = num_trainers * order_.size();
         NCCLGroupGuard gurad;
@@ -206,7 +203,7 @@ class NCCLContextMap {
           VLOG(1) << "init nccl rank:" << rank << ", nranks:" << nranks
                   << ", gpu_id:" << gpu_id << ", dev_id:" << order_[i];
           SetDeviceId(gpu_id);
-          PADDLE_RETRY_CUDA_SUCCESS(phi::dynload::ncclCommInitRank(
+          PADDLE_RETRY_CUDA_SUCCESS(platform::dynload::ncclCommInitRank(
               comms.get() + i, nranks, *nccl_id, rank));
         }
       }
@@ -222,9 +219,9 @@ class NCCLContextMap {
 
   phi::GPUContext *DevCtx(int dev_id) const { return at(dev_id).ctx_.get(); }
 
-  phi::GPUContext *DevCtx(phi::Place p) const { return DevCtx(p.device); }
+  phi::GPUContext *DevCtx(platform::Place p) const { return DevCtx(p.device); }
 
-  const NCCLContext &at(phi::Place p) const { return this->at(p.device); }
+  const NCCLContext &at(platform::Place p) const { return this->at(p.device); }
 
   const NCCLContext &at(int dev_id) const { return contexts_.at(dev_id); }
 
@@ -287,8 +284,8 @@ class NCCLCommunicator {
    *create a new nccl comm for sync_batch_norm_op. And these codes should be
    *polished with a unified nccl management.
    */
-  NCCLContextMap *GetSyncBatchNormCtx(framework::Scope *scope,
-                                      const std::vector<phi::Place> &places) {
+  NCCLContextMap *GetSyncBatchNormCtx(
+      framework::Scope *scope, const std::vector<platform::Place> &places) {
     auto *nccl_id_var = scope->FindVar(NCCL_ID_VARNAME);
     if (nccl_id_var != nullptr) {
       return DefaultFlatCtx();
@@ -300,7 +297,7 @@ class NCCLCommunicator {
     return sync_batch_norm_ctx_.get();
   }
 
-  void InitFlatCtxs(const std::vector<phi::Place> &places,
+  void InitFlatCtxs(const std::vector<platform::Place> &places,
                     const std::vector<ncclUniqueId *> &nccl_ids,
                     size_t trainers_num,
                     size_t trainer_id) {
@@ -332,7 +329,7 @@ class NCCLCommunicator {
     }
   }
 
-  void InitHierarchicalCtxs(const std::vector<phi::Place> &places,
+  void InitHierarchicalCtxs(const std::vector<platform::Place> &places,
                             const std::vector<ncclUniqueId *> &inter_nccl_ids,
                             const std::vector<ncclUniqueId *> &exter_nccl_ids,
                             size_t trainers_num,
@@ -341,7 +338,7 @@ class NCCLCommunicator {
                             size_t exter_trainers_num) {
     PADDLE_ENFORCE_EQ(trainers_num,
                       inter_trainers_num * exter_trainers_num,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "trainers_num:%llu != inter_trainers_num:%llu * "
                           "exter_trainers_num:%llu",
                           trainers_num,
@@ -351,7 +348,7 @@ class NCCLCommunicator {
     PADDLE_ENFORCE_GT(
         inter_trainers_num,
         1,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The inter_trainers_num:%llu should be larger than 1.",
             inter_trainers_num));
 
@@ -386,7 +383,7 @@ class NCCLCommunicator {
   NCCLContextMap *GetHierarchicalInterCtx(size_t run_order) const {
     PADDLE_ENFORCE_GT(h_inter_ctxs_.size(),
                       0,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Hierarchical ctxs should be initialized firstly!"));
     return h_inter_ctxs_[run_order % h_inter_ctxs_.size()].get();
   }
@@ -394,7 +391,7 @@ class NCCLCommunicator {
   NCCLContextMap *GetHierarchicalExterCtx(size_t run_order) const {
     PADDLE_ENFORCE_GT(h_exter_ctxs_.size(),
                       0,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Hierarchical ctxs should be initialized firstly!"));
     return h_exter_ctxs_[run_order % h_exter_ctxs_.size()].get();
   }

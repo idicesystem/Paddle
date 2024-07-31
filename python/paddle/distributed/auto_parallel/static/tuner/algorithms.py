@@ -58,7 +58,7 @@ class AlgorithmBase(ABC):
         Collect the model static info (from programs) that could be used to
         pruning candidate trials and saving tuning time. For instance,
         model info like number of model parameters and activation memory could be
-        used to prune candidate trial and decide the next trial.
+        used to prune candidated trial and decide the next trial.
         """
         pass
 
@@ -121,7 +121,9 @@ class ShardingStageAlgorithm(AlgorithmBase):
         if stage_range:
             assert set(stage_range).issubset(
                 {0, 1, 2, 3}
-            ), f"Sharding Stage should belong into range within 0 - 3 but got {stage_range}."
+            ), "Sharding Stage should belong into range within 0 - 3 but got {}.".format(
+                stage_range
+            )
             stage_range.sort(reverse=True)
         else:
             stage_range = list(range(self._max_stage + 1)).sort(reverse=True)
@@ -156,7 +158,7 @@ class ShardingStageAlgorithm(AlgorithmBase):
 
 
 @register_algor("recompute")
-class RecomputeCheckpointAlgorithm(AlgorithmBase):
+class ReccomputeCheckpointAlgorithm(AlgorithmBase):
     def __init__(self, config):
         super().__init__(config)
         self._changed_configs = ["recompute"]

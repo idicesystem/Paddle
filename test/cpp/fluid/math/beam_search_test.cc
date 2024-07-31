@@ -12,20 +12,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/phi/kernels/funcs/math/beam_search.h"
+#include "paddle/fluid/operators/math/beam_search.h"
 
 #include <gtest/gtest.h>
 
-#include "paddle/fluid/framework/operator.h"
 #include "paddle/fluid/platform/device_context.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 void PrepareCPUTensors(phi::DenseTensor* ids,
                        phi::DenseTensor* scores,
                        phi::DenseTensor* pre_ids,
                        phi::DenseTensor* pre_scores) {
   // lod
-  phi::LoD lod;
+  paddle::framework::LoD lod;
   std::vector<size_t> level0({0, 2, 4});
   std::vector<size_t> level1({0, 1, 2, 3, 4});
   lod.push_back(level0);
@@ -37,23 +36,15 @@ void PrepareCPUTensors(phi::DenseTensor* ids,
   ids->Resize(dims);
   scores->Resize(dims);
 
-  phi::CPUPlace place;
+  paddle::platform::CPUPlace place;
   auto* ids_data = ids->mutable_data<int64_t>(place);
   auto* scores_data = scores->mutable_data<float>(place);
   std::vector<int64_t> ids_vec_data({4, 2, 5, 2, 1, 3, 3, 5, 2, 8, 2, 1});
   std::vector<float> scores_vec_data(
       {0.6f, 0.3f, 0.5f, 0.2f, 0.3f, 0.1f, 0.9f, 0.5f, 0.1f, 0.7f, 0.5f, 0.1f});
 
-  PADDLE_ENFORCE_EQ(
-      static_cast<size_t>(ids->numel()),
-      ids_vec_data.size(),
-      phi::errors::InvalidArgument(
-          "Required ids->numel() should be equal to ids_vec_data.size(). "));
-  PADDLE_ENFORCE_EQ(
-      static_cast<size_t>(ids->numel()),
-      scores_vec_data.size(),
-      phi::errors::InvalidArgument(
-          "Required ids->numel() should be equal to scores_vec_data.size(). "));
+  CHECK_EQ(static_cast<size_t>(ids->numel()), ids_vec_data.size());
+  CHECK_EQ(static_cast<size_t>(ids->numel()), scores_vec_data.size());
 
   for (int i = 0; i < ids->numel(); i++) {
     ids_data[i] = ids_vec_data[i];
@@ -82,10 +73,7 @@ void TestBeamSearch() {
 
   auto* place = new Place();
   DeviceContext* context = new DeviceContext(*place);
-  context->SetAllocator(paddle::memory::allocation::AllocatorFacade::Instance()
-                            .GetAllocator(phi::CPUPlace())
-                            .get());
-  if (phi::is_cpu_place(*place)) {
+  if (paddle::platform::is_cpu_place(*place)) {
     PrepareCPUTensors(&ids, &scores, &pre_ids, &pre_scores);
   } else {
     phi::DenseTensor cpu_ids;
@@ -113,7 +101,7 @@ void TestBeamSearch() {
   size_t level = 0;
   size_t beam_size = 2;
   int end_id = 0;
-  phi::math::BeamSearchFunctor<DeviceContext, float> beamsearch;
+  paddle::operators::math::BeamSearchFunctor<DeviceContext, float> beamsearch;
   beamsearch(*context,
              &pre_ids,
              &pre_scores,
@@ -131,14 +119,14 @@ void TestBeamSearch() {
 
   phi::DenseTensor cpu_selected_ids;
   phi::DenseTensor cpu_selected_scores;
-  if (phi::is_cpu_place(*place)) {
+  if (paddle::platform::is_cpu_place(*place)) {
     cpu_selected_ids = selected_ids;
     cpu_selected_scores = selected_scores;
   } else {
     paddle::framework::TensorCopySync(
-        selected_ids, phi::CPUPlace(), &cpu_selected_ids);
+        selected_ids, paddle::platform::CPUPlace(), &cpu_selected_ids);
     paddle::framework::TensorCopySync(
-        selected_scores, phi::CPUPlace(), &cpu_selected_scores);
+        selected_scores, paddle::platform::CPUPlace(), &cpu_selected_scores);
     cpu_selected_ids.set_lod(selected_ids.lod());
     cpu_selected_scores.set_lod(selected_scores.lod());
   }
@@ -156,19 +144,19 @@ void TestBeamSearch() {
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 template <>
-void TestBeamSearch<phi::GPUContext, phi::GPUPlace>() {
+void TestBeamSearch<phi::GPUContext, paddle::platform::CUDAPlace>() {
   phi::DenseTensor ids;
   phi::DenseTensor scores;
   phi::DenseTensor pre_ids;
   phi::DenseTensor pre_scores;
 
-  auto* place = new phi::GPUPlace();
+  auto* place = new paddle::platform::CUDAPlace();
   auto* context = new phi::GPUContext(*place);
   context->SetAllocator(paddle::memory::allocation::AllocatorFacade::Instance()
                             .GetAllocator(*place, context->stream())
                             .get());
   context->PartialInitWithAllocator();
-  if (phi::is_cpu_place(*place)) {
+  if (paddle::platform::is_cpu_place(*place)) {
     PrepareCPUTensors(&ids, &scores, &pre_ids, &pre_scores);
   } else {
     phi::DenseTensor cpu_ids;
@@ -196,7 +184,7 @@ void TestBeamSearch<phi::GPUContext, phi::GPUPlace>() {
   size_t level = 0;
   size_t beam_size = 2;
   int end_id = 0;
-  phi::math::BeamSearchFunctor<phi::GPUContext, float> beamsearch;
+  paddle::operators::math::BeamSearchFunctor<phi::GPUContext, float> beamsearch;
   beamsearch(*context,
              &pre_ids,
              &pre_scores,
@@ -214,14 +202,14 @@ void TestBeamSearch<phi::GPUContext, phi::GPUPlace>() {
 
   phi::DenseTensor cpu_selected_ids;
   phi::DenseTensor cpu_selected_scores;
-  if (phi::is_cpu_place(*place)) {
+  if (paddle::platform::is_cpu_place(*place)) {
     cpu_selected_ids = selected_ids;
     cpu_selected_scores = selected_scores;
   } else {
     paddle::framework::TensorCopySync(
-        selected_ids, phi::CPUPlace(), &cpu_selected_ids);
+        selected_ids, paddle::platform::CPUPlace(), &cpu_selected_ids);
     paddle::framework::TensorCopySync(
-        selected_scores, phi::CPUPlace(), &cpu_selected_scores);
+        selected_scores, paddle::platform::CPUPlace(), &cpu_selected_scores);
     cpu_selected_ids.set_lod(selected_ids.lod());
     cpu_selected_scores.set_lod(selected_scores.lod());
   }
@@ -238,8 +226,12 @@ void TestBeamSearch<phi::GPUContext, phi::GPUPlace>() {
 }
 #endif
 
-TEST(BeamSearch, CPU) { TestBeamSearch<phi::CPUContext, phi::CPUPlace>(); }
+TEST(BeamSearch, CPU) {
+  TestBeamSearch<phi::CPUContext, paddle::platform::CPUPlace>();
+}
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-TEST(BeamSearch, GPU) { TestBeamSearch<phi::GPUContext, phi::GPUPlace>(); }
+TEST(BeamSearch, GPU) {
+  TestBeamSearch<phi::GPUContext, paddle::platform::CUDAPlace>();
+}
 #endif

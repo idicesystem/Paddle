@@ -16,11 +16,11 @@ limitations under the License. */
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 
 namespace paddle {
@@ -35,7 +35,8 @@ class BarrierOpCUDAKernel : public framework::OpKernel<T> {
     auto out = ctx.Output<phi::DenseTensor>("Out");
 
     auto place = ctx.GetPlace();
-    ncclDataType_t dtype = phi::ToNCCLDataType(in->dtype());
+    ncclDataType_t dtype =
+        platform::ToNCCLDataType(framework::TransToProtoVarType(in->dtype()));
     int64_t numel = in->numel();
     const void* sendbuff = in->data();
     void* recvbuff = out->mutable_data<T>(place);
@@ -46,7 +47,7 @@ class BarrierOpCUDAKernel : public framework::OpKernel<T> {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(rid)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -57,32 +58,32 @@ class BarrierOpCUDAKernel : public framework::OpKernel<T> {
           comm_context_manager.Get(std::to_string(rid)));
       PADDLE_ENFORCE_NE(comm_ctx,
                         nullptr,
-                        common::errors::Unavailable(
+                        platform::errors::Unavailable(
                             "NCCLCommContext is nullptr, collective op should "
                             "has ring_id attr."));
       auto stream = comm_ctx->GetStream();
       ncclRedOp_t nccl_red_type = ncclSum;
       comm_ctx->AllReduce(out, *in, nccl_red_type, stream);
-      phi::backends::gpu::GpuStreamSync(stream);
+      platform::GpuStreamSync(stream);
       VLOG(3) << "new NCCLCommContext has rid " << rid;
     } else {
       auto comm = platform::NCCLCommContext::Instance().Get(rid, place);
       // should ExecutionContext for calc stream.
       auto stream = ctx.cuda_device_context().stream();
       ncclRedOp_t nccl_red_type = ncclSum;
-      PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclAllReduce(sendbuff,
-                                                             recvbuff,
-                                                             numel,
-                                                             dtype,
-                                                             nccl_red_type,
-                                                             comm->comm(),
-                                                             stream));
-      phi::backends::gpu::GpuStreamSync(stream);
+      PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::ncclAllReduce(sendbuff,
+                                                                  recvbuff,
+                                                                  numel,
+                                                                  dtype,
+                                                                  nccl_red_type,
+                                                                  comm->comm(),
+                                                                  stream));
+      platform::GpuStreamSync(stream);
       VLOG(3) << "old NCCLCommContext has rid " << rid;
     }
 #else
-    PADDLE_THROW(
-        common::errors::Unavailable("PaddlePaddle should compile with NCCL."));
+    PADDLE_THROW(platform::errors::Unavailable(
+        "PaddlePaddle should compile with NCCL."));
 #endif
   }
 };
@@ -91,6 +92,7 @@ class BarrierOpCUDAKernel : public framework::OpKernel<T> {
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 PD_REGISTER_STRUCT_KERNEL(
     barrier, GPU, ALL_LAYOUT, ops::BarrierOpCUDAKernel, int) {}

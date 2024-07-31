@@ -39,5 +39,4 @@ no_check_set_white_list = [
     'rmsprop',
     'rrelu',
     'layer_norm',
-    'max_pool2d_v2',
 ]

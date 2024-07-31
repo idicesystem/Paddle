@@ -20,10 +20,13 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/core/distributed/store/tcp_utils.h"
+#include "paddle/phi/core/flags.h"
 
-namespace phi::distributed::detail {
+namespace phi {
+namespace distributed {
+
+namespace detail {
 
 constexpr int INFTIME = 10000;  // 10 seconds
 
@@ -238,12 +241,8 @@ void MasterDaemon::ProcessCommands(std::vector<struct pollfd>* p_fds) {
 #else
       _sockets.erase(_sockets.begin() + i - 2);
 #endif
-      std::string s(ex.what());
-      if (s.find("TCP connection reset by peer") != std::string::npos) {
-        VLOG(5) << "TCP connection reset by peer";
-      } else {
-        VLOG(5) << "Meet some exceptions during run:" << ex.what();
-      }
+
+      VLOG(5) << "Meet some exceptions during run:" << ex.what();
     }
   }
 }
@@ -355,8 +354,7 @@ std::vector<T> TCPClient::receive_vector() {
   return tcputils::receive_vector<T>(_socket);
 }
 
-}  // namespace phi::distributed::detail
-namespace phi::distributed {
+}  // namespace detail
 
 TCPStore::TCPStore(std::string host,
                    uint16_t port,
@@ -401,11 +399,11 @@ void TCPStore::waitWorkers() {
 
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       if (_timeout != 0 && elapsed.count() > _timeout) {
-        PADDLE_THROW(phi::errors::Fatal(paddle::string::Sprintf(
+        LOG(FATAL) << paddle::string::Sprintf(
             "_timeout:%d elapsed:%d (elapsed > _timeout)=%d",
             _timeout,
             elapsed.count(),
-            elapsed.count() > _timeout)));
+            elapsed.count() > _timeout);
 
         PADDLE_ENFORCE_EQ(
             completed,
@@ -462,4 +460,5 @@ void TCPStore::wait(const std::string& key) {
 
 TCPStore::~TCPStore() { VLOG(7) << "TCPStore destructure"; }
 
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

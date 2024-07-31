@@ -47,9 +47,7 @@ class TestTransposeOp(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output_with_place(
-            core.CPUPlace(), no_check_set=['XShape'], check_pir_onednn=True
-        )
+        self.check_output_with_place(core.CPUPlace(), no_check_set=['XShape'])
 
     def init_test_case(self):
         self.shape = (2, 3, 4, 5)

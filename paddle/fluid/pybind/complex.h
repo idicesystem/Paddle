@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-    This file is adapted from
+    This file is adpated from
    https://github.com/pybind/pybind11/blob/master/include/pybind11/complex.h.
     The original license is kept as-is:
 

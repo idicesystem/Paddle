@@ -18,7 +18,8 @@
 #include "paddle/fluid/framework/var_type_inference.h"
 #include "paddle/phi/common/data_type.h"
 
-namespace paddle::inference {
+namespace paddle {
+namespace inference {
 
 using paddle::framework::proto::VarType;
 
@@ -46,7 +47,7 @@ phi::DataType GetModelPrecision(const framework::ProgramDesc& program) {
 
       if (t == VarType::FP16) {
         if (ret != phi::DataType::FLOAT32 && ret != phi::DataType::FLOAT16) {
-          PADDLE_THROW(common::errors::PreconditionNotMet(
+          PADDLE_THROW(platform::errors::PreconditionNotMet(
               "The model's weights already has been set %s type, but also has "
               "%s type, which is an error, please check the model.",
               ret,
@@ -55,7 +56,7 @@ phi::DataType GetModelPrecision(const framework::ProgramDesc& program) {
         ret = phi::DataType::FLOAT16;
       } else if (t == VarType::BF16) {
         if (ret != phi::DataType::FLOAT32 && ret != phi::DataType::BFLOAT16) {
-          PADDLE_THROW(common::errors::PreconditionNotMet(
+          PADDLE_THROW(platform::errors::PreconditionNotMet(
               "The model's weights already has been set %s type, but also has "
               "%s type, which is an error, please check the model.",
               ret,
@@ -69,4 +70,5 @@ phi::DataType GetModelPrecision(const framework::ProgramDesc& program) {
   return ret;
 }
 
-}  // namespace paddle::inference
+}  // namespace inference
+}  // namespace paddle

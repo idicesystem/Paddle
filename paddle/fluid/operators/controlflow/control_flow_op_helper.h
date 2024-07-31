@@ -56,7 +56,7 @@ static void BuildScopeForControlFlowOp(
   }
 }
 
-static void AssignZeroToOutsideTensor(const phi::Place &place,
+static void AssignZeroToOutsideTensor(const platform::Place &place,
                                       const framework::Scope &cur_scope,
                                       const phi::DenseTensor &input_tensor,
                                       phi::DenseTensor *outside_tensor) {
@@ -66,14 +66,14 @@ static void AssignZeroToOutsideTensor(const phi::Place &place,
   VLOG(4) << "Assigning zero to " << outside_tensor;
   outside_tensor->Resize(input_tensor.dims());
   outside_tensor->mutable_data(place, input_tensor.dtype());
-  const phi::DeviceContext *dev_ctx =
-      phi::DeviceContextPool::Instance().Get(place);
+  const platform::DeviceContext *dev_ctx =
+      platform::DeviceContextPool::Instance().Get(place);
   phi::funcs::set_constant(*dev_ctx, outside_tensor, 0.0f);
   outside_tensor->set_lod(input_tensor.lod());
 }
 
 static void AssignZeroToParentScope(
-    const phi::Place &place,
+    const platform::Place &place,
     const framework::Scope &scope,
     const std::vector<std::string> &inputs,
     const std::vector<std::string> &outside_grads) {
@@ -96,7 +96,7 @@ static void AssignZeroToParentScope(
       PADDLE_ENFORCE_EQ(
           outside_var->IsType<phi::DenseTensor>(),
           true,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "Type of outside_var %s is NOT phi::DenseTensor, which "
               "doesn't match input_var %s.",
               outside_grad_name,
@@ -108,7 +108,7 @@ static void AssignZeroToParentScope(
     } else if (input_var->IsType<framework::LoDTensorArray>()) {
       PADDLE_ENFORCE_EQ(outside_var->IsType<framework::LoDTensorArray>(),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "Type of outside_var %s is NOT LoDTensorArray, "
                             "which doesn't match input_var %s.",
                             outside_grad_name,
@@ -121,7 +121,7 @@ static void AssignZeroToParentScope(
       }
       PADDLE_ENFORCE_EQ(input_tensors.size(),
                         outside_tensors->size(),
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "LoDTensorArray outside_var %s doen't have same "
                             "size as input_var %s.",
                             outside_grad_name,
@@ -132,7 +132,7 @@ static void AssignZeroToParentScope(
       }
     } else {
       // TODO(huihuangzheng): add support for SelectedRows
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Conditional block grad op doesn't support non-phi::DenseTensor "
           "output "
           "now."));
@@ -141,7 +141,7 @@ static void AssignZeroToParentScope(
 }
 
 static void AssignLocalGradientToParentScope(
-    const phi::Place &place,
+    const platform::Place &place,
     const framework::Scope &cur_scope,
     const framework::Scope &parent_scope,
     const std::vector<std::string> &inside_grads,
@@ -165,7 +165,8 @@ static void AssignLocalGradientToParentScope(
       assign_zero_inputs.emplace_back(inputs[i]);
       continue;
     }
-    phi::DeviceContext *dev_ctx = phi::DeviceContextPool::Instance().Get(place);
+    platform::DeviceContext *dev_ctx =
+        platform::DeviceContextPool::Instance().Get(place);
     framework::VisitVarType(*inside_var, AssignFunctor(outside_var, *dev_ctx));
   }
   // Assign zero to the grad_vars that are in outside_grads but not in

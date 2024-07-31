@@ -16,7 +16,9 @@
 #include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/framework/ir/pass_tester_helper.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 TEST(delete_assign_op_pass, basic) {
   ProgramDesc program;
@@ -35,12 +37,14 @@ TEST(delete_assign_op_pass, basic) {
   PADDLE_ENFORCE_EQ(
       assign_num,
       0,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "graph should have 0 assign after delete_assign_op_pass, "
           "but actually has %d.",
           assign_num));
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(delete_assign_op_pass);

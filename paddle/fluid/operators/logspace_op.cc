@@ -20,7 +20,8 @@
 #include "paddle/phi/core/infermeta_utils.h"
 #include "paddle/phi/infermeta/multiary.h"
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class LogspaceOp : public framework::OperatorWithKernel {
  public:
@@ -62,7 +63,8 @@ class LogspaceOpMaker : public framework::OpProtoAndCheckerMaker {
     )DOC");
   }
 };
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 DECLARE_INFER_SHAPE_FUNCTOR(logspace,

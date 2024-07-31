@@ -3,7 +3,8 @@ if(WITH_UNITY_BUILD)
   # Load Unity Build rules for operators in paddle/fluid/operators/controlflow.
   include(unity_build_rule.cmake)
 endif()
-register_operators(EXCLUDES conditional_block_op pylayer_op DEPS naive_executor)
+register_operators(EXCLUDES conditional_block_op pylayer_op DEPS naive_executor
+                   standalone_executor)
 
 cc_library(
   conditional_block_op
@@ -25,6 +26,10 @@ cc_library(
   pylayer_op_helper
   SRCS pylayer_op_helper.cc
   DEPS op_variant operator pylayer_op)
+cc_library(
+  recurrent_op_helper
+  SRCS recurrent_op_helper.cc
+  DEPS recurrent_op op_variant operator)
 cc_library(
   while_op_helper
   SRCS while_op_helper.cc

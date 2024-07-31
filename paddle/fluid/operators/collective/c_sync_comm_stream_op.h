@@ -20,9 +20,9 @@ limitations under the License. */
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL) || \
     defined(PADDLE_WITH_XPU_BKCL)
-#include "paddle/common/flags.h"
 #include "paddle/phi/core/distributed/comm_context_manager.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
@@ -50,7 +50,7 @@ class CSyncCommStreamKernel : public framework::OpKernel<T> {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(ring_id)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -67,13 +67,13 @@ class CSyncCommStreamKernel : public framework::OpKernel<T> {
       VLOG(3) << "old NCCLCommContext has rid " << ring_id;
     }
 
-    phi::backends::gpu::GpuStreamSync(stream);
+    platform::GpuStreamSync(stream);
 
 #elif defined(PADDLE_WITH_XPU_BKCL)
     auto place = ctx.GetPlace();
-    PADDLE_ENFORCE_EQ(place.GetType() == phi::AllocationType::XPU,
+    PADDLE_ENFORCE_EQ(platform::is_xpu_place(place),
                       true,
-                      common::errors::PreconditionNotMet(
+                      platform::errors::PreconditionNotMet(
                           "Sync stream op can run on xpu place only for now."));
     int ring_id = ctx.Attr<int>("ring_id");
     XPUStream stream = nullptr;
@@ -82,7 +82,7 @@ class CSyncCommStreamKernel : public framework::OpKernel<T> {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(ring_id)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -102,7 +102,7 @@ class CSyncCommStreamKernel : public framework::OpKernel<T> {
     platform::XPUStreamSync(stream);
 
 #else
-    PADDLE_THROW(common::errors::PreconditionNotMet(
+    PADDLE_THROW(platform::errors::PreconditionNotMet(
         "PaddlePaddle should compile with GPU or XPU."));
 #endif
   }

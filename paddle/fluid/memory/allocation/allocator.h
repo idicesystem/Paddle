@@ -19,21 +19,21 @@
 #include <utility>
 #include <vector>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/framework/inlined_vector.h"
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/enforce.h"
+#include "paddle/phi/core/flags.h"
 
 #ifdef PADDLE_WITH_NCCL
 #include <nccl.h>
-#include "paddle/phi/backends/dynload/nccl.h"
+#include "paddle/fluid/platform/dynload/nccl.h"
 #endif
 
-COMMON_DECLARE_string(allocator_strategy);
-COMMON_DECLARE_bool(sync_after_alloc);
-COMMON_DECLARE_int64(alloc_fill_value);
+PHI_DECLARE_string(allocator_strategy);
+PHI_DECLARE_bool(sync_after_alloc);
+PHI_DECLARE_int64(alloc_fill_value);
 
 namespace paddle {
 namespace memory {
@@ -96,9 +96,12 @@ class Allocator;
  */
 class Allocation : public phi::Allocation {
  public:
-  Allocation(void* ptr, size_t size, phi::Place place)
+  Allocation(void* ptr, size_t size, platform::Place place)
       : phi::Allocation(ptr, size, place), base_ptr_(ptr) {}
-  Allocation(void* ptr, void* base_ptr, size_t size, const phi::Place& place)
+  Allocation(void* ptr,
+             void* base_ptr,
+             size_t size,
+             const platform::Place& place)
       : phi::Allocation(ptr, size, place), base_ptr_(base_ptr) {}
 
   void* base_ptr() const { return base_ptr_; }
@@ -144,24 +147,19 @@ static T&& FillValue(T&& allocation) {
 #if defined(PADDLE_WITH_CUDA)
   if (allocation != nullptr) {
     if (FLAGS_sync_after_alloc || FLAGS_alloc_fill_value >= 0) {
-      bool need_sync = !phi::is_cpu_place(allocation->place());
-      if (need_sync) {
-        PADDLE_ENFORCE_GPU_SUCCESS(cudaDeviceSynchronize());
-      }
+      PADDLE_ENFORCE_GPU_SUCCESS(cudaDeviceSynchronize());
       if (FLAGS_alloc_fill_value >= 0) {
         VLOG(10) << "Set " << FLAGS_alloc_fill_value << " on "
                  << allocation->ptr() << " " << allocation->place() << " "
                  << allocation->size();
-        if (phi::is_gpu_place(allocation->place())) {
+        if (platform::is_gpu_place(allocation->place())) {
           PADDLE_ENFORCE_GPU_SUCCESS(cudaMemset(
               allocation->ptr(), FLAGS_alloc_fill_value, allocation->size()));
         } else {
           std::memset(
               allocation->ptr(), FLAGS_alloc_fill_value, allocation->size());
         }
-        if (need_sync) {
-          PADDLE_ENFORCE_GPU_SUCCESS(cudaDeviceSynchronize());
-        }
+        PADDLE_ENFORCE_GPU_SUCCESS(cudaDeviceSynchronize());
       }
     }
   }
@@ -193,16 +191,18 @@ class Allocator : public phi::Allocator {
     FreeImpl(allocation);
   }
 
-  uint64_t Release(const phi::Place& place) { return ReleaseImpl(place); }
+  uint64_t Release(const platform::Place& place) { return ReleaseImpl(place); }
 
  protected:
   virtual phi::Allocation* AllocateImpl(size_t size) = 0;
   virtual void FreeImpl(phi::Allocation* allocation);
-  virtual uint64_t ReleaseImpl(const phi::Place& place UNUSED) { return 0; }
+  virtual uint64_t ReleaseImpl(const platform::Place& place UNUSED) {
+    return 0;
+  }
 };
 
 inline size_t AlignedSize(size_t size, size_t alignment) {
-  auto remaining = size % alignment;  // NOLINT
+  auto remaining = size % alignment;
   return remaining == 0 ? size : size + alignment - remaining;
 }
 

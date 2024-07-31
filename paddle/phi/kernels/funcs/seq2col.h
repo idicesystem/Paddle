@@ -45,7 +45,7 @@ struct Seq2ColFunctor {
       a. Notion
         - `i` stands for the flattened index of a bunch of frames.
         - `src_idx` and `trg_idx` are the 1D indices of seqs and frames
-          respectively.
+          respectivly.
 
       b. Sample idx
         ```cpp
@@ -58,7 +58,7 @@ struct Seq2ColFunctor {
         n = i % (n_frames_ * frame_length_) % n_frames_;
         ```
 
-      d. Replace `sample_idx`, `f` and `n` in the following equations:
+      d. Replace `sample_idx`, `f` and `n` in the following eqations:
         ```cpp
         src_idx = sample_idx * seq_length_ + n * hop_length_ + f;
         trg_idx = sample_idx * n_frames_ * frame_length_ + f * n_frames_ + n;

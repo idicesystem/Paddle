@@ -59,7 +59,7 @@ TEST(TestGroup, TestPrintGroupMessage) {
 
 template <typename T, typename Place>
 void GroupConcatSplit(Place place, size_t size) {
-  phi::CPUPlace cpu_place;
+  platform::CPUPlace cpu_place;
   Group group;
 
   // [[0.0], [0.0, 1.0], [0.0, 1.0, 2.0] .. ]
@@ -73,10 +73,10 @@ void GroupConcatSplit(Place place, size_t size) {
 
     std::vector<T> value;
     for (size_t j = 0; j < len; ++j) {
-      value.push_back(static_cast<T>(1.0 * j));  // NOLINT
+      value.push_back(static_cast<T>(1.0 * j));
     }
 
-    if (std::is_same<Place, phi::GPUPlace>::value) {
+    if (std::is_same<Place, platform::CUDAPlace>::value) {
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
       paddle::memory::Copy(
           place, data, cpu_place, value.data(), sizeof(T) * value.size(), 0);
@@ -89,11 +89,12 @@ void GroupConcatSplit(Place place, size_t size) {
     phi::DenseTensor tmp;
     tmp.ShareDataWith(*tensor).Resize({static_cast<int64_t>(len)});
     group.dense_tensors_.push_back(std::move(tmp));
-    group.all_length_ += static_cast<int64_t>(len);
+    group.all_length_ += len;
     group.dtype_ = framework::TransToProtoVarType(tensor->dtype());
   }
 
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+  paddle::platform::DeviceContextPool& pool =
+      paddle::platform::DeviceContextPool::Instance();
   auto* dev_ctx = pool.Get(place);
 
   {  // concat
@@ -138,30 +139,30 @@ void GroupConcatSplit(Place place, size_t size) {
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
 TEST(TestGroup, TestConcatSplit) {
-  phi::GPUPlace cuda_place(0);
-  phi::CPUPlace cpu_place;
+  platform::CUDAPlace cuda_place(0);
+  platform::CPUPlace cpu_place;
 
   int size = 3;
   GroupConcatSplit<float>(cpu_place, size);
   GroupConcatSplit<double>(cpu_place, size);
-  GroupConcatSplit<phi::dtype::float16>(cpu_place, size);
+  GroupConcatSplit<platform::float16>(cpu_place, size);
 
   GroupConcatSplit<float>(cuda_place, size);
   GroupConcatSplit<double>(cuda_place, size);
-  GroupConcatSplit<phi::dtype::float16>(cuda_place, size);
+  GroupConcatSplit<platform::float16>(cuda_place, size);
 
   size = 15;
   GroupConcatSplit<float>(cpu_place, size);
   GroupConcatSplit<double>(cpu_place, size);
-  GroupConcatSplit<phi::dtype::float16>(cpu_place, size);
+  GroupConcatSplit<platform::float16>(cpu_place, size);
 
   GroupConcatSplit<float>(cuda_place, size);
   GroupConcatSplit<double>(cuda_place, size);
-  GroupConcatSplit<phi::dtype::float16>(cuda_place, size);
+  GroupConcatSplit<platform::float16>(cuda_place, size);
 }
 
 TEST(TestGroup, TestConcatSplitException) {
-  phi::GPUPinnedPlace place;
+  platform::CUDAPinnedPlace place;
 
   int size = 3;
   ASSERT_ANY_THROW(GroupConcatSplit<float>(place, size));
@@ -170,8 +171,8 @@ TEST(TestGroup, TestConcatSplitException) {
 
 #if defined(PADDLE_WITH_XPU_BKCL)
 TEST(TestGroup, TestXPUConcatSplit) {
-  phi::XPUPlace xpu_place(0);
-  phi::CPUPlace cpu_place;
+  platform::XPUPlace xpu_place(0);
+  platform::CPUPlace cpu_place;
 
   int size = 3;
   GroupConcatSplit<float>(cpu_place, size);

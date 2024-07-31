@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * TakeAlongAxis Op
@@ -47,11 +49,14 @@ class TakeAlongAxisOpConverter : public OpConverter {
                                       nvinfer1::GatherMode::kELEMENT);
     layer->setGatherAxis(axis);
 
-    ReplenishLayerAndOutput(layer, "take_along_axis", {output_name}, test_mode);
+    RreplenishLayerAndOutput(
+        layer, "take_along_axis", {output_name}, test_mode);
 #endif
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(take_along_axis, TakeAlongAxisOpConverter);

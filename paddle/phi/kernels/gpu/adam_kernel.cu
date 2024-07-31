@@ -46,12 +46,12 @@ __global__ void AdamKernelREG(MT beta1,
                               T* param_out,
                               const MT* master_param,
                               MT* master_param_out,
-                              int64_t ndim) {
+                              int ndim) {
   MT lr = *lr_;
   MT beta1_pow = beta1_pow_;
   MT beta2_pow = beta2_pow_;
 
-  int64_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
 
   for (; id < ndim; id += gridDim.x * blockDim.x) {
     MT p = master_param ? master_param[id] : static_cast<MT>(param[id]);
@@ -89,12 +89,12 @@ __global__ void AdamKernelMEM(MT beta1,
                               T* param_out,
                               const MT* master_param,
                               MT* master_param_out,
-                              int64_t ndim) {
+                              int ndim) {
   MT lr = *lr_;
   MT beta1_pow = *beta1_pow_;
   MT beta2_pow = *beta2_pow_;
 
-  int64_t id = blockIdx.x * blockDim.x + threadIdx.x;
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
 
   for (; id < ndim; id += gridDim.x * blockDim.x) {
     MT p = master_param ? master_param[id] : static_cast<MT>(param[id]);

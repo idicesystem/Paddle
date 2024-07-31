@@ -17,7 +17,8 @@ limitations under the License. */
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/core/enforce.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 /*
  * vol = [input_channels, input_depth, input_height, input_width]
@@ -228,7 +229,7 @@ class Col2VolFunctor<phi::CPUContext, T> {
         input_width_tmp,
         output_width,
         phi::errors::InvalidArgument(
-            "input_width(%d) and output_width(%d) are mismatching.",
+            "input_width(%d)  and output_width(%d) are mismatching.",
             input_width_tmp,
             output_width));
     T* vol_data = vol->data<T>();
@@ -277,4 +278,5 @@ template class Vol2ColFunctor<phi::CPUContext, double>;
 template class Col2VolFunctor<phi::CPUContext, float>;
 template class Col2VolFunctor<phi::CPUContext, double>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

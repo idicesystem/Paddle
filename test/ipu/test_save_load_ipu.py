@@ -59,17 +59,13 @@ class TestBase(IPUOpTest):
                 shape=self.feed_shape[0],
                 dtype='float32',
             )
-            conv1 = paddle.nn.Conv2D(
-                in_channels=x.shape[1],
-                out_channels=3,
-                kernel_size=3,
-                bias_attr=False,
-            )(x)
-
+            conv1 = paddle.static.nn.conv2d(
+                x, num_filters=3, filter_size=3, bias_attr=False, name='conv2d'
+            )
             loss = paddle.mean(conv1)
             # apply optimizer
             self.optimizer().minimize(loss)
-            self.fetch_list = [loss]
+            self.fetch_list = [loss.name]
 
     def run_model(self, exec_mode, save_otherwise_load):
         self.build_model()

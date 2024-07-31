@@ -14,7 +14,7 @@
 
 import unittest
 from functools import partial
-from typing import Any, Dict, List
+from typing import List
 
 import numpy as np
 from program_config import ProgramConfig, TensorConfig
@@ -54,19 +54,9 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
             else:
                 return np.random.randn(33, 1).astype(np.float32)
 
-        def generate_input1(attrs: List[Dict[str, Any]], shape_input):
-            return np.random.random(shape_input).astype(np.float32)
-
-        def generate_input2(attrs: List[Dict[str, Any]], shape_input):
-            begin = attrs[0]["begin_norm_axis"]
-            sum = 1
-            for x in range(begin, len(shape_input)):
-                sum *= shape_input[x]
-            return np.ones([sum]).astype(np.float32)
-
         attrs = [
             {
-                "data_format": 'NCHW',
+                "data_fromat": 'NCHW',
                 "dilations": [1, 2],
                 "padding_algorithm": 'EXPLICIT',
                 "groups": 1,
@@ -89,15 +79,6 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
             "elementwise_max",
             "elementwise_mod",
         ]:
-            for epsilon in [0.001]:
-                for begin_norm_axis in [1]:
-                    dics = [
-                        {
-                            "epsilon": epsilon,
-                            "begin_norm_axis": begin_norm_axis,
-                        },
-                        {},
-                    ]
             ops_config = [
                 {
                     "op_type": "conv2d",
@@ -127,24 +108,10 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
                     "op_outputs": {"Out": ["matmul_v2_output_data"]},
                     "op_attrs": attrs[2],
                 },
-                {
-                    "op_type": "layer_norm",
-                    "op_inputs": {
-                        "X": ["conv2d_input"],
-                        "Scale": ["scale_data"],
-                        "Bias": ["bias_data"],
-                    },
-                    "op_outputs": {
-                        "Y": ["y_data"],
-                        "Mean": ["saved_mean_data"],
-                        "Variance": ["saved_variance_data"],
-                    },
-                    "op_attrs": dics[0],
-                },
             ]
 
             ops = self.generate_op_config(ops_config)
-            shape_input = [1, 3, 64, 64]
+
             program_config = ProgramConfig(
                 ops=ops,
                 weights={
@@ -153,12 +120,6 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
                     ),
                     "elementwise_weight": TensorConfig(
                         data_gen=partial(generate_elementwise_weight, op_type)
-                    ),
-                    "bias_data": TensorConfig(
-                        data_gen=partial(generate_input2, dics, shape_input)
-                    ),
-                    "scale_data": TensorConfig(
-                        data_gen=partial(generate_input2, dics, shape_input)
                     ),
                 },
                 inputs={
@@ -169,7 +130,7 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
                         data_gen=partial(generate_elementwise_input, op_type)
                     ),
                 },
-                outputs=["matmul_v2_output_data", "y_data"],
+                outputs=["matmul_v2_output_data"],
             )
 
             yield program_config
@@ -192,7 +153,7 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
             }
 
         def generate_trt_nodes_num(attrs, dynamic_shape):
-            return 2, 4
+            return 1, 3
 
         attrs = [
             program_config.ops[i].attrs for i in range(len(program_config.ops))
@@ -210,7 +171,7 @@ class TestTrtFp32MixPrecision(TrtLayerAutoScanTest):
                 "matmul_v2_output_data",
             },
         )
-        yield config, generate_trt_nodes_num(attrs, True), (1e-2, 1e-2)
+        yield config, generate_trt_nodes_num(attrs, True), (1e-3, 1e-3)
 
     def test(self):
         self.run_test()

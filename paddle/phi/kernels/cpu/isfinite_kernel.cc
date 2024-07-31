@@ -27,10 +27,7 @@ PD_REGISTER_KERNEL(isinf,
                    phi::dtype::float16,
                    phi::dtype::bfloat16,
                    int,
-                   int64_t,
-                   int16_t,
-                   int8_t,
-                   uint8_t) {
+                   int64_t) {
   kernel->OutputAt(0).SetDataType(phi::DataType::BOOL);
 }
 

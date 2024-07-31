@@ -109,7 +109,7 @@ inline std::vector<std::shared_ptr<paddle::framework::ThreadPool>>
 }
 
 void DistMultiTrainer::InitTrainerEnv(const ProgramDesc &main_program,
-                                      const phi::Place &place) {
+                                      const platform::Place &place) {
   auto pool = GetThreadPool(thread_num_);
   std::vector<std::future<void>> wait_futures;
   CHECK_EQ(static_cast<int>(pool.size()), thread_num_);
@@ -157,7 +157,7 @@ void DistMultiTrainer::Run() {
   std::vector<std::future<void>> wait_futures;
   CHECK_EQ(static_cast<int>(pool.size()), thread_num_);
   for (int i = 0; i < thread_num_; ++i) {
-    if (!debug_) {  // NOLINT
+    if (!debug_) {
       wait_futures.emplace_back(
           pool[i]->Run([this, i]() { workers_[i]->TrainFiles(); }));
     } else {

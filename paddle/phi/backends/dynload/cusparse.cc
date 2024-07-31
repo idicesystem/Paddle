@@ -14,7 +14,8 @@ limitations under the License. */
 
 #include "paddle/phi/backends/dynload/cusparse.h"
 
-namespace phi::dynload {
+namespace phi {
+namespace dynload {
 
 std::once_flag cusparse_dso_flag;
 void *cusparse_dso_handle;
@@ -33,4 +34,5 @@ CUSPARSE_ROUTINE_EACH_R2(DEFINE_WRAP);
 CUSPARSE_ROUTINE_EACH_R3(DEFINE_WRAP);
 #endif
 
-}  // namespace phi::dynload
+}  // namespace dynload
+}  // namespace phi

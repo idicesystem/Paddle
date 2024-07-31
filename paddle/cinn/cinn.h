@@ -39,6 +39,7 @@ using lang::Buffer;
 using lang::CallExtern;
 using lang::CallLowered;
 using lang::Compute;
+using lang::Lower;
 using lang::LowerToAst;
 using lang::Placeholder;
 using lang::ReduceAll;
@@ -48,6 +49,7 @@ using lang::ReduceMin;
 using lang::ReduceMul;
 using lang::ReduceSum;
 using optim::Optimize;
+using poly::CreateStages;
 
 using lang::logic_and;
 using lang::logic_or;

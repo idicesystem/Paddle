@@ -19,7 +19,7 @@ limitations under the License. */
 #include <string>
 #include <unordered_set>
 
-#include "paddle/common/flags.h"
+#include "paddle/utils/flags.h"
 
 namespace paddle {
 namespace framework {

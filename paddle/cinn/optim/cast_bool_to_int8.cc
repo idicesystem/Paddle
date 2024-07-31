@@ -38,34 +38,10 @@ struct Mutator : public ir::IRMutator<> {
 
 }  // namespace
 
-void CastBoolExprToInt8Impl(common::UnknownArch, Expr* e) {
-  LOG(FATAL) << "unknown architecture.";
-}
-
-void CastBoolExprToInt8Impl(common::X86Arch, Expr* e) {
-  Mutator mutator;
-  mutator.Visit(e, e);
-}
-
-void CastBoolExprToInt8Impl(common::ARMArch, Expr* e) {
-  // Do nothing.
-}
-
-void CastBoolExprToInt8Impl(common::NVGPUArch, Expr* e) {
-  // Do nothing.
-}
-
-void CastBoolExprToInt8Impl(common::HygonDCUArchHIP, Expr* e) {
-  // Do nothing.
-}
-
-void CastBoolExprToInt8(common::Arch arch, Expr* e) {
-  return std::visit(
-      [&](const auto& impl) { return CastBoolExprToInt8Impl(impl, e); },
-      arch.variant());
-}
-
 void CastBoolToInt8(Expr* e, Target target) {
-  CastBoolExprToInt8(target.arch, e);
+  if (target.arch == Target::Arch::X86) {
+    Mutator mutator;
+    mutator.Visit(e, e);
+  }
 }
 }  // namespace cinn::optim

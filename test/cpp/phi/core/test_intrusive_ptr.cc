@@ -40,12 +40,7 @@ TEST(intrusive_ref_counter, async) {
   for (auto& result : results) {
     result.get();
   }
-  PADDLE_ENFORCE_EQ(obj.use_count(),
-                    1U,
-                    phi::errors::InvalidArgument(
-                        "Required obj.use_count() should be equal to 1, "
-                        "But received obj.use_count() = %d.",
-                        obj.use_count()));
+  CHECK_EQ(obj.use_count(), 1u);
 }
 
 TEST(intrusive_ptr, default_ctor) {
@@ -59,10 +54,7 @@ TEST(intrusive_ptr, private_ctor) {
   auto p1 = std::move(p);
   intrusive_ptr<intrusive_ref_counter<SharedObject>> p2(std::move(p1));
   const auto* ptr1 = p2.get();
-  PADDLE_ENFORCE_EQ(
-      ptr0,
-      ptr1,
-      phi::errors::InvalidArgument("Required ptr0 should be equal to ptr1. "));
+  CHECK_EQ(ptr0, ptr1);
 }
 
 TEST(intrusive_ptr, reset_with_obj) {
@@ -70,10 +62,7 @@ TEST(intrusive_ptr, reset_with_obj) {
   obj.i = 1;
   intrusive_ptr<SharedObject> p;
   p.reset(&obj, true);
-  PADDLE_ENFORCE_EQ(
-      p->i,
-      obj.i,
-      phi::errors::InvalidArgument("Required p->i should be equal to obj.i. "));
+  CHECK_EQ(p->i, obj.i);
 }
 
 TEST(intrusive_ptr, reset_with_ptr) {
@@ -81,10 +70,7 @@ TEST(intrusive_ptr, reset_with_ptr) {
   ptr->i = 1;
   intrusive_ptr<SharedObject> p;
   p.reset(ptr, false);
-  PADDLE_ENFORCE_EQ((*p).i,
-                    ptr->i,
-                    phi::errors::InvalidArgument(
-                        "Required (*p).i should be equal to ptr->i. "));
+  CHECK_EQ((*p).i, ptr->i);
   p.reset();
   CHECK(p == nullptr);
 }

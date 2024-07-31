@@ -52,17 +52,16 @@ def resnet_cifar10(input, depth=32):
     def conv_bn_layer(
         input, ch_out, filter_size, stride, padding, act='relu', bias_attr=False
     ):
-        conv = paddle.nn.Conv2D(
-            in_channels=input.shape[1],
-            out_channels=ch_out,
-            kernel_size=filter_size,
+        tmp = paddle.static.nn.conv2d(
+            input=input,
+            filter_size=filter_size,
+            num_filters=ch_out,
             stride=stride,
             padding=padding,
+            act=None,
             bias_attr=bias_attr,
         )
-        tmp = conv(input)
-        bn = paddle.nn.BatchNorm(tmp.shape[1], act=act)
-        return bn(tmp)
+        return paddle.static.nn.batch_norm(input=tmp, act=act)
 
     def shortcut(input, ch_in, ch_out, stride):
         if ch_in != ch_out:
@@ -102,7 +101,8 @@ def train(use_pure_fp16=True, use_nesterov=False, optimizer=""):
 
     train_program = base.Program()
     startup_prog = base.Program()
-    paddle.seed(123)
+    train_program.random_seed = 123
+    startup_prog.random_seed = 456
     with base.program_guard(train_program, startup_prog):
         images = paddle.static.data(
             name='pixel', shape=[-1] + data_shape, dtype='float32'
@@ -180,7 +180,9 @@ def train(use_pure_fp16=True, use_nesterov=False, optimizer=""):
                 )
                 loss_v = float(loss) if isinstance(loss, np.ndarray) else loss
                 print(
-                    f'PassID {pass_id:1}, Train Batch ID {batch_id + 1:04}, train loss {float(loss_v):2.4}'
+                    'PassID {:1}, Train Batch ID {:04}, train loss {:2.4}'.format(
+                        pass_id, batch_id + 1, float(loss_v)
+                    )
                 )
                 train_loss_list.append(float(loss_v))
 
@@ -192,7 +194,9 @@ def train(use_pure_fp16=True, use_nesterov=False, optimizer=""):
                 )
                 test_loss_list.append(float(loss_t))
                 print(
-                    f'PassID {pass_id:1}, Test Batch ID {tid + 1:04}, test loss {float(loss_t):2.4}'
+                    'PassID {:1}, Test Batch ID {:04}, test loss {:2.4}'.format(
+                        pass_id, tid + 1, float(loss_t)
+                    )
                 )
 
         return train_loss_list, test_loss_list

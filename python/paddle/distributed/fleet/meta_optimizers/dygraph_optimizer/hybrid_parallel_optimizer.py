@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 
 import paddle
 from paddle import framework
@@ -37,6 +38,8 @@ from ...utils.mix_precision_utils import MixPrecisionOptimizer
 
 __all__ = []
 
+g_shard_norm_align_dp = int(os.environ.get("FLAGS_shard_norm_align_dp", 0))
+
 
 class HybridParallelClipGrad:
     def __init__(self, clip, hcg):
@@ -52,7 +55,7 @@ class HybridParallelClipGrad:
         pp_flag = self._hcg.get_pipe_parallel_world_size() > 1
 
         # add all reduce to get global norm of distributed params_and_grads
-        if sharding_flag:
+        if sharding_flag and not g_shard_norm_align_dp:
             # norm of mp distributed variable
             if mp_flag:
                 # dist should reduce among sharding group、mp group、pp group
@@ -222,12 +225,12 @@ class HybridParallelClipGrad:
         )
         clip_var_fp16 = paddle.cast(clip_var, paddle.float16)
 
-        if (
-            not isinstance(
+        # bf16 is not supported on XPU now
+        if not (
+            paddle.is_compiled_with_xpu()
+            or isinstance(
                 paddle.framework._current_expected_place(), paddle.CustomPlace
             )
-            or paddle.framework._current_expected_place().get_device_type()
-            == 'npu'
         ):
             clip_var_bf16 = paddle.cast(clip_var, paddle.bfloat16)
         for p, g in params_grads:
@@ -238,6 +241,10 @@ class HybridParallelClipGrad:
             if g.dtype == paddle.float16:
                 g.multiply_(clip_var_fp16)
             elif g.dtype == paddle.bfloat16:
+                if paddle.is_compiled_with_xpu():
+                    raise NotImplementedError(
+                        "BF16 is not supported on XPU now"
+                    )
                 g.multiply_(clip_var_bf16)
             else:
                 g.multiply_(clip_var)
@@ -330,24 +337,6 @@ class HybridParallelOptimizer:
                             item["grad_clip"] = HybridParallelClipGrad(
                                 inner_opt._grad_clip, hcg
                             )
-
-    def _set_all_gather_overlap_forward(
-        self, all_gather_overlap_forward, layers=None
-    ):
-        self._all_gather_overlap_forward = all_gather_overlap_forward
-        if self._all_gather_overlap_forward:
-            self._layers = layers
-            self._inner_opt._set_all_gather_overlap_forward(
-                self._all_gather_overlap_forward, self._layers
-            )
-
-    def _set_broadcast_overlap(self, broadcast_overlap, layers=None):
-        self._broadcast_overlap = broadcast_overlap
-        if self._broadcast_overlap:
-            self._layers = layers
-            self._inner_opt._set_broadcast_overlap(
-                self._broadcast_overlap, self._layers
-            )
 
     def _insert_sync(self, sync_var, src, mp_group, sync_mode):
         if sync_mode == "broadcast":
@@ -486,9 +475,11 @@ class HybridParallelOptimizer:
                 (DygraphShardingOptimizer, DygraphShardingOptimizerV2),
             )
             self._inner_opt.reduce_gradients(parameter_list, self._hcg)
-            dp_parameter_list = self._inner_opt.filter_parameters(
-                parameter_list, self._hcg
-            )
+            # dp later do not need to use global parameter list
+            if not g_shard_norm_align_dp:
+                dp_parameter_list = self._inner_opt.filter_parameters(
+                    parameter_list, self._hcg
+                )
         if self._dp_enable or self._sep_enable:
             fused_allreduce_gradients(dp_parameter_list, self._hcg)
 

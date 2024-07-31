@@ -59,7 +59,8 @@ class TestImperativeQatAmp(unittest.TestCase):
 
         seed = 1
         np.random.seed(seed)
-        paddle.seed(seed)
+        paddle.static.default_main_program().random_seed = seed
+        paddle.static.default_startup_program().random_seed = seed
 
     @classmethod
     def tearDownClass(cls):
@@ -140,7 +141,9 @@ class TestImperativeQatAmp(unittest.TestCase):
 
             if batch_id % 100 == 0:
                 _logger.info(
-                    f"Train | step {batch_id}: loss = {avg_loss.numpy()}, acc= {acc.numpy()}"
+                    "Train | step {}: loss = {:}, acc= {:}".format(
+                        batch_id, avg_loss.numpy(), acc.numpy()
+                    )
                 )
 
             if batch_num > 0 and batch_id + 1 >= batch_num:
@@ -173,7 +176,9 @@ class TestImperativeQatAmp(unittest.TestCase):
             acc_top1_list.append(float(acc_top1.numpy()))
             if batch_id % 100 == 0:
                 _logger.info(
-                    f"Test | At step {batch_id}: acc1 = {acc_top1.numpy()}, acc5 = {acc_top5.numpy()}"
+                    "Test | At step {}: acc1 = {:}, acc5 = {:}".format(
+                        batch_id, acc_top1.numpy(), acc_top5.numpy()
+                    )
                 )
 
             if batch_num > 0 and batch_id + 1 >= batch_num:
@@ -226,7 +231,7 @@ class TestImperativeQatAmp(unittest.TestCase):
             paddle.static.InputSpec(shape=[None, 1, 28, 28], dtype='float32')
         ]
         paddle.jit.save(layer=model, path=self.save_path, input_spec=input_spec)
-        print(f'Quantized model saved in {{{self.save_path}}}')
+        print('Quantized model saved in {%s}' % self.save_path)
 
         end_time = time.time()
         print("total time: %ss" % (end_time - start_time))

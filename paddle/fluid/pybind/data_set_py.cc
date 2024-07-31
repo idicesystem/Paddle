@@ -27,51 +27,49 @@ limitations under the License. */
 
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "paddle/fluid/framework/async_executor.h"
 #include "paddle/fluid/framework/data_feed.h"
 #include "paddle/fluid/framework/data_feed.pb.h"
 #include "paddle/fluid/framework/data_set.h"
 #include "paddle/fluid/framework/dataset_factory.h"
 #include "paddle/fluid/framework/scope.h"
 #include "paddle/fluid/inference/io.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 #include "paddle/fluid/pybind/data_set_py.h"
 
 namespace py = pybind11;
 
-namespace paddle::pybind {
+namespace paddle {
+namespace pybind {
 
 class IterableDatasetWrapper {
  public:
   IterableDatasetWrapper(framework::Dataset *dataset,
                          const std::vector<std::string> &slots,
-                         const std::vector<phi::Place> &places,
+                         const std::vector<platform::Place> &places,
                          size_t batch_size,
                          bool drop_last)
       : dataset_(dataset),
         slots_(slots),
         places_(places),
         batch_size_(batch_size),
-        drop_last_(drop_last),
-        data_feeds_(),
-        is_exhaustive_(),
-        scopes_(),
-        tensors_() {
+        drop_last_(drop_last) {
 #if defined _WIN32
     PADDLE_THROW(
-        common::errors::Unimplemented("Dataset is not supported on Windows"));
+        platform::errors::Unimplemented("Dataset is not supported on Windows"));
 #elif defined __APPLE__
     PADDLE_THROW(
-        common::errors::Unimplemented("Dataset is not supported on MAC"));
+        platform::errors::Unimplemented("Dataset is not supported on MAC"));
 #else
     size_t device_num = places_.size();
     PADDLE_ENFORCE_GT(device_num,
                       0,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The number of devices must be larger than 0"));
     PADDLE_ENFORCE_GT(slots_.size(),
                       0,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The number of slots must be larger than 0"));
     scopes_.reserve(device_num);
     tensors_.reserve(device_num);
@@ -94,18 +92,18 @@ class IterableDatasetWrapper {
     PADDLE_ENFORCE_EQ(
         is_started_,
         false,
-        common::errors::AlreadyExists("Reader has been started already"));
+        platform::errors::AlreadyExists("Reader has been started already"));
     data_feeds_ = dataset_->GetReaders();
     PADDLE_ENFORCE_EQ(data_feeds_.size(),
                       places_.size(),
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Device number does not match reader number"));
     for (size_t i = 0; i < places_.size(); ++i) {
       data_feeds_[i]->AssignFeedVar(*scopes_[i]);
-      data_feeds_[i]->SetPlace(phi::CPUPlace());
+      data_feeds_[i]->SetPlace(platform::CPUPlace());
       PADDLE_ENFORCE_EQ(data_feeds_[i]->Start(),
                         true,
-                        common::errors::Unavailable(
+                        platform::errors::Unavailable(
                             "Failed to start the reader on device %d.", i));
     }
     is_started_ = true;
@@ -118,7 +116,7 @@ class IterableDatasetWrapper {
     PADDLE_ENFORCE_EQ(
         is_started_,
         true,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "Reader must be started when getting next batch data."));
     size_t device_num = places_.size();
 
@@ -178,10 +176,10 @@ class IterableDatasetWrapper {
  private:
   bool IsValidLoDTensor(const phi::DenseTensor &tensor) const {
     auto &lod = tensor.lod();
-    PADDLE_ENFORCE_LE(
-        lod.size(),
-        1,
-        common::errors::InvalidArgument("LoD level must be not larger than 1"));
+    PADDLE_ENFORCE_LE(lod.size(),
+                      1,
+                      platform::errors::InvalidArgument(
+                          "LoD level must be not larger than 1"));
     if (!drop_last_) return true;
 
     if (lod.empty()) {
@@ -194,7 +192,7 @@ class IterableDatasetWrapper {
  private:
   framework::Dataset *dataset_;
   std::vector<std::string> slots_;
-  std::vector<phi::Place> places_;
+  std::vector<platform::Place> places_;
   size_t batch_size_;
   bool drop_last_;
 
@@ -392,11 +390,12 @@ void BindDataset(py::module *m) {
   py::class_<IterableDatasetWrapper>(*m, "IterableDatasetWrapper")
       .def(py::init<framework::Dataset *,
                     const std::vector<std::string> &,
-                    const std::vector<phi::Place> &,
+                    const std::vector<platform::Place> &,
                     size_t,
                     bool>())
       .def("_start", &IterableDatasetWrapper::Start)
       .def("_next", &IterableDatasetWrapper::Next);
 }
 
-}  // namespace paddle::pybind
+}  // namespace pybind
+}  // namespace paddle

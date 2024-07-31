@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import gradient_checker
@@ -27,7 +26,12 @@ from paddle.pir_utils import test_with_pir_api
 
 
 def cast_wrapper(x, out_dtype=None):
-    return paddle.cast(x, out_dtype)
+    paddle_dtype = paddle.dtype(out_dtype)
+    # unify dtype to numpy_type for pir and dygraph
+    numpy_dtype = paddle.base.data_feeder._PADDLE_DTYPE_2_NUMPY_DTYPE[
+        paddle_dtype
+    ]
+    return paddle.cast(x, numpy_dtype)
 
 
 class TestCastOpFp32ToFp64(OpTest):
@@ -37,8 +41,8 @@ class TestCastOpFp32ToFp64(OpTest):
         self.inputs = {'X': ipt.astype('float32')}
         self.outputs = {'Out': ipt.astype('float64')}
         self.attrs = {
-            'in_dtype': paddle.float32,
-            'out_dtype': paddle.float64,
+            'in_dtype': int(core.VarDesc.VarType.FP32),
+            'out_dtype': int(core.VarDesc.VarType.FP64),
         }
         self.op_type = 'cast'
         self.prim_op_type = "prim"
@@ -72,8 +76,8 @@ class TestCastOpFp16ToFp32(OpTest):
         self.inputs = {'X': ipt.astype('float16')}
         self.outputs = {'Out': ipt.astype('float32')}
         self.attrs = {
-            'in_dtype': paddle.float16,
-            'out_dtype': paddle.float32,
+            'in_dtype': int(core.VarDesc.VarType.FP16),
+            'out_dtype': int(core.VarDesc.VarType.FP32),
         }
         self.op_type = 'cast'
         self.prim_op_type = "prim"
@@ -99,8 +103,8 @@ class TestCastOpFp32ToFp16(OpTest):
         self.inputs = {'X': ipt.astype('float32')}
         self.outputs = {'Out': ipt.astype('float16')}
         self.attrs = {
-            'in_dtype': paddle.float32,
-            'out_dtype': paddle.float16,
+            'in_dtype': int(core.VarDesc.VarType.FP32),
+            'out_dtype': int(core.VarDesc.VarType.FP16),
         }
         self.op_type = 'cast'
         self.prim_op_type = "prim"
@@ -130,8 +134,8 @@ class TestCastOpBf16ToFp32(OpTest):
         self.inputs = {'X': ipt}
         self.outputs = {'Out': convert_uint16_to_float(ipt)}
         self.attrs = {
-            'in_dtype': paddle.bfloat16,
-            'out_dtype': paddle.float32,
+            'in_dtype': int(core.VarDesc.VarType.BF16),
+            'out_dtype': int(core.VarDesc.VarType.FP32),
         }
         self.op_type = 'cast'
         self.prim_op_type = "prim"
@@ -165,8 +169,8 @@ class TestCastOpFp32ToBf16(OpTest):
         self.inputs = {'X': ipt}
         self.outputs = {'Out': convert_float_to_uint16(ipt)}
         self.attrs = {
-            'in_dtype': paddle.float32,
-            'out_dtype': paddle.bfloat16,
+            'in_dtype': int(core.VarDesc.VarType.FP32),
+            'out_dtype': int(core.VarDesc.VarType.BF16),
         }
         self.op_type = 'cast'
         self.prim_op_type = "prim"
@@ -191,7 +195,6 @@ class TestCastOpFp32ToBf16(OpTest):
 
 
 class TestCastOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_errors(self):
         paddle.enable_static()
         with program_guard(Program(), Program()):
@@ -224,7 +227,7 @@ class TestCastDoubleGradCheck(unittest.TestCase):
     @test_with_pir_api
     @prog_scope()
     def func(self, place):
-        # the shape of input variable should be clearly specified, not include -1.
+        # the shape of input variable should be clearly specified, not inlcude -1.
         eps = 0.005
         dtype = np.float32
 
@@ -242,18 +245,11 @@ class TestCastDoubleGradCheck(unittest.TestCase):
 
     def test_grad(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for p in places:
             self.func(p)
-        paddle.disable_static()
 
 
 class TestCastTripleGradCheck(unittest.TestCase):
@@ -263,7 +259,7 @@ class TestCastTripleGradCheck(unittest.TestCase):
     @test_with_pir_api
     @prog_scope()
     def func(self, place):
-        # the shape of input variable should be clearly specified, not include -1.
+        # the shape of input variable should be clearly specified, not inlcude -1.
         eps = 0.005
         dtype = np.float32
 
@@ -281,34 +277,13 @@ class TestCastTripleGradCheck(unittest.TestCase):
 
     def test_grad(self):
         paddle.enable_static()
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for p in places:
             self.func(p)
-        paddle.disable_static()
-
-
-class TestCastInplaceContinuous(unittest.TestCase):
-    def test_api_dygraph(self):
-        def run(place):
-            paddle.disable_static(place)
-            x = paddle.to_tensor([[1.0, 2.0], [3.0, 4.0]])
-            target = x.cast("uint8")
-            x.cast_("uint8")
-            np.testing.assert_array_equal(target.numpy(), x.numpy())
-            target = x.cast("float32")
-            x.cast_("float32")
-            np.testing.assert_array_equal(target.numpy(), x.numpy())
-
-        run(paddle.CPUPlace())
 
 
 if __name__ == '__main__':
+    paddle.enable_static()
     unittest.main()

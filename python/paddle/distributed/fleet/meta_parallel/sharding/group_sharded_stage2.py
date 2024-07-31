@@ -623,7 +623,7 @@ class GroupShardedStage2(nn.Layer):
         for dtype in self._grad_storages.keys():
             for dst_rank, grad_storage in self._grad_storages[dtype].items():
                 if self._offload or dst_rank != self._rank:
-                    grad_storage.manual_release()
+                    grad_storage.manumal_relase()
                     grad_storage.rebuild()
 
     def _rank_buffer_size(self, buffer_max_size, model_size):
@@ -642,17 +642,26 @@ class GroupShardedStage2(nn.Layer):
         if Type.fp16.value in rank_buffer_size.keys():
             # FP16 GradStorage and model size
             logger_.info(
-                f"====== FP16 GradStorage size: {rank_buffer_size[Type.fp16.value] / 2**19:.2f}M parameters, Model size {model_size / 2**19:.2f}M parameters ======"
+                "====== FP16 GradStorage size: {:.2f}M parameters, Model size {:.2f}M parameters ======".format(
+                    rank_buffer_size[Type.fp16.value] / 2**19,
+                    model_size / 2**19,
+                )
             )
         if Type.bf16.value in rank_buffer_size.keys():
             # FP16 GradStorage and model size
             logger_.info(
-                f"====== BF16 GradStorage size: {rank_buffer_size[Type.bf16.value] / 2**19:.2f}M parameters, Model size {model_size / 2**19:.2f}M parameters ======"
+                "====== BF16 GradStorage size: {:.2f}M parameters, Model size {:.2f}M parameters ======".format(
+                    rank_buffer_size[Type.bf16.value] / 2**19,
+                    model_size / 2**19,
+                )
             )
         if Type.fp32.value in rank_buffer_size.keys():
             # FP32 GradStorage and model size
             logger_.info(
-                f"====== FP32 GradStorage size: {rank_buffer_size[Type.fp32.value] / 2**18:.2f}M parameters, Model size {model_size / 2**18:.2f}M parameters ======"
+                "====== FP32 GradStorage size: {:.2f}M parameters, Model size {:.2f}M parameters ======".format(
+                    rank_buffer_size[Type.fp32.value] / 2**18,
+                    model_size / 2**18,
+                )
             )
         return rank_buffer_size
 

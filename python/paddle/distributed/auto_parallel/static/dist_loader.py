@@ -188,7 +188,9 @@ class DistributedDataLoaderFromGenerator(DistributedDataLoaderBase):
                     batch_size = array.shape[0]
                     assert (
                         batch_size % self.dp_world_sizes[i] == 0
-                    ), f"batch_size [{batch_size}] is not divisible by dp_world_size [{self.dp_world_sizes[i]}]"
+                    ), "batch_size [{}] is not divisible by dp_world_size [{}]".format(
+                        str(batch_size), str(self.dp_world_sizes[i])
+                    )
                     partial_data.append(
                         np.split(array, self.dp_world_sizes[i])[
                             self.dp_ranks[i]
@@ -252,26 +254,21 @@ class DistributedDataLoader(DistributedDataLoaderBase):
         self.dp_world_sizes = data_parallel_world_size
         self.dp_ranks = data_parallel_rank
         self.split_data = split_data
-
-        if self.batch_size is None:
-            self.batch_sampler = None
-        else:
-            self.batch_sampler = DistributedBatchSampler(
-                dataset=self.dataset,
-                batch_size=self.batch_size,
-                num_replicas=self.dp_world_sizes[0],
-                rank=self.dp_ranks[0],
-                shuffle=self.shuffle,
-                drop_last=self.drop_last,
-            )
-
+        # TODO: rank info
+        self.batch_sampler = DistributedBatchSampler(
+            dataset=self.dataset,
+            batch_size=self.batch_size,
+            num_replicas=self.dp_world_sizes[0],
+            rank=self.dp_ranks[0],
+            shuffle=self.shuffle,
+            drop_last=self.drop_last,
+        )
         self._dataloader = paddle.io.DataLoader(
             self.dataset,
             feed_list=self.feed_list,
             places=self.places,
             return_list=self.return_list,
             batch_sampler=self.batch_sampler,
-            batch_size=1 if self.batch_sampler else self.batch_size,
             collate_fn=self.collate_fn,
             num_workers=self.num_workers,
             use_buffer_reader=self.use_buffer_reader,

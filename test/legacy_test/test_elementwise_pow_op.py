@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -226,19 +225,13 @@ class TestElementwisePowGradOpInt(unittest.TestCase):
         ).astype("int")
 
     def test_grad(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not base.is_compiled_with_cuda()
-        ):
-            places.append(core.CPUPlace())
+        places = [base.CPUPlace()]
         if base.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for place in places:
             with base.dygraph.guard(place):
-                x = paddle.to_tensor(self.x)
-                y = paddle.to_tensor(self.y)
+                x = base.dygraph.to_variable(self.x, zero_copy=False)
+                y = base.dygraph.to_variable(self.y, zero_copy=False)
                 x.stop_gradient = False
                 y.stop_gradient = False
                 res = x**y

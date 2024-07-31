@@ -23,7 +23,8 @@
 #include "paddle/phi/kernels/funcs/blas/blas.h"
 #include "paddle/phi/kernels/funcs/fc_functor.h"
 
-namespace phi::fusion {
+namespace phi {
+namespace fusion {
 
 template <typename T, typename Context>
 void FusionSeqConvEltAddReluKernel(const Context& dev_ctx,
@@ -147,7 +148,8 @@ void FusionSeqConvEltAddReluKernel(const Context& dev_ctx,
      true);
 }
 
-}  // namespace phi::fusion
+}  // namespace fusion
+}  // namespace phi
 
 PD_REGISTER_KERNEL(fusion_seqconv_eltadd_relu,
                    CPU,

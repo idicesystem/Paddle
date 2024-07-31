@@ -16,7 +16,7 @@ limitations under the License. */
 
 #include <memory>
 
-#include "paddle/common/macros.h"
+#include "paddle/phi/api/include/dll_decl.h"
 #include "paddle/phi/common/data_type.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/allocator.h"
@@ -115,7 +115,7 @@ class PADDLE_API DeviceContext {
 
   const Allocator& GetPinnedAllocator() const;
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#ifdef PADDLE_WITH_CUDA
   /**
    * @brief Set the CUDA graph Allocator object.
    *
@@ -152,9 +152,9 @@ class PADDLE_API DeviceContext {
                       bool fake_alloc = false) const;
 
   template <typename T>
-  TEST_API T* Alloc(TensorBase* tensor,
-                    size_t requested_size = 0,
-                    bool pinned = false) const;
+  T* Alloc(TensorBase* tensor,
+           size_t requested_size = 0,
+           bool pinned = false) const;
 
   /**
    * @brief Allocate host memory for tensor.

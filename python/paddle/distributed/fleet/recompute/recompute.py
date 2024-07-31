@@ -14,7 +14,6 @@
 
 import contextlib
 import copy
-import inspect
 import weakref
 
 import paddle
@@ -79,12 +78,12 @@ def detach_variable(inputs):
 def check_recompute_necessary(inputs):
     necessary_for_each_input = []
     for input_ in inputs:
-        if isinstance(input_, paddle.Tensor):
+        if isinstance(input_, (core.eager.Tensor, paddle.Tensor)):
             necessary_for_each_input.append(input_.stop_gradient)
         elif type(input_) is tuple:
             for i in input_:
                 # traverse all tensors in the tuple
-                if isinstance(i, paddle.Tensor):
+                if isinstance(i, (core.eager.Tensor, paddle.Tensor)):
                     necessary_for_each_input.append(i.stop_gradient)
     if all(necessary_for_each_input):
         logger.warning(
@@ -94,7 +93,7 @@ def check_recompute_necessary(inputs):
 
 
 @contextlib.contextmanager
-def switch_rng_state_tracker(rng_state, tracker):
+def swith_rng_state_tracker(rng_state, tracker):
     orig_rng_state = paddle.get_rng_state()
     orig_rng_tracker = get_rng_state_tracker().get_states_tracker()
     paddle.set_rng_state(rng_state)
@@ -156,8 +155,8 @@ class RecomputeFunction(PyLayer):
                 ctx.inputs.append(arg)
         ctx.save_for_backward(*tensor_inputs)
 
-        # NOTE recompute with restore RNG only support one scenario where one process for one cuda gpu.
-        # one process with multiple gpu and mix-gpu-cpu scenarios are not support
+        # NOTE recompute with restore RNG only support one senario where one process for one cuda gpu.
+        # one process with multiple gpu and mix-gpu-cpu senarios are not support
         if ctx.preserve_rng_state:
             ctx.fw_rng_state = paddle.get_rng_state()
             ctx.fwd_rng_state_tracker = (
@@ -192,7 +191,7 @@ class RecomputeFunction(PyLayer):
     @staticmethod
     def backward(ctx, *args):
         with paddle.base.dygraph.guard():
-            # TODO need to check the recompute calling is valid or not
+            # TODO need to check the recompute calling is vaild or not
 
             # Restore inputs
             inputs = list(ctx.inputs)
@@ -209,7 +208,7 @@ class RecomputeFunction(PyLayer):
             # NOTE support AMP
             # need restore auto_cast state as well as w/b list
             if ctx.preserve_rng_state:
-                with switch_rng_state_tracker(
+                with swith_rng_state_tracker(
                     ctx.fw_rng_state, ctx.fwd_rng_state_tracker
                 ):
                     with paddle.amp.auto_cast(
@@ -274,7 +273,7 @@ class RecomputeFunction(PyLayer):
                         # all tensors in the tuple doesn't need grad, only return a None for the whole tuple
                         grads.append(None)
                     else:
-                        # all tensors in the tuple need grad, should return a tuple of grads
+                        # all tensors in the tuple nees grad, should return a tuple of grads
                         grads.append(tuple(i._grad_ivar() for i in inp))
 
             if in_dynamic_mode():
@@ -295,8 +294,6 @@ def _recompute_without_reentrant(
         cur_device = paddle.get_device()
         if 'gpu:' in cur_device:
             fw_cuda_rng_state = paddle.get_cuda_rng_state()
-        elif 'cpu' in cur_device:
-            fw_cuda_rng_state = paddle.get_rng_state()
         elif 'xpu:' in cur_device:
             fw_cuda_rng_state = paddle.get_rng_state()
         elif (
@@ -306,7 +303,9 @@ def _recompute_without_reentrant(
             fw_cuda_rng_state = paddle.get_rng_state(cur_device)
         else:
             raise RuntimeError(
-                f"Recompute with RNG preserve is not support current device: {cur_device}."
+                "Recompute with RNG perserve is not support current device: {}.".format(
+                    cur_device
+                )
             )
         fwd_cuda_rng_state_tracker = (
             get_rng_state_tracker().get_states_tracker()
@@ -346,41 +345,23 @@ def _recompute_without_reentrant(
 
                 if holder_list[unpack_counter - 1]() is None:
                     return
-                if inner_x is None:
-                    storage[holder_list[unpack_counter - 1]()] = None
-                    return
-                if hasattr(inner_x, "main_grad"):
-                    storage[holder_list[unpack_counter - 1]()] = inner_x
-                else:
-                    if inner_x.is_dist():
-                        # TODO(jeff41404): it seems better to use `tmp_tensor = core.eager.Tensor(inner_x)`,
-                        # but other errors will be triggered during the current period, and can be modified after resolution
-                        tmp_tensor = core.eager.Tensor(
-                            inner_x.dtype,
-                            inner_x.shape,
-                            inner_x.name + "cpy",
-                            core.VarDesc.VarType.LOD_TENSOR,
-                            inner_x.persistable,
-                            inner_x.process_mesh,
-                            inner_x.placements,
-                        )
-                    else:
-                        tmp_tensor = core.eager.Tensor(
-                            inner_x.dtype,
-                            inner_x.shape,
-                            inner_x.name + "cpy",
-                            core.VarDesc.VarType.LOD_TENSOR,
-                            inner_x.persistable,
-                        )
-                    inner_x._unsafe_share_buffer_to(tmp_tensor)
-                    storage[holder_list[unpack_counter - 1]()] = tmp_tensor
+
+                tmp_tensor = core.eager.Tensor(
+                    inner_x.dtype,
+                    inner_x.shape,
+                    inner_x.name + "cpy",
+                    core.VarDesc.VarType.LOD_TENSOR,
+                    inner_x.persistable,
+                )
+                inner_x._share_buffer_to(tmp_tensor)
+                storage[holder_list[unpack_counter - 1]()] = tmp_tensor
                 return
 
             def inner_unpack(inner_x):
-                raise Exception("An unexpected backward called on a tensor!")
+                raise Exception("An unexcepted backward called on a tensor!")
 
             if preserve_rng_state:
-                with switch_rng_state_tracker(
+                with swith_rng_state_tracker(
                     fw_cuda_rng_state, fwd_cuda_rng_state_tracker
                 ):
                     with paddle.set_grad_enabled(True):
@@ -537,49 +518,16 @@ def recompute(function, *args, **kwargs):
     # whether to use reentrant method to implement recompute
     use_reentrant = kwargs.pop('use_reentrant', True)
 
-    if not in_dynamic_mode():
-        from paddle.distributed.auto_parallel.interface import (
-            recompute as static_auto_recompute,
+    if kwargs and use_reentrant:
+        raise ValueError(
+            "Error, if you want to send kwargs(dict parameter) to function, please set use_reentrant=False."
         )
 
-        return static_auto_recompute(function)(*args, **kwargs)
-
     if framework._dygraph_tracer()._has_grad:
-        check_args = list(args)
-        check_args.extend(list(kwargs.values()))
-        check_recompute_necessary(check_args)
+        check_recompute_necessary(args)
 
     if use_reentrant:
-        input_args = []
-        # rearrange `position-args + keyword-args` into `position-args`
-        if isinstance(function, paddle.nn.Layer):
-            dyfunc_sig = inspect.signature(function.forward)
-        else:
-            dyfunc_sig = inspect.signature(function)
-
-        bound_args = dyfunc_sig.bind(*args, **kwargs)
-        bound_args.apply_defaults()
-
-        for arg, param in zip(
-            bound_args.arguments.values(), dyfunc_sig.parameters.values()
-        ):
-            if param.kind == param.VAR_POSITIONAL:
-                input_args.extend(arg)
-            elif param.kind in (
-                param.POSITIONAL_ONLY,
-                param.POSITIONAL_OR_KEYWORD,
-            ):
-                input_args.append(arg)
-            elif param.kind == param.VAR_KEYWORD:
-                input_args.extend(arg.values())
-            elif param.kind == param.KEYWORD_ONLY:
-                raise ValueError(
-                    "Currently, keyword-only arguments are not supported when you want to send kwargs(dict parameter) to function with use_reentrant=True."
-                )
-            else:
-                raise ValueError("Unknown parameter kind.")
-
-        return RecomputeFunction.apply(function, preserve, *input_args)
+        return RecomputeFunction.apply(function, preserve, *args)
     else:
         return _recompute_without_reentrant(function, preserve, *args, **kwargs)
 

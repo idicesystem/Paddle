@@ -16,9 +16,11 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/engine.h"
 #include "paddle/fluid/inference/tensorrt/plugin/preln_residual_bias_plugin.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
-using half = phi::dtype::float16;
+using half = paddle::platform::float16;
 class PrelnResidualBiasOpConverter : public OpConverter {
  public:
   void operator()(const framework::proto::OpDesc& op,
@@ -34,7 +36,7 @@ class PrelnResidualBiasOpConverter : public OpConverter {
     inputs.push_back(input1);
     inputs.push_back(input2);
     auto get_persistable_data = [&](const std::string& arg_name,
-                                    phi::DDim* dims) -> float* {
+                                    framework::DDim* dims) -> float* {
       std::string var_name = op_desc.Input(arg_name).front();
       auto* temp_var = scope.FindVar(var_name);
       auto* temp_tensor = temp_var->GetMutable<phi::DenseTensor>();
@@ -43,7 +45,7 @@ class PrelnResidualBiasOpConverter : public OpConverter {
           engine_->GetFp32TrtWeight(var_name, *temp_tensor).get().values));
       return temp_data;
     };
-    phi::DDim bias_dims, scale_dims, ele_bias_dims;
+    framework::DDim bias_dims, scale_dims, ele_bias_dims;
     auto* bias = get_persistable_data("LnBias", &bias_dims);
     auto* scale = get_persistable_data("LnScale", &scale_dims);
     auto const& vars = op_desc.Inputs(false);
@@ -98,12 +100,14 @@ class PrelnResidualBiasOpConverter : public OpConverter {
     std::vector<std::string> output_names;
     output_names.push_back(op_desc.Output("Y")[0]);
     output_names.push_back(op_desc.Output("BiasDropoutResidualOut")[0]);
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "preln_residual_bias", output_names, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(fused_bias_dropout_residual_layer_norm,
                           PrelnResidualBiasOpConverter);

@@ -19,11 +19,18 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/graph_pattern_detector.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 class Node;
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 
 struct SkipLayerNorm : public PatternBase {
   SkipLayerNorm(PDPattern *pattern, const std::string &name_scope)
@@ -92,12 +99,11 @@ PDNode *SkipLayerNorm::operator()(PDNode *x, PDNode *y) {
   return layer_norm_out_var;
 }
 
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 void SkipLayerNormFusePass::ApplyImpl(ir::Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::PreconditionNotMet("graph should not be null."));
+      graph, platform::errors::PreconditionNotMet("graph should not be null."));
   FusePassBase::Init("skip_layernorm_fuse", graph);
   int found_subgraph_count = 0;
 
@@ -188,7 +194,9 @@ void SkipLayerNormFusePass::ApplyImpl(ir::Graph *graph) const {
   AddStatis(found_subgraph_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(skip_layernorm_fuse_pass,
               paddle::framework::ir::SkipLayerNormFusePass);

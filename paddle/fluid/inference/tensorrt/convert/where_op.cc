@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * Where Op
@@ -39,10 +41,12 @@ class WhereOpConverter : public OpConverter {
     auto layer = TRT_ENGINE_ADD_LAYER(
         engine_, Select, *condition_tensor, *input_x_tensor, *input_y_tensor);
 
-    ReplenishLayerAndOutput(layer, "where", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "where", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(where, WhereOpConverter);

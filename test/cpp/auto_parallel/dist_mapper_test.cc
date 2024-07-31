@@ -16,7 +16,6 @@ limitations under the License. */
 #include <map>
 #include <sstream>
 #include "gtest/gtest.h"
-#include "paddle/phi/core/distributed/auto_parallel/proto_helper.h"
 
 namespace phi {
 namespace distributed {
@@ -63,7 +62,7 @@ TEST(DistributedMapper, Ctor) {
   std::stringstream sstream;
   sstream << dist_mapper;
   EXPECT_EQ(sstream.str(), dist_mapper.to_string());
-  auto proto = phi::distributed::to_proto(dist_mapper);
+  auto proto = dist_mapper.to_proto();
   DistributedMapper new_dist_mapper = DistributedMapper::from_proto(proto);
   EXPECT_EQ(dist_mapper, new_dist_mapper);
 }

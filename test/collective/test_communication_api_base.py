@@ -22,14 +22,9 @@ import sys
 import tempfile
 import unittest
 
-import paddle
-
 
 class CommunicationTestDistBase(unittest.TestCase):
     def setUp(self, save_log_dir=None, num_of_devices=2, timeout=120, nnode=1):
-        if num_of_devices > paddle.device.cuda.device_count():
-            self.skipTest("number of GPUs is not enough")
-
         self._python_interp = sys.executable
         self._save_log_dir = save_log_dir
         self._log_dir = tempfile.TemporaryDirectory()
@@ -84,11 +79,15 @@ class CommunicationTestDistBase(unittest.TestCase):
             )
         except subprocess.TimeoutExpired as err:
             raise TimeoutError(
-                f"Timeout while running command {err.cmd}, try to set a longer period, {err.timeout} is not enough."
+                "Timeout while running command {}, try to set a longer period, {} is not enough.".format(
+                    err.cmd, err.timeout
+                )
             )
         except subprocess.CalledProcessError as err:
             raise RuntimeError(
-                f"Error occurs when running this test case. The return code of command {err.cmd} is {err.returncode}"
+                "Error occurs when running this test case. The return code of command {} is {}".format(
+                    err.cmd, err.returncode
+                )
             )
 
     def tearDown(self):

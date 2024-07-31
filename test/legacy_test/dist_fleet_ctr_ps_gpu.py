@@ -29,7 +29,8 @@ import paddle
 from paddle import base
 
 # Fix seed for test
-paddle.seed(1)
+base.default_startup_program().random_seed = 1
+base.default_main_program().random_seed = 1
 
 
 class TestDistGpuPsCTR2x2(TestDistCTR2x2):

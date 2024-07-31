@@ -12,15 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import math
-from typing import (
-    TYPE_CHECKING,
-    TypedDict,
-)
-
-from typing_extensions import NotRequired, Unpack
 
 import paddle
 import paddle.nn.functional as F
@@ -39,26 +31,19 @@ model_urls = {
 
 __all__ = []
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import Size2
-
-    class _AlexNetOptions(TypedDict):
-        num_classes: NotRequired[int]
-
 
 class ConvPoolLayer(nn.Layer):
     def __init__(
         self,
-        input_channels: int,
-        output_channels: int,
-        filter_size: Size2,
-        stride: Size2,
-        padding: Size2,
-        stdv: float,
-        groups: int = 1,
-        act: str | None = None,
-    ) -> None:
+        input_channels,
+        output_channels,
+        filter_size,
+        stride,
+        padding,
+        stdv,
+        groups=1,
+        act=None,
+    ):
         super().__init__()
 
         self.relu = ReLU() if act == "relu" else None
@@ -75,7 +60,7 @@ class ConvPoolLayer(nn.Layer):
         )
         self._pool = MaxPool2D(kernel_size=3, stride=2, padding=0)
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs):
         x = self._conv(inputs)
         if self.relu is not None:
             x = self.relu(x)
@@ -108,9 +93,7 @@ class AlexNet(nn.Layer):
             [1, 1000]
     """
 
-    num_classes: int
-
-    def __init__(self, num_classes: int = 1000) -> None:
+    def __init__(self, num_classes=1000):
         super().__init__()
         self.num_classes = num_classes
         stdv = 1.0 / math.sqrt(3 * 11 * 11)
@@ -164,7 +147,7 @@ class AlexNet(nn.Layer):
                 bias_attr=ParamAttr(initializer=Uniform(-stdv, stdv)),
             )
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs):
         x = self._conv1(inputs)
         x = self._conv2(x)
         x = self._conv3(x)
@@ -186,9 +169,7 @@ class AlexNet(nn.Layer):
         return x
 
 
-def _alexnet(
-    arch: str, pretrained: bool, **kwargs: Unpack[_AlexNetOptions]
-) -> AlexNet:
+def _alexnet(arch, pretrained, **kwargs):
     model = AlexNet(**kwargs)
 
     if pretrained:
@@ -205,9 +186,7 @@ def _alexnet(
     return model
 
 
-def alexnet(
-    pretrained: bool = False, **kwargs: Unpack[_AlexNetOptions]
-) -> AlexNet:
+def alexnet(pretrained=False, **kwargs):
     """AlexNet model from
     `"ImageNet Classification with Deep Convolutional Neural Networks"
     <https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf>`_.

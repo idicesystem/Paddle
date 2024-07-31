@@ -28,7 +28,10 @@
 #include "paddle/fluid/framework/ir/pass_tester_helper.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 
-namespace paddle::framework::ir::test {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace test {
 
 OpDesc* CreateOp(ProgramDesc* prog,
                  const std::string& op_type_name,
@@ -178,7 +181,7 @@ bool RunPassAndAssert(Graph* graph,
 
 template <typename T>
 void InitLoDTensorHolder(const Scope& scope,
-                         const phi::Place& place,
+                         const paddle::platform::Place& place,
                          const std::string& var_name,
                          const std::vector<int64_t>& dims,
                          const T* data) {
@@ -195,17 +198,17 @@ void InitLoDTensorHolder(const Scope& scope,
 
 // Instantiate for below data types.
 template void InitLoDTensorHolder<float>(const Scope&,
-                                         const phi::Place&,
+                                         const paddle::platform::Place&,
                                          const std::string&,
                                          const std::vector<int64_t>&,
                                          const float*);
 template void InitLoDTensorHolder<int>(const Scope&,
-                                       const phi::Place&,
+                                       const paddle::platform::Place&,
                                        const std::string&,
                                        const std::vector<int64_t>&,
                                        const int*);
 template void InitLoDTensorHolder<double>(const Scope&,
-                                          const phi::Place&,
+                                          const paddle::platform::Place&,
                                           const std::string&,
                                           const std::vector<int64_t>&,
                                           const double*);
@@ -233,4 +236,7 @@ OpDesc* GetOp(const BlockDesc& block_desc,
   return nullptr;
 }
 
-}  // namespace paddle::framework::ir::test
+}  // namespace test
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

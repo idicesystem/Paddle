@@ -21,13 +21,12 @@ limitations under the License. */
 #include <vector>
 
 #include "paddle/fluid/framework/data_layout.h"
-#include "paddle/fluid/framework/op_registry.h"
 #include "paddle/fluid/framework/op_version_registry.h"
-#include "paddle/phi/kernels/funcs/common_shape.h"
-#include "paddle/phi/kernels/funcs/elementwise/elementwise_op_function.h"
+#include "paddle/fluid/operators/common_infer_shape_functions.h"
+#include "paddle/fluid/operators/elementwise/elementwise_op_function.h"
 
 #ifdef PADDLE_WITH_DNNL
-#include "paddle/fluid/platform/onednn_helper.h"
+#include "paddle/fluid/platform/mkldnn_helper.h"
 #endif
 
 namespace paddle {
@@ -45,7 +44,7 @@ class ElementwiseOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE_EQ(
         ctx->GetInputsVarType("Y").front(),
         framework::proto::VarType::LOD_TENSOR,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The input var's type should be phi::DenseTensor, but the "
             "received is %s [%s].",
             ctx->GetInputsVarType("Y").front(),
@@ -56,7 +55,7 @@ class ElementwiseOp : public framework::OperatorWithKernel {
       PADDLE_ENFORCE_EQ(
           ctx->GetInputDim("Y").size(),
           1u,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "For elementwise_op, if X is Sparse(VarType.SELECTED_ROWS"
               "), Y must be scalar, the size of Y should be 1. "
               "But reveived the size of Y = %s.",
@@ -64,14 +63,14 @@ class ElementwiseOp : public framework::OperatorWithKernel {
       PADDLE_ENFORCE_EQ(
           ctx->GetInputDim("Y")[0],
           1,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "For elementwise_op, if X is Sparse(VarType.SELECTED_ROWS"
               "), Y must be scalar, the first dimension of Y should be 1. "
               "But reveived the first dimension of Y = %s.",
               ctx->GetInputDim("Y")[0]));
     } else if (ctx->GetInputsVarType("X").front() !=
                framework::proto::VarType::LOD_TENSOR) {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Input X's type[%s] is not supported by elementwise_op. Please set "
           "its type to LOD_TENSOR.",
           ctx->GetInputsVarType("X").front()));
@@ -88,7 +87,7 @@ class ElementwiseOp : public framework::OperatorWithKernel {
       if (x_dims.size() == y_dims.size()) {
         PADDLE_ENFORCE_EQ((axis == -1) || (axis == 0),
                           true,
-                          common::errors::InvalidArgument(
+                          platform::errors::InvalidArgument(
                               "axis should be -1 or 0 while the dimension of "
                               "tensor X (%s) is equal to the dimension of "
                               "tensor Y (%s), but received axis: %s",
@@ -98,7 +97,7 @@ class ElementwiseOp : public framework::OperatorWithKernel {
       }
       PADDLE_ENFORCE_EQ((axis >= (-1 * max_dim)) && (axis < max_dim),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "The axis range must be [%s, %s), but axis is %s. "
                             "Please set the axis again.",
                             -1 * max_dim,
@@ -131,13 +130,13 @@ class ElementwiseOp : public framework::OperatorWithKernel {
       }
 #endif
 
-      phi::funcs::GetBroadcastDimsArrays(x_dims,
-                                         y_dims,
-                                         x_dims_array.data(),
-                                         y_dims_array.data(),
-                                         out_dims_array.data(),
-                                         max_dim,
-                                         axis);
+      GetBroadcastDimsArrays(x_dims,
+                             y_dims,
+                             x_dims_array.data(),
+                             y_dims_array.data(),
+                             out_dims_array.data(),
+                             max_dim,
+                             axis);
 #ifdef PADDLE_WITH_DNNL
       // Now rotate shape back if needed (NHWC -> NCHW)
       if (should_rotate) {

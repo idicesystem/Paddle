@@ -45,17 +45,17 @@ class TestTransferLayoutFP16Op(OpTest):
 class LayoutAutoTune(unittest.TestCase):
     def test_config(self):
         paddle.base.core.enable_layout_autotune()
-        if self.use_autotune():
+        if self.use_autoune():
             self.assertEqual(paddle.base.core.use_layout_autotune(), True)
             paddle.base.core.disable_layout_autotune()
         self.assertEqual(paddle.base.core.use_layout_autotune(), False)
-        self.use_autotune()
+        self.use_autoune()
 
     def setUp(self):
         paddle.disable_static()
-        self.use_autotune()
+        self.use_autoune()
 
-    def use_autotune(self):
+    def use_autoune(self):
         if paddle.is_compiled_with_cuda():
             paddle.incubate.autotune.set_config(
                 config={"layout": {"enable": True}}

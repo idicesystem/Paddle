@@ -15,11 +15,11 @@
 #include "paddle/fluid/eager/api/generated/eager_generated/backwards/scale_node.h"
 
 #include "glog/logging.h"
-#include "paddle/common/errors.h"
 #include "paddle/fluid/eager/api/utils/global_utils.h"
 #include "paddle/fluid/eager/eager_tensor.h"
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/enforce.h"
+#include "paddle/fluid/platform/errors.h"
 #include "paddle/phi/kernels/scale_kernel.h"
 
 namespace egr {
@@ -85,7 +85,7 @@ static void ScaleDeviceDispatch(const phi::DenseTensor& dense_tensor,
       break;
     }
     default: {
-      PADDLE_THROW(phi::errors::Fatal(
+      PADDLE_THROW(paddle::platform::errors::Fatal(
           "Detected unsupported data type."
           "Only Float64, Float32, Int64, Int32 are supported for now."));
       break;
@@ -111,18 +111,19 @@ void ScaleAPI(const paddle::Tensor& x,
   auto dense_out = std::make_shared<phi::DenseTensor>(
       paddle::memory::Alloc(place, bytes_size), std::move(tensor_meta));
   // Handle Device Context
-  const phi::Place& expected_kernel_place =
+  const paddle::platform::Place& expected_kernel_place =
       Controller::Instance().GetExpectedPlace();
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+  paddle::platform::DeviceContextPool& pool =
+      paddle::platform::DeviceContextPool::Instance();
 
-  if (expected_kernel_place == phi::CPUPlace()) {
+  if (expected_kernel_place == paddle::platform::CPUPlace()) {
     auto* dev_ctx =
         dynamic_cast<phi::CPUContext*>(pool.Get(expected_kernel_place));
     if (!dev_ctx) {
-      PADDLE_THROW(
-          phi::errors::Fatal("Cannot convert device_context to phi::CPUContext."
-                             "This indicates backend mismatch."
-                             "Pleas double check your expected place"));
+      PADDLE_THROW(paddle::platform::errors::Fatal(
+          "Cannot convert device_context to phi::CPUContext."
+          "This indicates backend mismatch."
+          "Pleas double check your expected place"));
     }
     ScaleDeviceDispatch<phi::CPUContext>(*dense_tensor.get(),
                                          *dev_ctx,
@@ -132,11 +133,11 @@ void ScaleAPI(const paddle::Tensor& x,
                                          dense_out.get());
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-  } else if (expected_kernel_place == phi::GPUPlace()) {
+  } else if (expected_kernel_place == paddle::platform::CUDAPlace()) {
     auto* dev_ctx =
         dynamic_cast<phi::GPUContext*>(pool.Get(expected_kernel_place));
     if (!dev_ctx) {
-      PADDLE_THROW(phi::errors::Fatal(
+      PADDLE_THROW(paddle::platform::errors::Fatal(
           "Cannot convert device_context to CUDADeviceContext."
           "This indicates backend mismatch."
           "Pleas double check your expected place"));
@@ -149,7 +150,7 @@ void ScaleAPI(const paddle::Tensor& x,
                                          dense_out.get());
 #endif
   } else {
-    PADDLE_THROW(phi::errors::Fatal(
+    PADDLE_THROW(paddle::platform::errors::Fatal(
         "Detected unsupported backend."
         "Only CPU and CUDA Backend are supported for now."
         "Please double check if your backend falls into the above two "
@@ -176,7 +177,7 @@ GradNodeScale::operator()(
   VLOG(6) << "grad size is: " << grads.size();
   PADDLE_ENFORCE(
       ((grads.size() == 1) && (grads[0].size() == 1)),
-      phi::errors::Fatal(
+      paddle::platform::errors::Fatal(
           "ScaleGradNode takes exactly 1 grad tensor."
           "However received: %d",
           "This indicates an issue with Eager Dygraph Backward logic",

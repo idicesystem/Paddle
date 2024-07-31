@@ -68,7 +68,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             # assert np.array_equal(tensor_y, sum_result)
 
-        print("test allreduce sum api ok", flush=True)
+        print("test allreduce sum api ok")
 
         x = np.random.random(self.shape).astype(self.dtype)
         tensor_x = paddle.to_tensor(x)
@@ -86,7 +86,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task.wait()
             # assert np.array_equal(tensor_y, max_result)
 
-        print("test allreduce max api ok", flush=True)
+        print("test allreduce max api ok")
 
         # test broadcast
         # rank 0
@@ -110,7 +110,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             assert task.is_completed()
             # assert np.array_equal(broadcast_result, tensor_y)
 
-        print("test broadcast api ok", flush=True)
+        print("test broadcast api ok")
 
         # test barrier
         # rank 0
@@ -122,7 +122,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             task = pg.barrier(device_id)
             task.wait()
 
-        print("test barrier api ok\n", flush=True)
+        print("test barrier api ok\n")
         return
 
         # test allgather
@@ -150,7 +150,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         )
         # assert np.array_equal(tensor_x, out_1)
         # assert np.array_equal(tensor_y, out_2)
-        print("test allgather api ok\n", flush=True)
+        print("test allgather api ok\n")
 
         # test alltoall
         # rank 0
@@ -183,7 +183,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         #     assert np.array_equal(out1_2.numpy(), raw_tensor_y_1.numpy())
         # else:
         #     assert np.array_equal(out2_1, raw_tensor_x_2)
-        print("test alltoall api ok\n", flush=True)
+        print("test alltoall api ok\n")
 
         # test Reduce
         # rank 0
@@ -203,7 +203,7 @@ class TestProcessGroupFp32(unittest.TestCase):
             # paddle.base.core._custom_device_synchronize("custom_cpu", -1)
         # if pg.rank() == 0:
         #     assert np.array_equal(tensor_x, sum_result)
-        print("test reduce sum api ok\n", flush=True)
+        print("test reduce sum api ok\n")
 
         # test Scatter
         # rank 0
@@ -228,7 +228,7 @@ class TestProcessGroupFp32(unittest.TestCase):
         #     assert np.array_equal(tensor_y, out1)
         # else:
         #     assert np.array_equal(tensor_y, out2)
-        print("test scatter api ok\n", flush=True)
+        print("test scatter api ok\n")
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@
 #include <chrono>
 #include <unordered_set>
 
-#include "paddle/common/flags.h"
+#include "paddle/utils/flags.h"
 
 #include "paddle/fluid/framework/details/nan_inf_utils.h"
 #include "paddle/fluid/framework/details/share_tensor_buffer_functor.h"
@@ -25,22 +25,20 @@
 #include "paddle/fluid/framework/new_executor/interpreter/static_build.h"
 #include "paddle/fluid/framework/operator.h"
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
+#include "paddle/fluid/platform/os_info.h"
 #include "paddle/fluid/platform/profiler/event_tracing.h"
 #include "paddle/fluid/platform/profiler/supplement_tracing.h"
 #include "paddle/phi/common/place.h"
 #include "paddle/phi/core/kernel_context.h"
-#include "paddle/phi/core/os_info.h"
 #include "paddle/phi/core/sparse_coo_tensor.h"
 #include "paddle/phi/core/sparse_csr_tensor.h"
 
 #ifdef PADDLE_WITH_DNNL
-#include "paddle/fluid/framework/new_executor/instruction/onednn/onednn_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/onednn/onednn_legacy_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/onednn/onednn_mixed_instruction.h"
-#include "paddle/fluid/platform/onednn_helper.h"
+#include "paddle/fluid/platform/mkldnn_helper.h"
 #endif
 
 #include "paddle/fluid/platform/cuda_graph_with_memory_pool.h"
+#include "paddle/fluid/platform/flags.h"
 #include "paddle/phi/backends/device_manager.h"
 
 #ifdef PADDLE_WITH_CINN
@@ -48,21 +46,13 @@
 #endif
 
 #include "paddle/fluid/framework/new_executor/instruction/builtin_combine_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/assert_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/has_elements_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/if_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/pylayer_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/select_input_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/select_output_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/tuple_pop_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/tuple_push_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/while_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/control_flow/yield_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/custom_kernel_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/instruction_util.h"
+#include "paddle/fluid/framework/new_executor/instruction/cond_instruction.h"
+#include "paddle/fluid/framework/new_executor/instruction/has_elements_instruction.h"
 #include "paddle/fluid/framework/new_executor/instruction/legacy_kernel_instruction.h"
 #include "paddle/fluid/framework/new_executor/instruction/phi_kernel_instruction.h"
-#include "paddle/fluid/framework/new_executor/instruction/tensorrt_engine_instruction.h"
+#include "paddle/fluid/framework/new_executor/instruction/tuple_pop_instruction.h"
+#include "paddle/fluid/framework/new_executor/instruction/tuple_push_instruction.h"
+#include "paddle/fluid/framework/new_executor/instruction/while_instruction.h"
 #include "paddle/fluid/framework/new_executor/pir_adaptor/pir_adaptor_util.h"
 #include "paddle/fluid/pir/dialect/kernel/ir/kernel_attribute.h"
 #include "paddle/fluid/pir/dialect/kernel/ir/kernel_dialect.h"
@@ -70,100 +60,47 @@
 #include "paddle/fluid/pir/dialect/kernel/ir/kernel_type.h"
 #include "paddle/fluid/pir/dialect/operator/ir/control_flow_op.h"
 #include "paddle/fluid/pir/dialect/operator/ir/manual_op.h"
-#include "paddle/fluid/pir/dialect/operator/ir/manual_pylayer_op.h"
-#include "paddle/fluid/pir/dialect/operator/ir/tensorrt_op.h"
 #include "paddle/fluid/pir/dialect/operator/utils/utils.h"
-#include "paddle/pir/include/core/builtin_attribute.h"
-#include "paddle/pir/include/dialect/control_flow/ir/cf_op.h"
+#include "paddle/pir/core/builtin_attribute.h"
+#include "paddle/pir/dialect/control_flow/ir/cf_op.h"
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
-#include "paddle/fluid/framework/new_executor/collect_shape_manager.h"
-#include "paddle/fluid/framework/new_executor/nan_inf_utils.h"
 
-COMMON_DECLARE_bool(enable_pir_in_executor);
-COMMON_DECLARE_bool(enable_pir_in_executor_trace_run);
-COMMON_DECLARE_bool(enable_collect_shape);
-COMMON_DECLARE_int32(low_precision_op_list);
+PHI_DECLARE_bool(enable_pir_in_executor);
+PHI_DECLARE_bool(enable_pir_in_executor_trace_run);
 
 #define CREATE_INSTR(instr_name)                                   \
   vec_instruction_base_.emplace_back(std::make_unique<instr_name>( \
       op_idx++, place_, &op, value_exe_info_.get()));
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
-void RecordLowPrecisionOp(const InstructionBase* instr_node) {
-  if (FLAGS_low_precision_op_list) {
-    std::string op_name = instr_node->Name();
-    ::pir::Operation* op = instr_node->Operation();
-    if (op->HasAttribute("kernel_key")) {
-      phi::KernelKey kernel_key =
-          op->attribute("kernel_key")
-              .dyn_cast<paddle::dialect::KernelAttribute>()
-              .data();
-      phi::KernelFactory::Instance().AddToLowPrecisionKernelList(
-          op_name, kernel_key.dtype());
-    }
-  }
-}
-
-PirInterpreter::PirInterpreter(const phi::Place& place,
+PirInterpreter::PirInterpreter(const platform::Place& place,
                                const std::vector<std::string>& fetch_var_names,
                                const ::pir::Block* ir_block,
                                framework::Scope* scope,
                                const ExecutionConfig& execution_config)
-    : is_build_(false),
-      static_build_(false),
-      is_shared_results_build_(false),
-      place_(place),
-      unfinished_op_number_(0),
+    : place_(place),
       execution_config_(execution_config),
-      force_events_to_wait_(nullptr),
       var_scope_(scope),
       scope_(scope),
-      local_scope_(nullptr),
-      main_thread_blocker_(),
-      async_work_queue_(),
-      exception_holder_(),
-      exception_notifier_(nullptr),
-      completion_notifier_(nullptr),
-      gc_(nullptr),
-      last_live_ops_(),
-      dependency_count_(nullptr),
-      deps_(),
-      refs_(),
-      sync_op_num_(-1),
-      nccl_op_num_(-1),
-      onednn_op_num_(-1),
-      trace_execute_order_(),
-      pir_output_hookfuncs_(),
-      pir_input_hookfuncs_(),
-      ir_instruction_scheduling_priority_less(),
       ir_block_(ir_block),
-      sub_blocks_(),
-      vec_instruction_base_(),
-      value_exe_info_(nullptr),
-      var_ref_count_(),
-      ir_dependency_builder_(),
       ir_stream_analyzer_(place),
       fetch_var_names_(fetch_var_names),
-      parameter_var_names_(),
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-      calculate_stream_timer_(
-          std::make_unique<phi::CalculateStreamTimer>(place)),
-#endif
-      last_calculate_instr_id_(0),
       enable_job_schedule_profiler_(false) {
-  VLOG(2) << "PirInterpreter(): " << this << " on " << place_;
+  VLOG(4) << "PirInterpreter(): " << this << " on " << place_;
 
   exception_notifier_ = main_thread_blocker_.RegisterEvent(kExceptionCaught);
   completion_notifier_ = main_thread_blocker_.RegisterEvent(kTaskCompletion);
 
-  dependency_count_ = std::make_shared<std::vector<size_t>>();
+  dependecy_count_ = std::make_shared<std::vector<size_t>>();
 
   if (!FLAGS_new_executor_use_local_scope) {
     execution_config_.create_local_scope = false;
@@ -187,7 +124,7 @@ PirInterpreter::PirInterpreter(const phi::Place& place,
     SchedulingPriority rhs_scheduling_priority =
         vec_instruction_base_[rhs]->GetSchedulingPriority();
     if (lhs_scheduling_priority == rhs_scheduling_priority) {
-      return lhs > rhs;
+      return lhs < rhs;
     }
     return lhs_scheduling_priority > rhs_scheduling_priority;
   };
@@ -199,63 +136,34 @@ PirInterpreter::PirInterpreter(const phi::Place& place,
   std::stringstream ss;
   ss << this
      << std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  BuildScope(*ir_block_, ss.str(), execution_config_, value_exe_info_.get());
+  BuildScope(*ir_block_, ss.str(), value_exe_info_.get());
+
+#if defined(PADDLE_WITH_CUDA)
+  calculate_stream_timer_ = std::make_unique<phi::CalculateStreamTimer>(place);
+#endif
 }
 
 PirInterpreter::PirInterpreter(
-    const phi::Place& place,
+    const platform::Place& place,
     const std::vector<std::string>& fetch_var_names,
     const ::pir::Block* ir_block,
     framework::Scope* scope,
     std::shared_ptr<ValueExecutionInfo> value_exe_info,
     const ExecutionConfig& execution_config)
-    : is_build_(false),
-      static_build_(false),
-      is_shared_results_build_(false),
-      place_(place),
-      unfinished_op_number_(0),
+    : place_(place),
       execution_config_(execution_config),
-      force_events_to_wait_(nullptr),
       var_scope_(scope),
       scope_(scope),
-      local_scope_(nullptr),
-      main_thread_blocker_(),
-      async_work_queue_(),
-      exception_holder_(),
-      exception_notifier_(nullptr),
-      completion_notifier_(nullptr),
-      gc_(nullptr),
-      last_live_ops_(),
-      dependency_count_(nullptr),
-      deps_(),
-      refs_(),
-      sync_op_num_(-1),
-      nccl_op_num_(-1),
-      onednn_op_num_(-1),
-      trace_execute_order_(),
-      pir_output_hookfuncs_(),
-      pir_input_hookfuncs_(),
-      ir_instruction_scheduling_priority_less(),
       ir_block_(ir_block),
-      sub_blocks_(),
-      vec_instruction_base_(),
       value_exe_info_(value_exe_info),
-      var_ref_count_(),
-      ir_dependency_builder_(),
       ir_stream_analyzer_(place),
-      fetch_var_names_(fetch_var_names),
-      parameter_var_names_(),
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-      calculate_stream_timer_(nullptr),
-#endif
-      last_calculate_instr_id_(0),
-      enable_job_schedule_profiler_(false) {
-  VLOG(2) << "PirInterpreter(): " << this << " on " << place_;
+      fetch_var_names_(fetch_var_names) {
+  VLOG(4) << "PirInterpreter(): " << this << " on " << place_;
 
   exception_notifier_ = main_thread_blocker_.RegisterEvent(kExceptionCaught);
   completion_notifier_ = main_thread_blocker_.RegisterEvent(kTaskCompletion);
 
-  dependency_count_ = std::make_shared<std::vector<size_t>>();
+  dependecy_count_ = std::make_shared<std::vector<size_t>>();
 
   if (!FLAGS_new_executor_use_local_scope) {
     execution_config_.create_local_scope = false;
@@ -278,7 +186,7 @@ PirInterpreter::PirInterpreter(
     SchedulingPriority rhs_scheduling_priority =
         vec_instruction_base_[rhs]->GetSchedulingPriority();
     if (lhs_scheduling_priority == rhs_scheduling_priority) {
-      return lhs > rhs;
+      return lhs < rhs;
     }
     return lhs_scheduling_priority > rhs_scheduling_priority;
   };
@@ -288,11 +196,11 @@ PirInterpreter::PirInterpreter(
   std::stringstream ss;
   ss << this
      << std::chrono::high_resolution_clock::now().time_since_epoch().count();
-  BuildScope(*ir_block_, ss.str(), execution_config_, value_exe_info_.get());
+  BuildScope(*ir_block_, ss.str(), value_exe_info_.get());
 }
 
 PirInterpreter::~PirInterpreter() {
-  // cancel gc's thread
+  // cancle gc's thread
   gc_.reset(nullptr);
   async_work_queue_.reset();
   VLOG(4) << "~PirInterpreter(): " << this << " on " << place_;
@@ -305,7 +213,7 @@ PirInterpreter::~PirInterpreter() {
 }
 
 std::shared_ptr<ProgramDesc> PirInterpreter::GetMutableCopyProgram() {
-  PADDLE_THROW(common::errors::Unimplemented(
+  PADDLE_THROW(platform::errors::Unimplemented(
       "GetMutableCopyProgram is not implemented in PirInterpreter."));
 }
 
@@ -313,7 +221,7 @@ void PirInterpreter::SetSkipGcVars(const std::set<std::string>& skip_gc_vars) {
   PADDLE_ENFORCE_EQ(
       execution_config_.skip_gc_vars.empty(),
       true,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "execution_config_.skip_gc_vars can only be initialized once, now "
           "execution_config_.skip_gc_vars is "
           "not empty, do not call SetSkipGcVars method repeatedly."));
@@ -325,7 +233,7 @@ void PirInterpreter::SetJitInputVars(
   PADDLE_ENFORCE_EQ(
       execution_config_.jit_input_vars.empty(),
       true,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "execution_config_.jit_input_vars can only be initialized once, now "
           "execution_config_.jit_input_vars is "
           "not empty, do not call SetJitInputVars method repeatedly."));
@@ -374,7 +282,7 @@ void PirInterpreter::ShareBuildResultsFrom(const InterpreterBaseImpl& src) {
   }
   // share op dependency
   ir_dependency_builder_.ShareDependencyFrom(impl.GetPirDependencyBuilder());
-  dependency_count_ = impl.GetDependencyCount();
+  dependecy_count_ = impl.GetDependencyCount();
   // share event analysis
   ir_stream_analyzer_.ShareEventInfoFrom(impl.GetPirStreamAnalyzer());
   is_shared_results_build_ = true;
@@ -384,7 +292,7 @@ void PirInterpreter::ShareBuildResultsFrom(const InterpreterBaseImpl& src) {
 
 std::tuple<double, double> PirInterpreter::InterpreterRunTime() {
   double start_time = 0, end_time = 0;
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA)
   start_time = calculate_stream_timer_->StartTime();
   end_time = calculate_stream_timer_->EndTime();
 #endif
@@ -398,7 +306,7 @@ PirInterpreter::GetPirDependencyBuilder() const {
 
 std::shared_ptr<std::vector<size_t>> PirInterpreter::GetDependencyCount()
     const {
-  return dependency_count_;
+  return dependecy_count_;
 }
 
 const interpreter::PirStreamAnalyzer& PirInterpreter::GetPirStreamAnalyzer()
@@ -422,49 +330,49 @@ std::shared_ptr<interpreter::AsyncWorkQueue> PirInterpreter::GetWorkQueue() {
 
 void PirInterpreter::PrepareForCUDAGraphCapture() {
   if (!FLAGS_new_executor_use_cuda_graph) return;
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#ifdef PADDLE_WITH_CUDA
   PADDLE_ENFORCE_EQ(
       platform::IsCUDAGraphCapturing(),
       false,
-      common::errors::PermissionDenied("CUDA Graph is not allowed to capture "
-                                       "before prepare."));
-  PADDLE_ENFORCE_EQ(phi::is_gpu_place(place_),
+      platform::errors::PermissionDenied("CUDA Graph is not allowed to capture "
+                                         "before prepare."));
+  PADDLE_ENFORCE_EQ(platform::is_gpu_place(place_),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "CUDA Graph is only supported on NVIDIA GPU device."));
   // If set true, will call `cudaStreamSynchronize(nccl_stream)`after allreduce.
   // which may cause error in cuda graph. This behavior is consistent with PE.
   PADDLE_ENFORCE_EQ(FLAGS_sync_nccl_allreduce,
                     false,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "FLAGS_sync_nccl_allreduce must be False to support "
                         "CUDA Graph capturing."));
 #else
-  PADDLE_THROW(common::errors::Unimplemented(
+  PADDLE_THROW(platform::errors::Unimplemented(
       "CUDA Graph is only supported on NVIDIA GPU device."));
 #endif
 }
 
 void PirInterpreter::CheckCUDAGraphBeforeRun(
     const std::vector<std::string>& feed_names) {
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#ifdef PADDLE_WITH_CUDA
   if (platform::IsCUDAGraphCapturing()) {
     PADDLE_ENFORCE_EQ(
         feed_names.empty(),
         true,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Feeding data is not permitted when capturing CUDA Graph."));
     PADDLE_ENFORCE_EQ(
         FLAGS_new_executor_use_cuda_graph,
         true,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "You must turn on FLAGS_new_executor_use_cuda_graph to True "
             "to enable CUDA Graph capturing."));
     PADDLE_ENFORCE_EQ(
         place_,
         platform::CUDAGraphCapturingPlace(),
-        common::errors::InvalidArgument("The place to capture CUDAGraph is "
-                                        "not the same as the place to run."));
+        platform::errors::InvalidArgument("The place to capture CUDAGraph is "
+                                          "not the same as the place to run."));
   }
 #endif
 }
@@ -524,12 +432,10 @@ void PirInterpreter::UpdateNcclOpNum() {
   static std::set<std::string> nccl_op_set = {
       "pd_op.c_softmax_with_cross_entropy",
       "pd_op.c_allgather",
-      "pd_op.c_allreduce_avg",
       "pd_op.c_allreduce_max",
       "pd_op.c_allreduce_min",
       "pd_op.c_allreduce_sum",
       "pd_op.c_allreduce_prod",
-      "pd_op.c_reduce_avg",
       "pd_op.c_reduce_max",
       "pd_op.c_reduce_min",
       "pd_op.c_reduce_prod",
@@ -596,12 +502,10 @@ void PirInterpreter::UpdateNcclOpNum() {
       "pd_op.reduce_grad",
       "pd_op.c_softmax_with_cross_entropy_",
       "pd_op.c_allgather_",
-      "pd_op.c_allreduce_avg_",
       "pd_op.c_allreduce_max_",
       "pd_op.c_allreduce_min_",
       "pd_op.c_allreduce_sum_",
       "pd_op.c_allreduce_prod_",
-      "pd_op.c_reduce_avg_",
       "pd_op.c_reduce_max_",
       "pd_op.c_reduce_min_",
       "pd_op.c_reduce_prod_",
@@ -678,21 +582,6 @@ void PirInterpreter::UpdateNcclOpNum() {
   VLOG(4) << "Update nccl op num, nccl op num is: " << nccl_op_num;
 }
 
-void PirInterpreter::UpdateOneDNNOpNum() {
-  int64_t onednn_op_num = 0;
-#ifdef PADDLE_WITH_DNNL
-  for (auto& ins : vec_instruction_base_) {
-    if (dynamic_cast<OneDNNPhiKernelInstruction*>(ins.get()) != nullptr ||
-        dynamic_cast<OneDNNLegacyKernelInstruction*>(ins.get()) != nullptr ||
-        dynamic_cast<OneDNNMixedPhiKernelInstruction*>(ins.get()) != nullptr) {
-      onednn_op_num = onednn_op_num + 1;
-    }
-  }
-#endif
-  onednn_op_num_ = onednn_op_num;
-  VLOG(4) << "Update onednn op num, onednn op num is: " << onednn_op_num;
-}
-
 // Note(zhangbo):
 // When there is a KQueueSync type OP in the model, breadth traversal is better
 // than depth traversal. For example: OP(O) ->(direct_run)-> OP(A)
@@ -704,7 +593,7 @@ void PirInterpreter::AnalyseExecuteOrderForTrace(
     InstructionSchedulingPriorityLess compare) {
   VLOG(4) << "Analyze the execution order of Trace scheduling mode.";
   interpreter::ResetAtomicGuard guard(&deps_, &refs_);
-
+  VLOG(4) << "1";
   auto IsReady = [this](size_t next_id) {
     VLOG(4) << "op_id: " << next_id
             << ", remain deps: " << deps_[next_id]->DynamicDep();
@@ -714,17 +603,9 @@ void PirInterpreter::AnalyseExecuteOrderForTrace(
   std::vector<size_t> trace_order;
   SchedulingQueue ready_ops(compare);
 
-  std::stringstream ss;
-  if (VLOG_IS_ON(2)) {
-    ss << "\nLeaf nodes: ";
-  }
-  for (size_t instr_id = 0; instr_id < dependency_count_->size(); ++instr_id) {
-    if ((*dependency_count_)[instr_id] == 0) {
+  for (size_t instr_id = 0; instr_id < dependecy_count_->size(); ++instr_id) {
+    if ((*dependecy_count_)[instr_id] == 0) {
       ready_ops.push(instr_id);
-      if (VLOG_IS_ON(2)) {
-        ss << instr_id << "[" << vec_instruction_base_[instr_id]->Name()
-           << "]->";
-      }
     }
   }
 
@@ -733,36 +614,33 @@ void PirInterpreter::AnalyseExecuteOrderForTrace(
     ready_ops.pop();
     trace_order.push_back(now_id);
 
-    if (VLOG_IS_ON(2)) {
-      ss << "\n" << now_id << " downstreams: ";
-    }
-
     auto next_op_set = op_downstream_map[now_id];
 
     for (size_t next_op_id : next_op_set) {
       if (IsReady(next_op_id)) {
         ready_ops.push(next_op_id);
-        if (VLOG_IS_ON(2)) {
-          ss << next_op_id << "[" << vec_instruction_base_[next_op_id]->Name()
-             << "]->";
-        }
       }
     }
   }
 
   PADDLE_ENFORCE_EQ(
       trace_order.size(),
-      dependency_count_->size(),
-      common::errors::PreconditionNotMet(
-          "trace_order size should be equal to dependency_count_."));
+      dependecy_count_->size(),
+      platform::errors::PreconditionNotMet(
+          "trace_order size should be equal to dependecy_count_."));
 
   trace_execute_order_ = trace_order;
 
-  if (VLOG_IS_ON(2)) {
-    std::cout << "======================== pir interpreter trace order "
-                 "========================"
-              << std::endl;
-    std::cout << ss.str() << std::endl;
+  if (VLOG_IS_ON(6)) {
+    std::stringstream ss;
+    ss << "trace order: ";
+    for (size_t idx = 0; idx < trace_execute_order_.size(); idx++) {
+      ss << vec_instruction_base_[trace_execute_order_[idx]]->Name() << "["
+         << trace_execute_order_[idx] << "]"
+         << " -> ";
+    }
+    ss << "end\n";
+    VLOG(6) << ss.str();
   }
 }
 
@@ -786,97 +664,35 @@ void PirInterpreter::BuildInstruction() {
         CREATE_INSTR(TuplePushInstruction);
       } else if (op.isa<pir::TuplePopOp>()) {
         CREATE_INSTR(TuplePopInstruction);
-      } else if (op.isa<pir::YieldOp>()) {
-        CREATE_INSTR(YieldInstruction);
       } else {
         VLOG(6) << "skip process cf dialect op: " << op.name();
         continue;
       }
     } else if (op.dialect()->name() == "pd_op") {
-      if (op.isa<paddle::dialect::IfOp>()) {  // NOLINT
-        std::unique_ptr<IfInstruction> if_instr_ptr =
-            std::make_unique<IfInstruction>(op_idx++,
-                                            place_,
-                                            &op,
-                                            value_exe_info_.get(),
-                                            execution_config_);
-        if_instr_ptr->SetOutputHooks(pir_output_hookfuncs_);
-        if_instr_ptr->SetInputHooks(pir_input_hookfuncs_);
-        vec_instruction_base_.emplace_back(std::move(if_instr_ptr));
-
+      if (op.isa<paddle::dialect::IfOp>()) {
+        auto skip_gc_vars = execution_config_.skip_gc_vars;
+        vec_instruction_base_.emplace_back(std::make_unique<CondInstruction>(
+            op_idx++, place_, &op, value_exe_info_.get(), skip_gc_vars));
         sub_blocks_.insert(
             {&op.dyn_cast<paddle::dialect::IfOp>().true_block(),
-             dynamic_cast<IfInstruction*>(vec_instruction_base_.back().get())
+             dynamic_cast<CondInstruction*>(vec_instruction_base_.back().get())
                  ->TrueBranchInterpreter()});
         sub_blocks_.insert(
             {&op.dyn_cast<paddle::dialect::IfOp>().false_block(),
-             dynamic_cast<IfInstruction*>(vec_instruction_base_.back().get())
+             dynamic_cast<CondInstruction*>(vec_instruction_base_.back().get())
                  ->FalseBranchInterpreter()});
-      } else if (op.isa<paddle::dialect::PyLayerOp>()) {
-        vec_instruction_base_.emplace_back(std::make_unique<PyLayerInstruction>(
-            op_idx++, place_, &op, value_exe_info_.get(), execution_config_));
-        sub_blocks_.insert(
-            {&op.dyn_cast<paddle::dialect::PyLayerOp>().forward_block(),
-             dynamic_cast<PyLayerInstruction*>(
-                 vec_instruction_base_.back().get())
-                 ->ForwardInterpreter()});
       } else if (op.isa<paddle::dialect::WhileOp>()) {
-        std::unique_ptr<WhileInstruction> while_instr_ptr =
-            std::make_unique<WhileInstruction>(op_idx++,
-                                               place_,
-                                               &op,
-                                               value_exe_info_.get(),
-                                               execution_config_);
-
-        while_instr_ptr->SetOutputHooks(pir_output_hookfuncs_);
-        while_instr_ptr->SetInputHooks(pir_input_hookfuncs_);
-
-        while_instr_ptr->CheckGCEarly([this](InstructionBase* instr) {
-          std::unordered_map<pir::Value, std::vector<int>> inputs;
-          GetInputIds(instr->Operation(), *this->value_exe_info_, &inputs);
-          for (const auto& kv : inputs) {
-            if (kv.first ==
-                instr->Operation()->operand_source(0 /*cond var*/)) {
-              // CheckGCEarly should not gc cond var
-              continue;
-            }
-            if (kv.first.isa<pir::BlockArgument>()) {
-              continue;
-            }
-            auto var_id = this->value_exe_info_->GetVarId(kv.first);
-            bool is_ready = this->refs_[var_id]->DynamicRef() == 1;
-            if (is_ready) {
-              VLOG(4) << "early gc: " << this->GetNameByValue(kv.first);
-              this->refs_[var_id]->CheckAndDecrease();
-              this->gc_->Add(this->refs_[var_id]->Var(), instr);
-            }
-          }
-        });
-
-        vec_instruction_base_.emplace_back(std::move(while_instr_ptr));
-
+        auto skip_gc_vars = execution_config_.skip_gc_vars;
+        vec_instruction_base_.emplace_back(std::make_unique<WhileInstruction>(
+            op_idx++, place_, &op, value_exe_info_.get(), skip_gc_vars));
         sub_blocks_.insert(
             {&op.dyn_cast<paddle::dialect::WhileOp>().body(),
              dynamic_cast<WhileInstruction*>(vec_instruction_base_.back().get())
                  ->BodyInterpreter()});
       } else if (op.isa<paddle::dialect::HasElementsOp>()) {
         CREATE_INSTR(HasElementsInstruction);
-      } else if (op.isa<paddle::dialect::AssertOp>()) {
-        CREATE_INSTR(AssertInstruction);
-      } else if (op.isa<paddle::dialect::SelectInputOp>()) {
-        CREATE_INSTR(SelectInputInstruction);
-      } else if (op.isa<paddle::dialect::SelectOutputOp>()) {
-        CREATE_INSTR(SelectOutputInstruction);
-      } else if (op.isa<paddle::dialect::TensorRTEngineOp>()) {
-#ifdef PADDLE_WITH_TENSORRT
-        CREATE_INSTR(TensorRTEngineInstruction);
-#else
-        PADDLE_THROW(common::errors::PreconditionNotMet(
-            "Program has TensorRTEngineOp and must compile Paddle use "
-            "-DWITH_TENSORRT=ON"));
-#endif
       } else {
-        PADDLE_THROW(common::errors::Unimplemented(
+        PADDLE_THROW(platform::errors::Unimplemented(
             "Now only support pd_kernel and cinn dialect."));
       }
     } else if (op.dialect()->name() == "pd_kernel") {
@@ -890,100 +706,51 @@ void PirInterpreter::BuildInstruction() {
       }
       VLOG(6) << "process " << op_name;
 
-      if (op.isa<paddle::dialect::LegacyKernelOp>()) {  // NOLINT
+      if (op.isa<paddle::dialect::LegacyKernelOp>()) {
         CREATE_INSTR(LegacyKernelInstruction);
       } else {
         CREATE_INSTR(PhiKernelInstruction);
       }
-#ifdef PADDLE_WITH_DNNL
-    } else if (op.dialect()->name() == "onednn_kernel") {
-      auto op_name = op.attributes()
-                         .at("op_name")
-                         .dyn_cast<::pir::StrAttribute>()
-                         .AsString();
-      VLOG(6) << "process " << op_name;
-
-      if (op.isa<paddle::dialect::OneDNNPhiKernelOp>()) {
-        CREATE_INSTR(OneDNNPhiKernelInstruction);
-      } else if (op.isa<paddle::dialect::OneDNNMixedPhiKernelOp>()) {
-        CREATE_INSTR(OneDNNMixedPhiKernelInstruction);
-      } else {
-        CREATE_INSTR(OneDNNLegacyKernelInstruction);
-      }
-#endif
 #ifdef PADDLE_WITH_CINN
     } else if (op.dialect()->name() == "cinn_runtime") {
       CREATE_INSTR(CinnJitInstruction);
 #endif
-    } else if (op.dialect()->name() == "custom_kernel") {
-      vec_instruction_base_.emplace_back(
-          std::make_unique<CustomKernelInstruction>(
-              op_idx++, place_, &op, *(value_exe_info_.get())));
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
-          "Now only support pd_kernel, onednn_kernel, custom_kernel, trt_op "
-          "and cinn dialect."));
+      PADDLE_THROW(platform::errors::Unimplemented(
+          "Now only support pd_kernel and cinn dialect."));
     }
   }
 }
 
 std::string PirInterpreter::DebugInstructions() {
-  // log formate: var[101] = pd_op.relu(var[100]) or for inplace op var[100] =
-  // pd_op.relu_(var[100])
   std::stringstream ss;
-  ss << "{outputs}"
-     << " = "
-     << " instruction_name[idx] "
-     << "({inputs})"
-     << "\n";
-  uint64_t instr_idx = 0;
+  ss << "\n"
+     << std::left << std::setw(7) << "id" << std::setw(40) << "instruction"
+     << std::setw(40) << "inputs_id" << std::setw(40) << "outputs_id"
+     << std::endl;
+  uint64_t idx = 0;
   for (auto& instr : vec_instruction_base_) {
-    ss << instr_idx++ << ": ";
-
-    std::stringstream ss_outputs;
-    for (auto& output : instr->Outputs()) {
-      ss_outputs << "( ";
-      for (auto id : output.second) {
-        ss_outputs << id << " ";
-      }
-      ss_outputs << ") ";
-    }
-    ss << ss_outputs.str();
-
-    ss << " = " << instr->Name();
+    ss << std::setw(7) << idx++ << std::setw(40) << instr->Name();
 
     std::stringstream ss_inputs;
     for (auto& input : instr->Inputs()) {
-      ss_inputs << " ( ";
+      ss_inputs << "{";
       for (auto id : input.second) {
         ss_inputs << id << " ";
       }
-      ss_inputs << ") ";
+      ss_inputs << "} ";
     }
-    ss << ss_inputs.str() << "\n";
-  }
-  ss << "---------------------------var_id -> var_name -> "
-        "variable*---------------------------\n";
-  for (size_t var_id = 0; var_id < value_exe_info_->GetVarList().size();
-       var_id++) {
-    auto* var = value_exe_info_->GetVarList()[var_id];
-    auto var_name = value_exe_info_->GetVarName(var);
-    ss << var_id << " -> " << var_name << " -> " << var << "\n";
-  }
-  return ss.str();
-}
+    ss << std::setw(40) << ss_inputs.str();
 
-std::string PirInterpreter::DebugDependency() {
-  std::map<size_t, std::set<size_t>> op_downstream_map =
-      ir_dependency_builder_.OpDownstreamMap();
-  std::stringstream ss;
-  ss << "id -> down_stream_id\n";
-  for (auto const& pair : op_downstream_map) {
-    ss << pair.first << " -> ";
-    std::copy(pair.second.begin(),
-              pair.second.end(),
-              std::ostream_iterator<size_t>(ss, " "));
-    ss << std::endl;
+    std::stringstream ss_outputs;
+    for (auto& output : instr->Outputs()) {
+      ss_outputs << "{";
+      for (auto id : output.second) {
+        ss_outputs << id << " ";
+      }
+      ss_outputs << "} ";
+    }
+    ss << std::setw(40) << ss_outputs.str() << std::endl;
   }
   return ss.str();
 }
@@ -1000,15 +767,15 @@ std::string PirInterpreter::DebugValueInfo() {
 
   for (auto kv : value_exe_info_->GetValue2VarName()) {
     PADDLE_ENFORCE((bool)kv.first,
-                   common::errors::PreconditionNotMet(
-                       "var(%s) should not be nullptr", kv.second));
+                   platform::errors::PreconditionNotMet(
+                       "vlaue(%s) should not be nullptr", kv.second));
     PADDLE_ENFORCE(value_exe_info_->HasVar(kv.second),
-                   common::errors::PreconditionNotMet(
+                   platform::errors::PreconditionNotMet(
                        "var(%s) should exist in var_name_2_id_", kv.second));
     auto* var = InnerScope()->FindVar(kv.second);
     PADDLE_ENFORCE(
         var != nullptr,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "var(%s) should exist in scope (%p)", kv.second, InnerScope()));
     os << kv.first.impl() << " -> " << kv.second << " -> "
        << value_exe_info_->GetVarId(kv.first) << " -> " << var << "\n";
@@ -1016,36 +783,16 @@ std::string PirInterpreter::DebugValueInfo() {
   return os.str();
 }
 
-std::vector<std::string> PirInterpreter::DebugInfo() {
-  // print block
-  std::stringstream block_stream;
-  block_stream << "======================== The network executed by pir "
-                  "interpreter ========================\n";
-  pir::IrPrinter printer(block_stream);
-  printer.PrintBlock(*ir_block_);
-  std::string block_info = block_stream.str();
-  // print instruction
-  std::stringstream instr_stream;
-  instr_stream << "======================== The instruction executed by pir "
-                  "interpreter ========================\n";
-  instr_stream << DebugInstructions() << "\n";
-  std::string instr_info = instr_stream.str();
-  // print dependency
-  std::stringstream depend_stream;
-  depend_stream << "======================= The dependency of all instruction "
-                   "========================\n";
-  depend_stream << DebugDependency() << "\n";
-  std::string depend_info = depend_stream.str();
-  return {block_info, instr_info, depend_info};
-}
-
 void PirInterpreter::BuildInstructionDependences() {
+  if (VLOG_IS_ON(6)) {
+    VLOG(6) << DebugInstructions();
+  }
   // analysis the dependences between instructions, add next_instr_list to each
-  // instr, and set the dependency_count_
+  // instr, and set the dependecy_count_
   size_t instr_num = vec_instruction_base_.size();
-  dependency_count_ = GetDependencyCount();
+  dependecy_count_ = GetDependencyCount();
   if (!is_shared_results_build_) {
-    dependency_count_->assign(instr_num, 0);
+    dependecy_count_->assign(instr_num, 0);
   }
   std::vector<paddle::framework::InstructionBase*> instructions_ptr;
   for (auto& instr : vec_instruction_base_) {
@@ -1088,7 +835,7 @@ void PirInterpreter::BuildInstructionDependences() {
 
     if (!is_shared_results_build_) {
       for (size_t next_instr_id : next_instr_ids) {
-        ++(*dependency_count_)[next_instr_id];
+        ++(*dependecy_count_)[next_instr_id];
       }
     }
   }
@@ -1097,7 +844,7 @@ void PirInterpreter::BuildInstructionDependences() {
 void PirInterpreter::RecordMemcpyD2H(InstructionBase* instr_node) {
   // NOTE(zhiqiu): hot fix for jit input var
   if (instr_node->Name() == "pd_op.memcpy_d2h") {
-    phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+    platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
     auto* default_dev_ctx = pool.Get(place_);
     for (auto& event : instr_node->EventsToWait()) {
       platform::RecordEvent record(
@@ -1111,7 +858,7 @@ void PirInterpreter::RecordMemcpyD2H(InstructionBase* instr_node) {
 
 void PirInterpreter::RecordStreamForGC(InstructionBase* instr) {
 #if !defined(PADDLE_WITH_CUDA) && !defined(PADDLE_WITH_HIP)
-  PADDLE_THROW(common::errors::Unimplemented(
+  PADDLE_THROW(platform::errors::Unimplemented(
       "RecordStreamForGC is only implemented when compiled with GPU."));
 #else
   if (!IsInterpretercoreFastGCEnabled() ||
@@ -1156,12 +903,12 @@ void PirInterpreter::RecordStreamForGC(InstructionBase* instr) {
       return;
     }
 
-    const phi::Place& place = allocation->place();
-    if (phi::is_gpu_place(place)) {
+    const platform::Place& place = allocation->place();
+    if (platform::is_gpu_place(place)) {
       memory::RecordStream(allocation, stream);
-    } else if (phi::is_cuda_pinned_place(place)) {
+    } else if (platform::is_cuda_pinned_place(place)) {
       // TODO(Ruibiao): Here should do something to make sure that the tensor
-      // is not freed until the H2D copies done. However, simply launch a
+      // is not freed until the H2D copies done. However, simplely launch a
       // CUDA runtime callback to the H2D stream may lead a high performance
       // overhead. As all the cases we meet in H2D are copies from CPUPlace at
       // present, we just log a WARNING here. A better design is required.
@@ -1185,7 +932,7 @@ void PirInterpreter::RecordStreamForGC(InstructionBase* instr) {
    * async CUDA kernel.
    *
    * Here we only process the first condition, because:
-   * 1. Since the RecordStream function will directly return when the recorded
+   * 1. Since the RecordStream function will directly return when the recored
    * stream is equal to the owning stream, recording a stream same as which
    * initialized this tensor has less time overhead. Conversely, it may take
    * more time if we try to extract those cross-stream input vars from
@@ -1239,7 +986,7 @@ void PirInterpreter::RecordStreamForGC(InstructionBase* instr) {
     } else if (var->IsType<std::vector<Scope*>>()) {
       // do nothing
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "The variable(%s) is not supported in eager deletion.",
           framework::ToTypeName(var->Type())));
     }
@@ -1298,19 +1045,16 @@ void PirInterpreter::CalculateLastLiveOps() {
       ins_and_outs.insert(outs.begin(), outs.end());
     }
 
-    VLOG(4) << "get gc check vars for: " << instr->Name();
-
     for (auto& item : ins_and_outs) {
       for (auto var_id : item.second) {
         // skip no_need_buffer input vars
-        if ((ins.count(item.first) &&
-             instr->NoNeedBuffer().count(item.first)) ||
-            instr->Name() == "builtin_combine_instruction") {
+        if (ins.count(item.first) && instr->NoNeedBuffer().count(item.first)) {
           continue;
         }
         gc_check_vars.insert(var_id);
       }
     }
+    VLOG(4) << "get gc check vars for: " << instr->Name();
 
     for (auto var_id : gc_check_vars) {
       Scope* inner_scope = InnerScope();
@@ -1318,8 +1062,8 @@ void PirInterpreter::CalculateLastLiveOps() {
           value_exe_info_->GetNameById(static_cast<int>(var_id)));
       PADDLE_ENFORCE_NOT_NULL(
           var,
-          common::errors::NotFound("Var(id=%d) should not be nullptr.",
-                                   static_cast<int>(var_id)));
+          platform::errors::NotFound("Var(id=%d) should not be nullptr.",
+                                     static_cast<int>(var_id)));
       if (var->IsType<phi::DenseTensor>() || var->IsType<phi::SelectedRows>() ||
           var->IsType<LoDTensorArray>() ||
           var->IsType<phi::SparseCooTensor>() ||
@@ -1385,7 +1129,7 @@ void PirInterpreter::CalculateLastLiveOps() {
   }
   VLOG(4) << "shrink the last_live_ops list for all vars in skip_gc_vars";
 
-  for (auto& dep : *dependency_count_) {
+  for (auto& dep : *dependecy_count_) {
     deps_.emplace_back(std::make_shared<interpreter::OpDepInfo>(dep));
   }
   for (size_t i = 0; i < value_exe_info_->GetVarList().size(); ++i) {
@@ -1396,10 +1140,11 @@ void PirInterpreter::CalculateLastLiveOps() {
 }
 
 void PirInterpreter::ConstructEventForJitInput() {
-  for (size_t i = 0; i < dependency_count_->size(); ++i) {
-    if ((*dependency_count_)[i] == 0) {
+  for (size_t i = 0; i < dependecy_count_->size(); ++i) {
+    if ((*dependecy_count_)[i] == 0) {
       InstructionBase* inst = vec_instruction_base_[i].get();
-      if (inst->Name() == "pd_op.memcpy_d2h" && phi::is_gpu_place(place_)) {
+      if (inst->Name() == "pd_op.memcpy_d2h" &&
+          platform::is_gpu_place(place_)) {
         for (auto& item : inst->Inputs()) {
           for (auto var_id : item.second) {
             auto name = value_exe_info_->GetNameById(var_id);
@@ -1422,8 +1167,7 @@ paddle::framework::FetchList PirInterpreter::Run(
     const std::vector<std::string>& feed_names,
     const std::vector<phi::DenseTensor>& feed_tensors,
     bool need_fetch,
-    bool enable_job_schedule_profiler,
-    bool switch_stream) {
+    bool enable_job_schedule_profiler) {
   enable_job_schedule_profiler_ = enable_job_schedule_profiler;
 
   auto FeedInput = [&] {
@@ -1432,8 +1176,8 @@ paddle::framework::FetchList PirInterpreter::Run(
       auto* feed_var = InnerScope()->FindVar(feed_names[i]);
       PADDLE_ENFORCE_NOT_NULL(
           feed_var,
-          common::errors::NotFound("Variable %s should not be nullptr.",
-                                   feed_names[i]));
+          platform::errors::NotFound("Variable %s should not be nullptr.",
+                                     feed_names[i]));
 
       auto feed_tensor = feed_var->GetMutable<phi::DenseTensor>();
       feed_tensor->ShareDataWith(feed_tensors[i]);
@@ -1446,16 +1190,15 @@ paddle::framework::FetchList PirInterpreter::Run(
 
 #ifdef PADDLE_WITH_DNNL
   platform::AttachPointerHashToMKLDNNKey(this, place_);
-  platform::RegisterModelLayout(ir_block_, place_);
 #endif
 
   FeedInput();
 
-  if (!is_build_ || switch_stream) {
+  if (!is_build_) {
     LOG_FIRST_N(INFO, 1) << "New Executor is Running ...";
     VLOG(4) << DebugValueInfo();
 
-    SolvePersistableVarNames();
+    SolvePersisableVarNames();
 
     if (VLOG_IS_ON(6)) {
       std::stringstream ss;
@@ -1471,7 +1214,8 @@ paddle::framework::FetchList PirInterpreter::Run(
     PreAnalysis();
     VLOG(4) << "Done PreAnalysis";
 
-    if (FLAGS_enable_pir_in_executor_trace_run || onednn_op_num_ ||
+    // Run
+    if (FLAGS_enable_pir_in_executor_trace_run || nccl_op_num_ > 1 ||
         execution_config_.used_for_inference ||
         ((execution_config_.used_for_jit || execution_config_.used_for_cinn) &&
          (sync_op_num_ == 0))) {
@@ -1486,7 +1230,7 @@ paddle::framework::FetchList PirInterpreter::Run(
     is_build_ = true;
     is_shared_results_build_ = true;
   } else {
-    if (FLAGS_enable_pir_in_executor_trace_run || onednn_op_num_ ||
+    if (FLAGS_enable_pir_in_executor_trace_run || nccl_op_num_ > 1 ||
         execution_config_.used_for_inference ||
         ((execution_config_.used_for_jit || execution_config_.used_for_cinn) &&
          (sync_op_num_ == 0))) {
@@ -1518,12 +1262,11 @@ paddle::framework::FetchList PirInterpreter::Run(
 FetchList PirInterpreter::Run(const std::vector<std::string>& feed_names,
                               bool need_fetch,
                               bool enable_job_schedule_profiler,
-                              bool enable_op_profiling,
-                              bool switch_stream) {
+                              bool enable_op_profiling) {
   enable_job_schedule_profiler_ = enable_job_schedule_profiler;
 
   if (enable_op_profiling) {
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(phi::errors::Unimplemented(
         "Currently PIR does not support op runtime profiling feature."));
   }
 
@@ -1532,14 +1275,13 @@ FetchList PirInterpreter::Run(const std::vector<std::string>& feed_names,
 
 #ifdef PADDLE_WITH_DNNL
   platform::AttachPointerHashToMKLDNNKey(this, place_);
-  platform::RegisterModelLayout(ir_block_, place_);
 #endif
 
-  if (!is_build_ || switch_stream) {
+  if (!is_build_) {
     LOG_FIRST_N(INFO, 1) << "New Executor is Running ...";
     VLOG(4) << DebugValueInfo();
 
-    SolvePersistableVarNames();
+    SolvePersisableVarNames();
 
     if (VLOG_IS_ON(6)) {
       std::stringstream ss;
@@ -1556,7 +1298,7 @@ FetchList PirInterpreter::Run(const std::vector<std::string>& feed_names,
     VLOG(4) << "Done PreAnalysis";
 
     // Run
-    if (FLAGS_enable_pir_in_executor_trace_run || onednn_op_num_ ||
+    if (FLAGS_enable_pir_in_executor_trace_run || nccl_op_num_ > 1 ||
         execution_config_.used_for_inference ||
         ((execution_config_.used_for_jit || execution_config_.used_for_cinn) &&
          (sync_op_num_ == 0))) {
@@ -1571,7 +1313,7 @@ FetchList PirInterpreter::Run(const std::vector<std::string>& feed_names,
     is_build_ = true;
     is_shared_results_build_ = true;
   } else {
-    if (FLAGS_enable_pir_in_executor_trace_run || onednn_op_num_ ||
+    if (FLAGS_enable_pir_in_executor_trace_run || nccl_op_num_ > 1 ||
         execution_config_.used_for_inference ||
         ((execution_config_.used_for_jit || execution_config_.used_for_cinn) &&
          (sync_op_num_ == 0))) {
@@ -1612,11 +1354,6 @@ void PirInterpreter::TraceRunImpl() {
 
   TraceRunInstructionList(vec_instruction_base_);
   VLOG(4) << "Done TraceRunInstructionList";
-#ifdef PADDLE_WITH_CUSTOM_DEVICE
-  if (phi::is_custom_place(place_)) {
-    phi::DeviceContextPool::Instance().Get(place_)->Wait();
-  }
-#endif
 }
 
 void PirInterpreter::MultiThreadRunImpl() {
@@ -1631,11 +1368,6 @@ void PirInterpreter::MultiThreadRunImpl() {
   async_work_queue_ = GetWorkQueue();
   MultiThreadRunInstructionList(vec_instruction_base_);
   VLOG(4) << "Done MultiThreadRunInstructionList";
-#ifdef PADDLE_WITH_CUSTOM_DEVICE
-  if (phi::is_custom_place(place_)) {
-    phi::DeviceContextPool::Instance().Get(place_)->Wait();
-  }
-#endif
 }
 
 void PirInterpreter::TraceRunInstructionList(
@@ -1662,8 +1394,8 @@ void PirInterpreter::TraceRunInstructionList(
     }
   }
 
-  for (size_t i = 0; i < dependency_count_->size(); ++i) {
-    if ((*dependency_count_)[i] == 0) {
+  for (size_t i = 0; i < dependecy_count_->size(); ++i) {
+    if ((*dependecy_count_)[i] == 0) {
       // NOTE(zhiqiu): hot fix for jit input var
       RecordMemcpyD2H(vec_instr.at(i).get());
     }
@@ -1688,7 +1420,7 @@ void PirInterpreter::TraceRunInstructionList(
     PADDLE_ENFORCE_EQ(
         main_thread_blocker_.Clear(),
         0,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "main_thread_blocker_.Clear() return -1, clear failed"));
     VLOG(4) << "clear ok";
     exception_holder_.ReThrow();
@@ -1719,8 +1451,8 @@ void PirInterpreter::MultiThreadRunInstructionList(
     }
   }
 
-  for (size_t i = 0; i < dependency_count_->size(); ++i) {
-    if ((*dependency_count_)[i] == 0) {
+  for (size_t i = 0; i < dependecy_count_->size(); ++i) {
+    if ((*dependecy_count_)[i] == 0) {
       // NOTE(zhiqiu): hot fix for jit input var
       RecordMemcpyD2H(vec_instr.at(i).get());
       if (FLAGS_new_executor_serial_run) {
@@ -1783,7 +1515,7 @@ void PirInterpreter::MultiThreadRunInstructionList(
     PADDLE_ENFORCE_EQ(
         main_thread_blocker_.Clear(),
         0,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "main_thread_blocker_.Clear() return -1, clear failed"));
     VLOG(4) << "clear ok";
     exception_holder_.ReThrow();
@@ -1859,7 +1591,7 @@ void PirInterpreter::RunInstructionBase(InstructionBase* instr_node) {
 
   try {
     instr_node->WaitEvent(cur_place);
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA)
     if (enable_job_schedule_profiler_) {
       std::string op_name = instr_node->Name();
       ::pir::Operation* op = instr_node->Operation();
@@ -1870,37 +1602,20 @@ void PirInterpreter::RunInstructionBase(InstructionBase* instr_node) {
       }
     }
 #endif
-
-    RecordLowPrecisionOp(instr_node);
-
-    VLOG(2) << "\nbegin: " << __func__ << " OP id:" << instr_node->Id()
+    VLOG(4) << "begin to run op " << instr_node->Name();
+    VLOG(4) << "begin: " << __func__ << " OP id:" << instr_node->Id()
             << " name:" << instr_node->Name() << " type:"
             << (instr_node->KernelType() == OpFuncType::kCpuSync
                     ? "kCpuSync"
                     : (instr_node->KernelType() == OpFuncType::kGpuSync
                            ? "kGpuSync"
                            : "kGpuAsync"))
-            << " runs on " << phi::GetCurrentThreadName() << "\n"
-            << "Before: " << cur_place << " "
+            << " runs on " << platform::GetCurrentThreadName();
+
+    VLOG(4) << cur_place << " Before:"
             << instr_node->DebugStringEx(scope_, value_exe_info_.get());
-
-    if (FLAGS_enable_collect_shape) {
-      CollectShapeManager::Instance().CollectShapeInfo(
-          instr_node, value_exe_info_.get(), scope_);
-    }
-
-    if (execution_config_.used_for_inference) {
-      for (auto& hook : pir_input_hookfuncs_) {
-        hook(instr_node, value_exe_info_.get(), scope_);
-      }
-    }
-
     if (!instr_node->IsArtificial()) {
-      {
-        platform::RecordEvent record(
-            "InstrRun", platform::TracerEventType::UserDefined, 10);
-        instr_node->Run();
-      }
+      instr_node->Run();
 
       if (FLAGS_benchmark) {
         instr_node->DeviceContext().Wait();
@@ -1910,33 +1625,25 @@ void PirInterpreter::RunInstructionBase(InstructionBase* instr_node) {
                 << "): context wait and get last error";
 #endif
       }
-      if (FLAGS_check_nan_inf) {
-        CheckTensorHasNanOrInf(instr_node, scope_, value_exe_info_.get());
-      }
-      VLOG(2) << "\ndone: " << __func__ << " OP id:" << instr_node->Id()
+      VLOG(4) << "done instruction node run";
+      VLOG(4) << "done: " << __func__ << " OP id:" << instr_node->Id()
               << " name:" << instr_node->Name() << " type:"
               << (instr_node->KernelType() == OpFuncType::kCpuSync
                       ? "kCpuSync"
                       : (instr_node->KernelType() == OpFuncType::kGpuSync
                              ? "kGpuSync"
                              : "kGpuAsync"))
-              << " runs on " << phi::GetCurrentThreadName() << "\n"
-              << "After: " << cur_place << " "
+              << " runs on " << platform::GetCurrentThreadName();
+
+      VLOG(4) << cur_place << " After:"
               << instr_node->DebugStringEx(scope_, value_exe_info_.get());
       CheckGC(instr_node);
       VLOG(4) << "done CheckGC";
       memory::LogDeviceMemoryStats(cur_place, instr_node->Name());
     }
-
-    if (execution_config_.used_for_inference) {
-      for (auto& hook : pir_output_hookfuncs_) {
-        hook(instr_node, value_exe_info_.get(), scope_);
-      }
-    }
-
     VLOG(5) << "after run kernel";
     instr_node->RecordEvent(cur_place);
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA)
     if (enable_job_schedule_profiler_) {
       if (instr_node->Id() == last_calculate_instr_id_ &&
           calculate_stream_timer_->IsStarted()) {
@@ -1953,13 +1660,13 @@ void PirInterpreter::RunInstructionBase(InstructionBase* instr_node) {
     framework::InsertCallStackInfo(op->name(), op_callstack_attr, &ex);
     LOG(WARNING) << " OP id:" << instr_node->Id() << " " << instr_node->Name()
                  << " raises an EnforceNotMet exception "
-                 << platform::demangle(typeid(ex).name());
+                 << platform::demangle(typeid(ex).name()) << ", " << ex.what();
     exception_holder_.Catch(std::make_exception_ptr(std::move(ex)));
   } catch (platform::EOFException&) {
     exception_holder_.Catch(std::current_exception());
   } catch (std::exception& ex) {
     LOG(WARNING) << instr_node->Name() << " raises an exception "
-                 << platform::demangle(typeid(ex).name());
+                 << platform::demangle(typeid(ex).name()) << ", " << ex.what();
     exception_holder_.Catch(std::current_exception());
   } catch (...) {
     LOG(WARNING) << instr_node->Name() << " raises an unknown exception";
@@ -1971,7 +1678,6 @@ void PirInterpreter::PreAnalysis() {
   BuildInstructionDependences();
   VLOG(4) << "Done BuildInstructionDependences";
 
-  ir_stream_analyzer_.SetForceEventsToWaitInfo(force_events_to_wait_);
   ir_stream_analyzer_.ConstructEvents(vec_instruction_base_);
   VLOG(4) << "Done ConstructEvents";
 
@@ -1983,13 +1689,6 @@ void PirInterpreter::PreAnalysis() {
   CalculateLastLiveOps();
   VLOG(4) << "Done CalculateLastLiveOps";
 
-  if (VLOG_IS_ON(2)) {
-    std::vector<std::string> instr_debug_info = DebugInfo();
-    for (auto& item : instr_debug_info) {
-      std::cout << item << std::endl;
-    }
-  }
-
   AnalyseExecuteOrderForTrace(ir_dependency_builder_.OpDownstreamMap(),
                               ir_instruction_scheduling_priority_less);
   VLOG(4) << "Done AnalyseExecuteOrderForTrace";
@@ -1999,9 +1698,6 @@ void PirInterpreter::PreAnalysis() {
 
   UpdateNcclOpNum();
   VLOG(4) << "Done UpdateNcclOpNum";
-
-  UpdateOneDNNOpNum();
-  VLOG(4) << "Done UpdateOneDNNOpNum";
 }
 
 ::pir::Value PirInterpreter::GetValueByName(const std::string& var_name) {
@@ -2013,14 +1709,26 @@ void PirInterpreter::PreAnalysis() {
   return nullptr;
 }
 
-void PirInterpreter::SolvePersistableVarNames() {
-  VLOG(6) << "SolvePersistableVarNames";
+void PirInterpreter::SolvePersisableVarNames() {
+  VLOG(6) << "SolvePersisableVarNames";
   for (auto kv : value_exe_info_->GetValue2VarName()) {
     ::pir::Value value = kv.first;
     const std::string& var_name = kv.second;
-    auto bool_attr = value.attribute<::pir::BoolAttribute>(kAttrIsPersistable);
-    if (bool_attr && bool_attr.data()) {
-      parameter_var_names_.insert(var_name);
+    ::pir::OpResult result = value.dyn_cast<::pir::OpResult>();
+    if (!result) {
+      continue;
+    }
+    auto* defining_op = result.owner();
+    if (defining_op->HasAttribute(kAttrIsPersisable)) {
+      auto is_persisables =
+          defining_op->attribute<::pir::ArrayAttribute>(kAttrIsPersisable)
+              .AsVector();
+      if (is_persisables[result.index()]
+              .dyn_cast<::pir::BoolAttribute>()
+              .data()) {
+        VLOG(6) << "parameter_var_names_ include: " << var_name;
+        parameter_var_names_.insert(var_name);
+      }
     }
   }
 }
@@ -2042,15 +1750,15 @@ Variable* PirInterpreter::DebugVar(const std::string& name) const {
 
 void PirInterpreter::Build(
     const std::vector<std::string>& feed_names,
-    std::vector<paddle::framework::OpFuncNode>* op_func_nodes,
-    bool switch_stream) {
-  PADDLE_THROW(common::errors::Unimplemented(
+    std::vector<paddle::framework::OpFuncNode>* op_func_nodes) {
+  PADDLE_THROW(platform::errors::Unimplemented(
       "Build is not implemented in PirInterpreter."));
 }
 
 void PirInterpreter::SetCopyProgram(std::shared_ptr<ProgramDesc> prog) {
-  PADDLE_THROW(common::errors::Unimplemented(
+  PADDLE_THROW(platform::errors::Unimplemented(
       "SetCopyProgram is not implemented in PirInterpreter."));
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

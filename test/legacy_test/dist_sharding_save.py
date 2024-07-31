@@ -22,7 +22,8 @@ from paddle.distributed.fleet.base import role_maker
 from paddle.distributed.fleet.meta_optimizers import sharding
 
 # Fix seed for test
-paddle.seed(1)
+base.default_startup_program().random_seed = 1
+base.default_main_program().random_seed = 1
 
 
 def runtime_main():

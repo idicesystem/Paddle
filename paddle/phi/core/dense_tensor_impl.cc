@@ -15,8 +15,6 @@ limitations under the License. */
 #include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/common/complex.h"
 #include "paddle/phi/common/float16.h"
-#include "paddle/phi/common/float8_e4m3fn.h"
-#include "paddle/phi/common/float8_e5m2.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/compat/convert_utils.h"
 #include "paddle/phi/core/dense_tensor.h"
@@ -120,8 +118,8 @@ void* DenseTensor::mutable_data(const Place& place,
     holder_ = memory_utils::AllocShared(place, size);
     meta_.offset = 0;
   }
-  uintptr_t ptr = reinterpret_cast<uintptr_t>(holder_->ptr()) + meta_.offset;
-  return reinterpret_cast<void*>(ptr);
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(holder_->ptr()) +
+                                 meta_.offset);
 }
 
 void* DenseTensor::mutable_data(const Place& place, size_t requested_size) {
@@ -151,8 +149,8 @@ void* DenseTensor::mutable_data(const Place& place,
     holder_ = memory_utils::AllocShared(place, size, stream);
     meta_.offset = 0;
   }
-  uintptr_t ptr = reinterpret_cast<uintptr_t>(holder_->ptr()) + meta_.offset;
-  return reinterpret_cast<void*>(ptr);
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(holder_->ptr()) +
+                                 meta_.offset);
 }
 
 /* @jim19930609: The following "mutable_data" only supports specific dtypes
@@ -214,8 +212,6 @@ LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(int64_t)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(uint64_t)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(::phi::dtype::bfloat16)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(::phi::dtype::float16)
-LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(::phi::dtype::float8_e4m3fn)
-LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(::phi::dtype::float8_e5m2)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(float)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(double)
 LEGACY_DATA_MEMBER_FUNC_INSTANTIATION(::phi::dtype::complex<float>)
@@ -381,30 +377,7 @@ std::vector<DenseTensor> DenseTensor::Chunk(int64_t chunks,
 }
 
 #ifdef PADDLE_WITH_DNNL
-const dnnl::memory::desc& DenseTensor::mem_desc() const {
-  if (storage_properties_ == nullptr) {
-    static dnnl::memory::desc undef_desc = dnnl::memory::desc();
-    return undef_desc;
-  }
-  return this->storage_properties<OneDNNStorageProperties>().mem_desc;
-}
-
-void DenseTensor::set_mem_desc(const dnnl::memory::desc& mem_desc) {
-  if (storage_properties_ == nullptr) {
-    storage_properties_ = std::make_unique<OneDNNStorageProperties>();
-    static_cast<OneDNNStorageProperties*>(storage_properties_.get())->mem_desc =
-        mem_desc;
-    meta_.layout = DataLayout::ONEDNN;
-  } else if (OneDNNStorageProperties::classof(storage_properties_.get())) {
-    static_cast<OneDNNStorageProperties*>(storage_properties_.get())->mem_desc =
-        mem_desc;
-    meta_.layout = DataLayout::ONEDNN;
-  } else {
-    PADDLE_THROW(phi::errors::InvalidArgument(
-        "The actual type of storage_properties is inconsistent with the type "
-        "of the template parameter passed in."));
-  }
-}
+const dnnl::memory::desc& DenseTensor::mem_desc() const { return mem_desc_; }
 #endif
 
 // NOTE: For historical reasons, this interface has a special behavior,
@@ -419,14 +392,11 @@ DenseTensor& DenseTensor::ShareDataWith(const DenseTensor& src) {
   meta_.offset = src.meta_.offset;
   meta_.use_gpudnn = src.meta_.use_gpudnn;
   meta_.strides = src.meta_.strides;
-  storage_properties_ = CopyStorageProperties(src.storage_properties_);
-  return *this;
-}
-
-DenseTensor& DenseTensor::ShareDataNoCheckWith(const DenseTensor& src) {
-  holder_ = src.holder_;
-  set_meta(src.meta());
-  storage_properties_ = CopyStorageProperties(src.storage_properties_);
+  storage_properties_ =
+      std::move(CopyStorageProperties(src.storage_properties_));
+#ifdef PADDLE_WITH_DNNL
+  mem_desc_ = src.mem_desc_;
+#endif
   return *this;
 }
 

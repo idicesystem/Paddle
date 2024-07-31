@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import os
 
 __all__ = ['get_include', 'get_lib']
 
 
-def get_include() -> str:
+def get_include():
     """
     Get the directory containing the PaddlePaddle C++ header files.
 
@@ -38,7 +36,7 @@ def get_include() -> str:
     return os.path.join(os.path.dirname(paddle.__file__), 'include')
 
 
-def get_lib() -> str:
+def get_lib():
     """
     Get the directory containing the libpaddle_framework.
 

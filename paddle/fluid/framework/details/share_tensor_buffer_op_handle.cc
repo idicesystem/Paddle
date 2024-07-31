@@ -18,11 +18,17 @@
 
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 class MemOptVarInfo;
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::details {
+namespace paddle {
+namespace framework {
+namespace details {
 
 class ComputationOpHandle;
 
@@ -35,7 +41,7 @@ ComputationOpHandle *GetUniquePendingComputationOpHandle(
       auto *compute_op = dynamic_cast<ComputationOpHandle *>(&op);
       PADDLE_ENFORCE_NOT_NULL(
           compute_op,
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "The pending OpHandle should be ComputationOpHandle."));
 
       if (result_op == nullptr) {
@@ -44,14 +50,14 @@ ComputationOpHandle *GetUniquePendingComputationOpHandle(
         PADDLE_ENFORCE_EQ(
             result_op,
             compute_op,
-            common::errors::PreconditionNotMet(
+            platform::errors::PreconditionNotMet(
                 "The pending OpHandle should be the unique one."));
       }
     }
   }
 
   PADDLE_ENFORCE_NOT_NULL(result_op,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "The pending OpHandle should not be NULL."));
   return result_op;
 }
@@ -97,4 +103,6 @@ void ShareTensorBufferOpHandle::InitCUDA() {
 
 void ShareTensorBufferOpHandle::RunImpl() { functor_(local_exec_scopes_[0]); }
 
-}  // namespace paddle::framework::details
+}  // namespace details
+}  // namespace framework
+}  // namespace paddle

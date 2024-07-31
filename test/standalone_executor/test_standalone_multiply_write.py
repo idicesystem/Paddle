@@ -17,8 +17,7 @@ import unittest
 from test_standalone_controlflow import TestCompatibility
 
 import paddle
-
-# from paddle.base.framework import Program
+from paddle.base.framework import Program
 
 paddle.enable_static()
 
@@ -29,8 +28,8 @@ class TestMultiplyWrite(TestCompatibility):
         return None
 
     def build_program(self):
-        main_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
+        main_program = Program()
+        startup_program = Program()
         with paddle.static.program_guard(main_program, startup_program):
             out = paddle.full((1,), 1)
             inp1 = paddle.full((1,), 2)

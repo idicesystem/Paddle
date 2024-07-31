@@ -23,7 +23,8 @@
 #include "paddle/fluid/jit/function.h"
 #include "paddle/fluid/jit/function_schema.h"
 
-namespace paddle::jit {
+namespace paddle {
+namespace jit {
 
 Layer::Layer(const std::shared_ptr<VariableMap>& params_map,
              const std::shared_ptr<VariableMap>& attrs_map,
@@ -64,7 +65,7 @@ const std::shared_ptr<jit::FunctionInfo>& Layer::FunctionInfo(
       info_map_.count(name),
       1,
       phi::errors::InvalidArgument(
-          "FunctionInfo named %s is not existed in info_map_.", name));
+          "FuncitonInfo named %s is not existed in info_map_.", name));
   return info_map_.at(name);
 }
 
@@ -76,7 +77,7 @@ std::vector<std::string> Layer::FunctionNames() const {
   return names;
 }
 
-#define PD_SPECIALIZE_ATTRIBUTE_TYPE(T)                               \
+#define PD_SPECIALZE_ATTRIBUTE_TYPE(T)                                \
   template <>                                                         \
   T Layer::Attribute<T>(const std::string& name) const {              \
     if (attrs_map_->find(name) == attrs_map_->end()) {                \
@@ -89,12 +90,12 @@ std::vector<std::string> Layer::FunctionNames() const {
     return ret;                                                       \
   }
 
-PD_SPECIALIZE_ATTRIBUTE_TYPE(int)
-PD_SPECIALIZE_ATTRIBUTE_TYPE(float)
-PD_SPECIALIZE_ATTRIBUTE_TYPE(framework::String)
-PD_SPECIALIZE_ATTRIBUTE_TYPE(std::vector<int>)
-PD_SPECIALIZE_ATTRIBUTE_TYPE(std::vector<float>)
-PD_SPECIALIZE_ATTRIBUTE_TYPE(std::vector<std::string>)
+PD_SPECIALZE_ATTRIBUTE_TYPE(int)
+PD_SPECIALZE_ATTRIBUTE_TYPE(float)
+PD_SPECIALZE_ATTRIBUTE_TYPE(framework::String)
+PD_SPECIALZE_ATTRIBUTE_TYPE(std::vector<int>)
+PD_SPECIALZE_ATTRIBUTE_TYPE(std::vector<float>)
+PD_SPECIALZE_ATTRIBUTE_TYPE(std::vector<std::string>)
 
 std::shared_ptr<Layer> Layer::Clone(void* stream) {
   std::shared_ptr<Layer> x =
@@ -103,4 +104,5 @@ std::shared_ptr<Layer> Layer::Clone(void* stream) {
   return x;
 }
 
-}  // namespace paddle::jit
+}  // namespace jit
+}  // namespace paddle

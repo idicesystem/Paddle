@@ -14,7 +14,6 @@
 
 #include "paddle/phi/kernels/pool_kernel.h"
 
-#include "paddle/common/macros.h"
 #include "paddle/phi/backends/xpu/enforce_xpu.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/pooling.h"
@@ -309,7 +308,6 @@ void MaxPool2dWithIndexKernel(const Context& ctx,
                               const std::vector<int>& paddings_t,
                               bool global_pooling,
                               bool adaptive,
-                              bool ceil_mode UNUSED,
                               DenseTensor* out,
                               DenseTensor* mask) {
   using XPUType = typename XPUTypeTrait<T>::Type;

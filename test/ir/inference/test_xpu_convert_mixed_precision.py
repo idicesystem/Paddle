@@ -27,14 +27,12 @@ from paddle.static import InputSpec
 from paddle.vision.models import resnet50
 
 
-class ConvertMixedPrecision(unittest.TestCase):
+class ConvertMixedPrecison(unittest.TestCase):
     def test(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         model = resnet50(True)
         net = to_static(
-            model,
-            input_spec=[InputSpec(shape=[None, 3, 224, 224], name='x')],
-            full_graph=True,
+            model, input_spec=[InputSpec(shape=[None, 3, 224, 224], name='x')]
         )
         paddle.jit.save(
             net, os.path.join(self.temp_dir.name, 'resnet50/inference')

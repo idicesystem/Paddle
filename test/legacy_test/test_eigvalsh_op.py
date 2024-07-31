@@ -73,11 +73,7 @@ class TestEigvalshOp(OpTest):
 
     def test_check_output(self):
         # Vectors in posetive or negative is equivalent
-        self.check_output(
-            no_check_set=['Eigenvectors'],
-            check_pir=True,
-            check_symbol_infer=True,
-        )
+        self.check_output(no_check_set=['Eigenvectors'], check_pir=True)
 
     def test_grad(self):
         self.check_grad(["X"], ["Eigenvalues"], check_pir=True)
@@ -208,7 +204,6 @@ class TestEigvalshBatchAPI(TestEigvalshAPI):
 
 
 class TestEigvalshAPIError(unittest.TestCase):
-    @test_with_pir_api
     def test_error(self):
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()

@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class ExpandOpConverter : public OpConverter {
  public:
@@ -111,7 +113,7 @@ class ExpandOpConverter : public OpConverter {
     layer->setInput(2, *sizes_tensor);
     layer->setInput(3, *strides_tensor);
 
-    ReplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
   }
 
  protected:
@@ -128,7 +130,9 @@ class ExpandAsV2OpConverter : public ExpandOpConverter {
   ExpandAsV2OpConverter() { op_type_ = "expand_as_v2"; }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(expand_v2, ExpandV2OpConverter);
 REGISTER_TRT_OP_CONVERTER(expand_as_v2, ExpandAsV2OpConverter);

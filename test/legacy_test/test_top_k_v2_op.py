@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -68,9 +67,7 @@ class TestTopkOp(OpTest):
         self.check_output(check_pir=True)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_prim=True, check_pir=True, check_prim_pir=True
-        )
+        self.check_grad(['X'], 'Out', check_prim=True, check_pir=True)
 
 
 class TestTopkOp_ZeroDim(TestTopkOp):
@@ -279,12 +276,7 @@ class TestTopkBF16Op(TestTopkOp):
     def test_check_grad(self):
         place = core.CUDAPlace(0)
         self.check_grad_with_place(
-            place,
-            ['X'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            place, ['X'], 'Out', check_prim=True, check_pir=True
         )
 
 
@@ -473,13 +465,7 @@ class TestTopKAPI(unittest.TestCase):
             )
 
     def test_dygraph_cases(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(core.CPUPlace())
+        places = [core.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(core.CUDAPlace(0))
         for place in places:
@@ -487,13 +473,7 @@ class TestTopKAPI(unittest.TestCase):
 
     @test_with_pir_api
     def test_static_cases(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(core.CPUPlace())
+        places = [core.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(core.CUDAPlace(0))
         for place in places:

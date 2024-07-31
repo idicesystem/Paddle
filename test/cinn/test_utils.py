@@ -17,10 +17,9 @@
 import logging
 import unittest
 
+import cinn
 import numpy as np
-
-from paddle import cinn
-from paddle.cinn import common, framework, ir, lang, runtime
+from cinn import common, framework, ir, lang, runtime
 
 
 class SingleOpTester(unittest.TestCase):
@@ -86,7 +85,7 @@ class SingleOpTester(unittest.TestCase):
         args = []
         temp_inputs = []
         alignment = 0
-        if self.target.arch.IsX86Arch():
+        if self.target.arch == common.Target.Arch.X86:
             alignment = 32
         for in_data in inputs_data:
             temp_inputs.append(

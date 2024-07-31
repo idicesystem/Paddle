@@ -20,7 +20,9 @@
 #include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 class Node;
 
@@ -41,7 +43,7 @@ class FuseSgdOpPass : public FuseOptimizerOpPass {
     PADDLE_ENFORCE_GT(
         sgd_ops.size(),
         static_cast<size_t>(0),
-        common::errors::InvalidArgument("SGD ops must not be empty."));
+        platform::errors::InvalidArgument("SGD ops must not be empty."));
 
     // NOTE: fused_var is only exist in scope, so the graph doesn't have
     // fused_var node.
@@ -66,6 +68,8 @@ class FuseSgdOpPass : public FuseOptimizerOpPass {
     return graph->CreateOpNode(&Sgd_desc);
   }
 };
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(fuse_sgd_op_pass, paddle::framework::ir::FuseSgdOpPass);

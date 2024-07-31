@@ -14,16 +14,18 @@
 
 #include "paddle/fluid/operators/reader/py_reader.h"
 
-namespace paddle::operators::reader {
+namespace paddle {
+namespace operators {
+namespace reader {
 
 PyReader::PyReader(
     const std::shared_ptr<LoDTensorBlockingQueue>& queue,
-    const std::vector<phi::DDim>& dims,
+    const std::vector<framework::DDim>& dims,
     const std::vector<framework::proto::VarType::Type>& var_types,
     const std::vector<bool>& need_check_feed)
     : framework::FileReader(dims, var_types, need_check_feed) {
   PADDLE_ENFORCE_NOT_NULL(queue,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "LoDTensorBlockingQueue must not be null."));
   queue_ = queue;
 }
@@ -42,4 +44,6 @@ void PyReader::Shutdown() { queue_->Close(); }
 
 void PyReader::Start() { queue_->ReOpen(); }
 
-}  // namespace paddle::operators::reader
+}  // namespace reader
+}  // namespace operators
+}  // namespace paddle

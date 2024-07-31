@@ -121,7 +121,8 @@ def send_u_recv(
 
     if reduce_op not in ["sum", "mean", "max", "min"]:
         raise ValueError(
-            f"reduce_op should be `sum`, `mean`, `max` or `min`, but received {reduce_op}"
+            "reduce_op should be `sum`, `mean`, `max` or `min`, but received %s"
+            % reduce_op
         )
 
     # TODO(daisiming): Should we add judgement for out_size: max(dst_index) + 1.
@@ -290,12 +291,14 @@ def send_ue_recv(
 
     if message_op not in ["add", "sub", "mul", "div"]:
         raise ValueError(
-            f"message_op should be `add`, `sub`, `mul`, `div`, but received {message_op}"
+            "message_op should be `add`, `sub`, `mul`, `div`, but received %s"
+            % message_op
         )
 
     if reduce_op not in ["sum", "mean", "max", "min"]:
         raise ValueError(
-            f"reduce_op should be `sum`, `mean`, `max` or `min`, but received {reduce_op}"
+            "reduce_op should be `sum`, `mean`, `max` or `min`, but received %s"
+            % reduce_op
         )
 
     x, y = reshape_lhs_rhs(x, y)
@@ -456,7 +459,8 @@ def send_uv(x, y, src_index, dst_index, message_op="add", name=None):
 
     if message_op not in ['add', 'sub', 'mul', 'div']:
         raise ValueError(
-            f"message_op should be `add`, `sub`, `mul`, `div`, but received {message_op}"
+            "message_op should be `add`, `sub`, `mul`, `div`, but received %s"
+            % message_op
         )
 
     x, y = reshape_lhs_rhs(x, y)

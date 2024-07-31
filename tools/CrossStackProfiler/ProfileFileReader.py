@@ -46,7 +46,7 @@ class profileFileReader(FileReader):
             profile_dict["trainerRank.%03d" % (rankId)] = self._parseSingleFile(
                 fileName
             )
-            self._logger.info(f"I finish processing {fileName}!")
+            self._logger.info("I finish processing %s!" % fileName)
 
         if q is not None:
             q.put(profile_dict)
@@ -502,7 +502,10 @@ class profileFileReader(FileReader):
 
     def parseFileByGroup(self, groupId, processNum=8):
         fileFist = self.getFileListByGroup(groupId)
-        return self._parseTask(fileFist)
+        if processNum == 0:
+            return self._parseTask(fileFist)
+        else:
+            return self._parseTask(fileFist)
 
 
 def test_profileFileReader():

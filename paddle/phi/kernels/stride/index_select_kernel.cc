@@ -16,11 +16,8 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/core/kernel_registry.h"
-
-COMMON_DECLARE_bool(use_stride_kernel);
 
 namespace phi {
 
@@ -30,11 +27,6 @@ void IndexSelectStridedKernel(const Context& ctx,
                               int64_t index,
                               int dim,
                               DenseTensor* output) {
-  if (!FLAGS_use_stride_kernel) {
-    PADDLE_THROW(
-        phi::errors::Fatal("FLAGS_use_stride_kernel is closed. Strided kernel "
-                           "be called, something wrong has happened!"));
-  }
   auto input_dim = x.dims();
   dim = dim >= 0 ? dim : dim + input_dim.size();
 
@@ -65,7 +57,5 @@ void IndexSelectStridedKernel(const Context& ctx,
 }
 
 }  // namespace phi
-
-PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE(index_select_strided,
-                                         STRIDED,
-                                         phi::IndexSelectStridedKernel) {}
+PD_REGISTER_KERNEL_FOR_ALL_BACKEND_DTYPE_EXCEPT_CUSTOM(
+    index_select_strided, STRIDED, phi::IndexSelectStridedKernel) {}

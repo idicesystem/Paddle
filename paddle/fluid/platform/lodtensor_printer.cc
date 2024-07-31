@@ -59,10 +59,10 @@ void PrintVar(framework::Scope* scope,
       *sstream << "[";                                                   \
       const cpp_type* data = nullptr;                                    \
       phi::DenseTensor cpu_tensor;                                       \
-      if (phi::is_cpu_place(tensor->place())) {                          \
+      if (is_cpu_place(tensor->place())) {                               \
         data = tensor->data<cpp_type>();                                 \
       } else {                                                           \
-        phi::CPUPlace cpu_place;                                         \
+        platform::CPUPlace cpu_place;                                    \
         paddle::framework::TensorCopy(*tensor, cpu_place, &cpu_tensor);  \
         data = cpu_tensor.data<cpp_type>();                              \
       }                                                                  \

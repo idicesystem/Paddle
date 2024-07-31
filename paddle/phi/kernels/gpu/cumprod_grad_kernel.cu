@@ -21,7 +21,6 @@
 #include "paddle/phi/kernels/funcs/complex_functors.h"
 #include "paddle/phi/kernels/funcs/cumprod.h"
 #include "paddle/phi/kernels/funcs/elementwise_functor.h"
-#include "paddle/phi/kernels/funcs/exclusive_scan.h"
 #include "paddle/phi/kernels/funcs/for_range.h"
 #include "paddle/phi/kernels/funcs/inclusive_scan.h"
 // NOTE(@xiongkun): use of IsComplex<>
@@ -38,8 +37,6 @@ struct CumprodGradFunctorExceptFirstZero {
       const uint8_t *zero_mask,
       size_t mid_dim,
       size_t inner_dim,
-      bool exclusive,
-      bool reverse,
       T *dx,
       int64_t *first_zero_idx,
       T *x_filled_one)
@@ -49,8 +46,6 @@ struct CumprodGradFunctorExceptFirstZero {
         zero_mask_(zero_mask),
         mid_dim_(mid_dim),
         inner_dim_(inner_dim),
-        exclusive_(exclusive),
-        reverse_(reverse),
         dx_(dx),
         first_zero_idx_(first_zero_idx),
         x_filled_one_(x_filled_one) {}
@@ -61,44 +56,28 @@ struct CumprodGradFunctorExceptFirstZero {
     auto mid_idx = (idx - inner_idx) / inner_dim_ % mid_dim_;
     auto mask = zero_mask_[idx];
     bool should_fill_one = true;
-    size_t final_index = reverse_ ? 0 : mid_dim_ - 1;
+
     if (mask == 0) {
       dx_[idx] = dy_mul_y_reversed_cumsum_[idx] / x_[idx];
-      if (mid_idx == final_index) {
+      if (mid_idx == mid_dim_ - 1) {
         // record first zero position as -1, i.e., no zero
         first_zero_idx_[outer_idx * inner_dim_ + inner_idx] = -1;
       }
-    } else if ((!reverse_ && mid_idx > 0) ||
-               (reverse_ && mid_idx < mid_dim_ - 1)) {  // mask > 0
-      if ((!reverse_ && zero_mask_[idx - inner_dim_] > 0) ||
-          (reverse_ && zero_mask_[idx + inner_dim_] > 0)) {  // not first zero
+    } else if (mid_idx > 0) {                  // mask > 0
+      if (zero_mask_[idx - inner_dim_] > 0) {  // not first zero
         dx_[idx] = 0;
         should_fill_one = false;
       } else {
         // idx is the first zero position, it should be recorded
-        if (exclusive_ && mid_idx == final_index) {
-          dx_[idx] = 0;
-        } else if (exclusive_) {
-          dx_[idx] = y_[idx];
-        } else {
-          if (reverse_) {
-            dx_[idx] = y_[idx + inner_dim_];
-          } else {
-            dx_[idx] = y_[idx - inner_dim_];
-          }
-        }
+        dx_[idx] = y_[idx - inner_dim_];
         first_zero_idx_[outer_idx * inner_dim_ + inner_idx] = mid_idx;
       }
     } else {  // the first zero position is index 0
       dx_[idx] = 1;
-      first_zero_idx_[outer_idx * inner_dim_ + inner_idx] =
-          reverse_ ? mid_dim_ - 1 : 0;
+      first_zero_idx_[outer_idx * inner_dim_ + inner_idx] = 0;
     }
-    if (exclusive_ && mid_idx == final_index) {
-      x_filled_one_[idx] = 0;
-    } else {
-      x_filled_one_[idx] = should_fill_one ? static_cast<T>(1) : x_[idx];
-    }
+
+    x_filled_one_[idx] = should_fill_one ? static_cast<T>(1) : x_[idx];
   }
 
  private:
@@ -108,8 +87,6 @@ struct CumprodGradFunctorExceptFirstZero {
   const uint8_t *zero_mask_;
   size_t mid_dim_;
   size_t inner_dim_;
-  bool exclusive_;
-  bool reverse_;
   T *dx_;
   int64_t *first_zero_idx_;
   T *x_filled_one_;
@@ -153,8 +130,6 @@ void CumprodGradKernel(const Context &dev_ctx,
                        const DenseTensor &out,
                        const DenseTensor &dout,
                        int dim,
-                       bool exclusive,
-                       bool reverse,
                        DenseTensor *dx) {
   const auto *y = &out;
   const auto *dy = &dout;
@@ -223,16 +198,15 @@ void CumprodGradKernel(const Context &dev_ctx,
   auto zero_mask = const_cast<Allocator &>(dev_ctx.GetAllocator())
                        .Allocate(numel * sizeof(uint8_t));
   auto *zero_mask_data = reinterpret_cast<uint8_t *>(zero_mask->ptr());
-  phi::funcs::InclusiveScan<uint8_t, cub::Max>(
-      zero_mask_without_cummax_data,
-      zero_mask_data,
-      outer_dim,
-      mid_dim,
-      inner_dim,
-      static_cast<uint8_t>(0),
-      cub::Max(),
-      /*reverse=*/reverse,
-      dev_ctx);  // 计算结果是0的元素mask
+  phi::funcs::InclusiveScan<uint8_t, cub::Max>(zero_mask_without_cummax_data,
+                                               zero_mask_data,
+                                               outer_dim,
+                                               mid_dim,
+                                               inner_dim,
+                                               static_cast<uint8_t>(0),
+                                               cub::Max(),
+                                               /*reverse=*/false,
+                                               dev_ctx);
   zero_mask_without_cummax = nullptr;
 
   // Step 2: calculate reversed cumsum(dy * y)
@@ -251,27 +225,15 @@ void CumprodGradKernel(const Context &dev_ctx,
           .Allocate(numel * sizeof(T));
   auto *dy_mul_y_reversed_cumsum_data =
       reinterpret_cast<T *>(dy_mul_y_reversed_cumsum->ptr());
-  if (exclusive) {
-    phi::funcs::ExclusiveScan<T, cub::Sum>(dy_mul_y_data,
-                                           dy_mul_y_reversed_cumsum_data,
-                                           outer_dim,
-                                           mid_dim,
-                                           inner_dim,
-                                           static_cast<T>(0.0f),
-                                           cub::Sum(),
-                                           /*reverse=*/!reverse,
-                                           dev_ctx);
-  } else {
-    phi::funcs::InclusiveScan<T, cub::Sum>(dy_mul_y_data,
-                                           dy_mul_y_reversed_cumsum_data,
-                                           outer_dim,
-                                           mid_dim,
-                                           inner_dim,
-                                           static_cast<T>(0.0f),
-                                           cub::Sum(),
-                                           /*reverse=*/!reverse,
-                                           dev_ctx);
-  }
+  phi::funcs::InclusiveScan<T, cub::Sum>(dy_mul_y_data,
+                                         dy_mul_y_reversed_cumsum_data,
+                                         outer_dim,
+                                         mid_dim,
+                                         inner_dim,
+                                         static_cast<T>(0.0f),
+                                         cub::Sum(),
+                                         /*reverse=*/true,
+                                         dev_ctx);
 
   // Step 3: calculate the gradient value except the first zero position.
   // The gradient value of the first zero position is filled with out[idx-1],
@@ -294,13 +256,10 @@ void CumprodGradKernel(const Context &dev_ctx,
       zero_mask_data,
       mid_dim,
       inner_dim,
-      exclusive,
-      reverse,
       dx_data,
       first_zero_idx_data,
       x_filled_one_data);
-  for_range(functor_except_first_zero);  // set the element after the first 0 to
-                                         // 1 [1,2,3,0,4,5] -> [1,1,1,1,4,5]
+  for_range(functor_except_first_zero);
 
   // Step 4: calculate cumprod of x_filled_one
   auto *x_filled_one_cumprod_data =
@@ -313,9 +272,8 @@ void CumprodGradKernel(const Context &dev_ctx,
       inner_dim,
       static_cast<T>(1.0f),
       funcs::MultiplyFunctor<T>(),
-      /*reverse=*/reverse,
-      dev_ctx);  // 累乘 [1,1,1,1,4,5] -> [1,1,1,1,4,20]
-  // }
+      /*reverse=*/false,
+      dev_ctx);
 
   // Step 5: calculate reversed cumsum(dy * x_filled_one_cumprod)
   auto *dy_mul_x_filled_one_cumprod =
@@ -336,8 +294,8 @@ void CumprodGradKernel(const Context &dev_ctx,
       inner_dim,
       static_cast<T>(0.0f),
       cub::Sum(),
-      /*reverse=*/!reverse,
-      dev_ctx);  // 反向累加 [1,1,1,1,4,20] -> [28,27,26,25,24,20]
+      /*reverse=*/true,
+      dev_ctx);
 
   // Step 6: fill zero pos gradient value
   phi::funcs::ForRange<Context> for_range_fill_zero_pos_grad(
@@ -348,8 +306,7 @@ void CumprodGradKernel(const Context &dev_ctx,
       mid_dim,
       inner_dim,
       dx_data);
-  for_range_fill_zero_pos_grad(
-      fill_first_zero_pos_grad_functor);  // use new grad as the grad of first 0
+  for_range_fill_zero_pos_grad(fill_first_zero_pos_grad_functor);
 }
 
 }  // namespace phi

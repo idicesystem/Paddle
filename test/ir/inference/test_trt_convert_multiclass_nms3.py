@@ -197,7 +197,7 @@ class TrtConvertMulticlassNMS3Test(TrtLayerAutoScanTest):
             if key == "nms_output_index":
                 continue
             if key == "nms_output_boxes":
-                baseline_arr = np.array(
+                basline_arr = np.array(
                     sorted(
                         baseline[key].reshape((-1, 6)),
                         key=lambda i: [i[0], i[1]],
@@ -207,19 +207,19 @@ class TrtConvertMulticlassNMS3Test(TrtLayerAutoScanTest):
                     sorted(arr.reshape((-1, 6)), key=lambda i: [i[0], i[1]])
                 )
             else:
-                baseline_arr = np.array(baseline[key].reshape((-1, 1)))
+                basline_arr = np.array(baseline[key].reshape((-1, 1)))
                 arr = np.array(arr.reshape((-1, 1)))
 
             self.assertTrue(
-                baseline_arr.shape == arr.shape,
+                basline_arr.shape == arr.shape,
                 "The output shapes are not equal, the baseline shape is "
-                + str(baseline_arr.shape)
+                + str(basline_arr.shape)
                 + ', but got '
                 + str(arr.shape),
             )
-            diff = abs(baseline_arr - arr)
+            diff = abs(basline_arr - arr)
             np.testing.assert_allclose(
-                baseline_arr,
+                basline_arr,
                 arr,
                 rtol=rtol,
                 atol=atol,

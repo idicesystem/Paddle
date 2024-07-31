@@ -36,7 +36,7 @@
 #include "paddle/cinn/optim/replace_var_with_expr.h"
 #include "paddle/cinn/poly/isl_utils.h"
 #include "paddle/cinn/utils/string.h"
-#include "paddle/common/enforce.h"
+
 PD_DECLARE_bool(cinn_new_group_scheduler);
 namespace cinn {
 namespace hlir {
@@ -49,11 +49,7 @@ void SetReduceAxis(ir::Expr loop, ir::Expr block) {
                                        ->iter_vars;
   std::vector<ir::Expr> iter_values =
       block.As<ir::ScheduleBlockRealize>()->iter_values;
-  PADDLE_ENFORCE_EQ(
-      iter_vars.size(),
-      iter_values.size(),
-      ::common::errors::InvalidArgument(
-          "The size of iter_vars and iter_values should be equal."));
+  CHECK_EQ(iter_vars.size(), iter_values.size());
   for (int i = 0; i < iter_values.size(); ++i) {
     std::set<Expr> contains = ir::ir_utils::CollectIRNodesWithoutTensor(
         iter_values[i],
@@ -73,7 +69,7 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch,  // NOLINT
                            const cinn::common::Target &target) {
   VLOG(3) << "Before IRElementwiseSchedule, new ir is : "
           << ir_sch.GetModule().GetExprs().at(0);
-  auto schedule_nv_hygon = [&] {
+  if (target == cinn::common::DefaultNVGPUTarget()) {
     auto blocks = ir_sch.GetAllBlocks();
     std::vector<ir::Expr> loops = ir_sch.GetLoops(blocks[0]);
     ir::Expr loop = ir_sch.Fuse(loops);
@@ -87,15 +83,11 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch,  // NOLINT
       ir_sch.Bind(splited[0], "blockIdx.x");
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
-  };
-  target.arch.Match(
-      [&](common::NVGPUArch) { schedule_nv_hygon(); },
-      [&](std::variant<common::UnknownArch, common::X86Arch, common::ARMArch>) {
-        // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
-        auto blocks = ir_sch.GetAllBlocks();
-        ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
-      },
-      [&](common::HygonDCUArchHIP) { schedule_nv_hygon(); });
+  } else {
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
+  }
   VLOG(3) << "After IRElementwiseSchedule, new ir is : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -105,7 +97,7 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch,  // NOLINT
                          const cinn::common::Target &target) {
   VLOG(3) << "Before IRInjectiveSchedule, new ir is : "
           << ir_sch.GetModule().GetExprs().at(0);
-  auto schedule_nv_hygon = [&] {
+  if (target == cinn::common::DefaultNVGPUTarget()) {
     auto blocks = ir_sch.GetAllBlocks();
     std::vector<ir::Expr> loops = ir_sch.GetLoops(blocks[0]);
     ir::Expr loop = ir_sch.Fuse(loops);
@@ -119,18 +111,11 @@ void IRInjectiveSchedule(ir::IRSchedule &ir_sch,  // NOLINT
       ir_sch.Bind(splited[0], "blockIdx.x");
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
-  };
-  target.arch.Match(
-      [&](common::NVGPUArch) { schedule_nv_hygon(); },
-      [&](std::variant<common::UnknownArch,
-                       common::X86Arch,
-                       common::ARMArch>) {  // IRScheduleInjectiveCPU(ir_sch,
-                                            // output_shape, target, false);
-        auto blocks = ir_sch.GetAllBlocks();
-        ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
-      },
-      [&](common::HygonDCUArchHIP) { schedule_nv_hygon(); });
-
+  } else {
+    // IRScheduleInjectiveCPU(ir_sch, output_shape, target, false);
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), false);
+  }
   VLOG(3) << "After IRInjectiveSchedule, new ir is : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -147,17 +132,11 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,  // NOLINT
   int factor = GetBasicFactor(GetTensor(all_blocks[0])->type(), target);
   auto fused = loops[0];
   if (dims >= 5) {
-    PADDLE_ENFORCE_GE(loops.size(),
-                      3U,
-                      ::common::errors::InvalidArgument(
-                          "The size of loops should be greater than 3."));
+    CHECK_GE(loops.size(), 3U);
     fused = ir_sch.Fuse({loops[0], loops[1], loops[2]});
     dims = dims - 2;
   } else if (dims >= 3) {
-    PADDLE_ENFORCE_GE(loops.size(),
-                      2U,
-                      ::common::errors::InvalidArgument(
-                          "The size of loops should be greater than 2."));
+    CHECK_GE(loops.size(), 2U);
     fused = ir_sch.Fuse({loops[0], loops[1]});
     dims = dims - 1;
   }
@@ -178,10 +157,10 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,  // NOLINT
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuScheduleInjective(ir::IRSchedule &ir_sch,  // NOLINT
-                            const std::vector<int> &output_shape,
-                            const cinn::common::Target &target) {
-  VLOG(3) << "Begin IRGpuScheduleInjective ";
+void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,  // NOLINT
+                             const std::vector<int> &output_shape,
+                             const cinn::common::Target &target) {
+  VLOG(3) << "Begin IRCudaScheduleInjective ";
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops = ir_sch.GetLoops(all_blocks[0]);
   auto fused = ir_sch.Fuse(loops);
@@ -197,20 +176,17 @@ void IRGpuScheduleInjective(ir::IRSchedule &ir_sch,  // NOLINT
   } else {
     ir_sch.Bind(fused, "threadIdx.x");
   }
-  VLOG(3) << "After IRGpuScheduleInjective, new ir is : "
+  VLOG(3) << "After IRCudaScheduleInjective, new ir is : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-std::vector<cinn::common::CINNValue> IRGpuScheduleMatMul(
+std::vector<cinn::common::CINNValue> IRCudaScheduleMatMul(
     const cinn::common::CINNValuePack &arg_pack,
     const std::vector<int> &output_shape,
     const cinn::common::Target &target) {
-  target.arch.Match(
-      [&](common::NVGPUArch) {},
-      [&](std::variant<common::UnknownArch, common::X86Arch, common::ARMArch>) {
-        CINN_NOT_IMPLEMENTED;
-      },
-      [&](common::HygonDCUArchHIP) {});
+  if (target.arch == Target::Arch::X86) {
+    CINN_NOT_IMPLEMENTED
+  }
   std::vector<Expr> vec_ast;
   for (int i = 0; i < arg_pack.size(); i++) {
     if (arg_pack[i].is_expr()) {
@@ -224,7 +200,7 @@ std::vector<cinn::common::CINNValue> IRGpuScheduleMatMul(
   ir_sch.MergeExprs();
   // Generally, there are 2 ScheduleBlocks in the lowered function,
   // the first is for reduce_init and the second is the real compute block,
-  // here we use loops of the first block to Bind GPU index in top spatial axes
+  // here we use loops of the first block to Bind GPU index in top spatial axies
   auto init_block = ir_sch.GetAllBlocks().front();
   VLOG(3) << "Matmul lowered expr:\n" << ir_sch.GetModule().GetExprs().front();
 
@@ -262,10 +238,7 @@ void IRCudaScheduleMul(ir::IRSchedule &ir_sch,  // NOLINT
                        const cinn::common::Target &target) {
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops = ir_sch.GetLoops(all_blocks.back());
-  PADDLE_ENFORCE_GE(loops.size(),
-                    2U,
-                    ::common::errors::InvalidArgument(
-                        "The size of loops should be greater than 2."));
+  CHECK_GE(loops.size(), 2U);
   auto splited = ir_sch.Split(loops[1], {-1, 2});
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks.back());
@@ -278,10 +251,7 @@ void IRMulScheduleCPU(ir::IRSchedule &ir_sch,  // NOLINT
                       const cinn::common::Target &target) {
   ir_sch.MergeExprs();
   auto all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_EQ(all_blocks.size(),
-                    4U,
-                    ::common::errors::InvalidArgument(
-                        "The size of all_blocks should be equal to 4."));
+  CHECK_EQ(all_blocks.size(), 4U);
   auto loops = ir_sch.GetLoops(all_blocks[1]);
   int loop_size = loops.size();
   // ir_sch.Reorder({loops[loop_size-1], loops[loop_size-2]});
@@ -323,10 +293,10 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,  // NOLINT
   for (auto &block : blocks) {
     block_names.push_back(get_block_name(block));
   }
-
-  auto SplitScheduleGpuDcu = [&] {
-    // if output with same shape.
-    if (with_same_shape) {
+  // if output with same shape.
+  if (with_same_shape && target == cinn::common::DefaultNVGPUTarget()) {
+    // flat loops.
+    {
       auto tsize = std::accumulate(output_shapes[0].begin(),
                                    output_shapes[0].end(),
                                    1,
@@ -347,53 +317,53 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,  // NOLINT
           ir_sch.Bind(splited[1], "threadIdx.x");
         }
       }
-    } else {
-      // flat loops.
-      {
-        for (int idx = 0; idx < block_names.size(); ++idx) {
-          ir_sch.FlattenLoops(ir_sch.GetLoops(block_names[idx]), false);
-          auto first_loop = ir_sch.GetLoops(block_names[idx])[0];
-          PADDLE_ENFORCE_NOT_NULL(
-              first_loop.As<ir::For>(),
-              ::common::errors::InvalidArgument(
-                  "first_loop is not ir::For! Please check.\n"));
-          auto tsize = first_loop.As<ir::For>()->extent.as_int32();
-          if (tsize > target.max_num_threads()) {
-            // split [-1, 256]
-            auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0],
-                                        {-1, target.max_num_threads() / 4});
-            ir_sch.Bind(splited[0], "blockIdx.x");
-            ir_sch.Bind(splited[1], "threadIdx.x");
-          } else {
-            auto splited =
-                ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {1, tsize});
-            ir_sch.Bind(splited[0], "blockIdx.x");
-            ir_sch.Bind(splited[1], "threadIdx.x");
-          }
+    }
+    // do simple compute at.
+    {
+      for (int idx = 1; idx < block_names.size(); ++idx) {
+        auto master_loops = ir_sch.GetLoops(block_names[0]);
+        ir_sch.SimpleComputeAt(ir_sch.GetBlock(block_names[idx]),
+                               master_loops[1]);
+      }
+    }
+  } else if (target == cinn::common::DefaultNVGPUTarget()) {
+    // flat loops.
+    {
+      for (int idx = 0; idx < block_names.size(); ++idx) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_names[idx]), false);
+        auto first_loop = ir_sch.GetLoops(block_names[idx])[0];
+        CHECK(first_loop.As<ir::For>());
+        auto tsize = first_loop.As<ir::For>()->extent.as_int32();
+        if (tsize > target.max_num_threads()) {
+          // split [-1, 256]
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0],
+                                      {-1, target.max_num_threads() / 4});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        } else {
+          auto splited =
+              ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {1, tsize});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
         }
       }
     }
-  };
-
-  target.arch.Match(
-      [&](common::NVGPUArch) { SplitScheduleGpuDcu(); },
-      [&](std::variant<common::UnknownArch, common::X86Arch, common::ARMArch>) {
-        {
-          for (auto &block_name : block_names) {
-            ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
-          }
-        }
-      },
-      [&](common::HygonDCUArchHIP) { SplitScheduleGpuDcu(); });
+  } else {
+    {
+      for (auto &block_name : block_names) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
+      }
+    }
+  }
   VLOG(3) << "In IRCudaSplitSchedule, After schedule expr is : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuScheduleReduce(ir::IRSchedule &ir_sch,  // NOLINT
-                         ir::Tensor output,
-                         int last_dimension_num,
-                         const cinn::common::Target &target) {
-  VLOG(3) << "Before IRGpuScheduleReduce : "
+void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,  // NOLINT
+                          ir::Tensor output,
+                          int last_dimension_num,
+                          const cinn::common::Target &target) {
+  VLOG(3) << "Before IRCudaScheduleReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
   int parallel_thread_num = 1;
   auto &output_shape = output->shape;
@@ -415,39 +385,25 @@ void IRGpuScheduleReduce(ir::IRSchedule &ir_sch,  // NOLINT
   int max_block_size = target.max_num_threads();
   if (parallel_thread_num > max_block_size) {
     auto loops = ir_sch.GetLoops(output->name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        index + 1,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than index + 1."));
+    CHECK_GE(loops.size(), index + 1);
     for (int idx = max_block_size; idx > 0; --idx) {
       if (parallel_thread_num % idx == 0) {
         auto nloops = ir_sch.Split(loops[index], {-1, idx});
         ir_sch.Bind(nloops.back(), "threadIdx.x");
         break;
       }
-      PADDLE_ENFORCE_GT(idx,
-                        1,
-                        ::common::errors::InvalidArgument(
-                            "The value of idx should be greater than 1."));
+      CHECK_GT(idx, 1);
     }
     ++index;
   } else {
     auto loops = ir_sch.GetLoops(output->name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        index + 1,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than index + 1."));
+    CHECK_GE(loops.size(), index + 1);
     ir_sch.Bind(loops[index], "threadIdx.x");
   }
 
   for (int idx = 0; idx < index - 1; ++idx) {
     auto loops = ir_sch.GetLoops(output->name);
-    PADDLE_ENFORCE_GT(loops.size(),
-                      2U,
-                      ::common::errors::InvalidArgument(
-                          "The size of loops should be greater than 2."));
+    CHECK_GT(loops.size(), 2U);
     if (loops.size() > 2) ir_sch.Fuse({loops[0], loops[1]});
   }
 
@@ -455,34 +411,28 @@ void IRGpuScheduleReduce(ir::IRSchedule &ir_sch,  // NOLINT
     auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Bind(loops[0], "blockIdx.x");
   }
-  VLOG(3) << "After IRGpuScheduleReduce : "
+  VLOG(3) << "After IRCudaScheduleReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,  // NOLINT
-                                      ir::Tensor tmp_out,
-                                      ir::Tensor out,
-                                      const cinn::common::Target &target) {
-  VLOG(3) << "Before IRGpuScheduleBlockReduceInternal : "
+void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,  // NOLINT
+                                       ir::Tensor tmp_out,
+                                       ir::Tensor out,
+                                       const cinn::common::Target &target) {
+  VLOG(3) << "Before IRCudaScheduleBlockReduceInternal : "
           << ir_sch.GetModule().GetExprs().at(0);
   int fuse_times = ir_sch.GetLoops(tmp_out->name).size() - 2;
   for (int idx = 0; idx < fuse_times; ++idx) {
     for (auto &tensor : {tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
-      PADDLE_ENFORCE_GE(loops.size(),
-                        2U,
-                        ::common::errors::InvalidArgument(
-                            "The size of loops should be greater than 2."));
+      CHECK_GE(loops.size(), 2U);
       ir_sch.Fuse({loops[0], loops[1]});
     }
   }
 
   // as out shape size = [1], insert for in ast tree.
   if (tmp_out->shape.size() == 1) {
-    PADDLE_ENFORCE_EQ(out->shape[0],
-                      Expr(1),
-                      ::common::errors::InvalidArgument(
-                          "The value of out->shape[0] should be equal to 1."));
+    CHECK_EQ(out->shape[0], Expr(1));
 
     // block and root
     auto out_block = ir_sch.GetBlock(out->name);
@@ -559,16 +509,16 @@ void IRGpuScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,  // NOLINT
     }
   }
 
-  VLOG(3) << "After IRGpuScheduleBlockReduceInternal : "
+  VLOG(3) << "After IRCudaScheduleBlockReduceInternal : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuScheduleBlockReduce(ir::IRSchedule &ir_sch,  // NOLINT
-                              ir::Tensor reduce_tmp_out,
-                              ir::Tensor tmp_out,
-                              ir::Tensor out,
-                              const cinn::common::Target &target) {
-  VLOG(3) << "Before IRGpuScheduleBlockReduce : "
+void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,  // NOLINT
+                               ir::Tensor reduce_tmp_out,
+                               ir::Tensor tmp_out,
+                               ir::Tensor out,
+                               const cinn::common::Target &target) {
+  VLOG(3) << "Before IRCudaScheduleBlockReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
   int tmp_put_shape_size_without_reduce = 0;
   for (auto i : tmp_out->shape) {
@@ -614,10 +564,7 @@ void IRGpuScheduleBlockReduce(ir::IRSchedule &ir_sch,  // NOLINT
       [](const int &num, const ir::Expr &e) { return num * e.as_int32(); });
   if (tmp_out->shape.size() == 1 ||
       (numel == tmp_out->shape.back().as_int32())) {
-    PADDLE_ENFORCE_EQ(out->shape[0],
-                      Expr(1),
-                      ::common::errors::InvalidArgument(
-                          "The value of out->shape[0] should be equal to 1."));
+    CHECK_EQ(out->shape[0], Expr(1));
 
     // block and root
     auto out_block = ir_sch.GetBlock(out->name);
@@ -664,7 +611,7 @@ void IRGpuScheduleBlockReduce(ir::IRSchedule &ir_sch,  // NOLINT
   }
 
   // bind block and thread for reduce.
-  // as outer loop range should be equal, get loop size.
+  // as outer loop range should be eqaul, get loop size.
   auto b_loop = ir::GetLoopExtent(ir_sch.GetLoops(out->name)[0]);
   // reduce_tmp_out
   {
@@ -712,16 +659,16 @@ void IRGpuScheduleBlockReduce(ir::IRSchedule &ir_sch,  // NOLINT
     }
   }
 
-  VLOG(3) << "After IRGpuScheduleBlockReduce : "
+  VLOG(3) << "After IRCudaScheduleBlockReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
-                                     ir::Tensor reshape,
-                                     ir::Tensor internal,
-                                     ir::Tensor reduce_out,
-                                     const cinn::common::Target &target) {
-  VLOG(3) << "Before IRGpuScheduleBlockShuffleReduce : "
+void IRCudaScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
+                                      ir::Tensor reshape,
+                                      ir::Tensor internal,
+                                      ir::Tensor reduce_out,
+                                      const cinn::common::Target &target) {
+  VLOG(3) << "Before IRCudaScheduleBlockShuffleReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
   // reshape compute inline
   {
@@ -764,10 +711,7 @@ void IRGpuScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
 
       auto exprs = ir::ir_utils::CollectIRNodesInOrder(
           block, [&](const Expr *x) { return x->As<ir::Load>(); });
-      PADDLE_ENFORCE_EQ(
-          exprs.size(),
-          1,
-          ::common::errors::InvalidArgument("The size of exprs should be 1."));
+      CHECK_EQ(exprs.size(), 1);
       auto load = exprs.front().As<ir::Load>();
       load->indices = {index};
     };
@@ -793,12 +737,8 @@ void IRGpuScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
     auto schedule_realize = block.As<ir::ScheduleBlockRealize>();
     auto schedule_block = block.As<ir::ScheduleBlockRealize>()
                               ->schedule_block.As<ir::ScheduleBlock>();
-    PADDLE_ENFORCE_EQ(
-        schedule_realize->iter_values.size(),
-        schedule_block->iter_vars.size(),
-        ::common::errors::InvalidArgument(
-            "The size of schedule_realize->iter_values should be equal to "
-            "schedule_block->iter_vars.size."));
+    CHECK_EQ(schedule_realize->iter_values.size(),
+             schedule_block->iter_vars.size());
 
     ir::Var var_name;
     for (int idx = 0; idx < schedule_block->iter_vars.size(); ++idx) {
@@ -844,8 +784,7 @@ void IRGpuScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
       }
       return loop_var_count;
     }
-    PADDLE_THROW(
-        ::common::errors::InvalidArgument("Can't find var in tensor indexes!"));
+    LOG(FATAL) << "Can't find var in tensor indeces!";
   };
   auto loop_var_count = get_loop_index(ir_sch.GetLoops(reduce_out->name).back(),
                                        ir_sch.GetBlock(reduce_out->name));
@@ -981,17 +920,17 @@ void IRGpuScheduleBlockShuffleReduce(ir::IRSchedule &ir_sch,  // NOLINT
       ir_sch.Unroll(r_loops.back());
     }
   }
-  VLOG(3) << "After IRGpuScheduleBlockShuffleReduce : "
+  VLOG(3) << "After IRCudaScheduleBlockShuffleReduce : "
           << ir_sch.GetModule().GetExprs().at(0);
 }
 
-void IRGpuTwoStepReduceSchedule(ir::IRSchedule &ir_sch,  // NOLINT
-                                ir::Tensor reshape,
-                                ir::Tensor internal,
-                                ir::Tensor tmp_out,
-                                ir::Tensor out,
-                                const cinn::common::Target &target) {
-  VLOG(3) << "Before IRGpuTwoStepReduceSchedule : "
+void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,  // NOLINT
+                                 ir::Tensor reshape,
+                                 ir::Tensor internal,
+                                 ir::Tensor tmp_out,
+                                 ir::Tensor out,
+                                 const cinn::common::Target &target) {
+  VLOG(3) << "Before IRCudaTwoStepReduceSchedule : "
           << ir_sch.GetModule().GetExprs().at(0);
   // fuse axis
   int fuse_times =
@@ -1098,7 +1037,7 @@ void IRGpuTwoStepReduceSchedule(ir::IRSchedule &ir_sch,  // NOLINT
       }
     }
   }
-  VLOG(3) << "After IRGpuTwoStepReduceSchedule : "
+  VLOG(3) << "After IRCudaTwoStepReduceSchedule : "
           << ir_sch.GetModule().GetExprs().at(0);
   // ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name),
   // ir_sch.GetLoops(out->name)[0]);
@@ -1109,10 +1048,7 @@ void IRGpuTwoStepReduceSchedule(ir::IRSchedule &ir_sch,  // NOLINT
 void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {  // NOLINT
   ir_sch.MergeExprs();
   auto all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_EQ(all_blocks.size(),
-                    3U,
-                    ::common::errors::InvalidArgument(
-                        "The size of all_blocks should be equal to 3."));
+  CHECK_EQ(all_blocks.size(), 3U);
   auto output = GetTensor(all_blocks[2]);
   if (axis == -1) {
     axis += output->shape.size();
@@ -1151,10 +1087,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch,  // NOLINT
   VLOG(3) << "Before IRGlobalPoolScheduleGPU: "
           << ir_sch.GetModule().GetExprs().at(0);
   auto all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_EQ(all_blocks.size(),
-                    2U,
-                    ::common::errors::InvalidArgument(
-                        "The size of all_blocks should be equal to 2."));
+  CHECK_EQ(all_blocks.size(), 2U);
   auto loops = ir_sch.GetLoops(all_blocks[1]);
   if (loops.size() > 1) {
     auto fused = ir_sch.Fuse(all_blocks[0], {0, 1});
@@ -1169,12 +1102,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch,  // NOLINT
     all_blocks = ir_sch.GetAllBlocks();
     ir_sch.SetBuffer(all_blocks[0], "local", true);
     loops = ir_sch.GetLoops(all_blocks[0]);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        3U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "3."));
+    CHECK_GE(loops.size(), 3U);
     ir_sch.Bind(loops[2], "threadIdx.x");
   } else {
     loops = ir_sch.GetLoops(all_blocks[0]);
@@ -1190,12 +1118,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch,  // NOLINT
     all_blocks = ir_sch.GetAllBlocks();
     ir_sch.SetBuffer(all_blocks[0], "local", true);
     loops = ir_sch.GetLoops(all_blocks[0]);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        3U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "3."));
+    CHECK_GE(loops.size(), 3U);
     ir_sch.Bind(loops[2], "threadIdx.x");
   }
   VLOG(3) << "After IRGlobalPoolScheduleGPU: "
@@ -1214,17 +1137,9 @@ void IRCudaScheduleDepthwiseConv(ir::IRSchedule &ir_sch,  // NOLINT
           << ir_sch.GetModule().GetExprs().at(0);
   auto OL = ir_sch.CacheWrite(all_blocks[0], 0, "local");
   all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_GE(
-      all_blocks.size(),
-      2,
-      ::common::errors::InvalidArgument("The size of all_blocks should be "
-                                        "greater than or equal to 2."));
+  CHECK_GE(all_blocks.size(), 2);
   auto loops = ir_sch.GetLoops(all_blocks[1]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      4,
-      ::common::errors::InvalidArgument("The size of loops should be greater "
-                                        "than or equal to 4."));
+  CHECK_GE(loops.size(), 4);
   ir_sch.Bind(loops[0], "blockIdx.x");
   ir_sch.Bind(loops[1], "blockIdx.y");
   ir_sch.Bind(loops[2], "blockIdx.z");
@@ -1243,17 +1158,11 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
 
   auto all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_EQ(all_blocks.size(),
-                    3U,
-                    ::common::errors::InvalidArgument(
-                        "The size of all_blocks should be equal to 3."));
+  CHECK_EQ(all_blocks.size(), 3U);
   auto input_pad = GetTensor(all_blocks[0]);
   auto output = GetTensor(all_blocks[2]);
   all_blocks = ir_sch.GetAllBlocks();
-  PADDLE_ENFORCE_EQ(all_blocks.size(),
-                    3U,
-                    ::common::errors::InvalidArgument(
-                        "The size of all_blocks should be equal to 3."));
+  CHECK_EQ(all_blocks.size(), 3U);
   auto weights = GetReadTensor(all_blocks[2], 2);
 
   int n = output->shape[0].as_int32();
@@ -1295,11 +1204,7 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
     thread_z = thread_z / 2;
     f_inner = f_inner * 2;
   }
-  PADDLE_ENFORCE_LE(w * thread_z,
-                    1024,
-                    ::common::errors::InvalidArgument(
-                        "The product of w and thread_z should be less than or "
-                        "equal to 1024."));
+  CHECK_LE(w * thread_z, 1024) << "Wrong Param of Conv2d!";
   std::vector<Expr> loops;
   all_blocks = ir_sch.GetAllBlocks();
   auto reduce_init_name = GetTensor(all_blocks[0])->name;
@@ -1316,35 +1221,20 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
   {
     // Do Split
     loops = ir_sch.GetLoops(final_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        2U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "2."));
+    CHECK_GE(loops.size(), 2U);
     ir_sch.Split(loops[1], {-1, thread_z, f_inner});
   }
   {
     // Do Reorder
     loops = ir_sch.GetLoops(final_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        6U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "6."));
+    CHECK_GE(loops.size(), 6U);
     ir_sch.Reorder({loops[1], loops[4], loops[2], loops[5], loops[3]});
   }
   {
     // Do ComputeAt
     auto temp_out = ir_sch.GetBlock(temp_output_name);
     loops = ir_sch.GetLoops(final_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        5U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "5."));
+    CHECK_GE(loops.size(), 5U);
     ir_sch.ComputeAt(temp_out, loops[4]);
   }
   VLOG(3) << "After ComputeAt with expr: "
@@ -1352,12 +1242,7 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
   {
     // Do Split
     loops = ir_sch.GetLoops(temp_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        7U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "7."));
+    CHECK_GE(loops.size(), 7U);
     ir_sch.Split(loops[6], {-1, rc_factor});
   }
   {
@@ -1378,21 +1263,13 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
       }
       loops = ir_sch.GetLoops(reduce_init_name);
     }
-    PADDLE_ENFORCE_EQ(loops.size(),
-                      4U,
-                      ::common::errors::InvalidArgument(
-                          "The size of loops should be equal to 4."));
+    CHECK_EQ(loops.size(), 4U);
     ir_sch.Split(loops[1], {-1, thread_z, f_inner});
   }
   {
     // Do Reorder
     loops = ir_sch.GetLoops(reduce_init_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        6U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "6."));
+    CHECK_GE(loops.size(), 6U);
     ir_sch.Reorder({loops[1], loops[4], loops[2], loops[5], loops[3]});
   }
   VLOG(3) << "After Reorder with expr: " << ir_sch.GetModule().GetExprs().at(0);
@@ -1400,23 +1277,13 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch,  // NOLINT
     // Do SimpleComputeAt
     auto reduce_init = ir_sch.GetBlock(reduce_init_name);
     loops = ir_sch.GetLoops(temp_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        6U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "6."));
+    CHECK_GE(loops.size(), 6U);
     ir_sch.SimpleComputeAt(reduce_init, loops[5]);
   }
   {
     // Do Bind
     loops = ir_sch.GetLoops(final_output_name);
-    PADDLE_ENFORCE_GE(
-        loops.size(),
-        5U,
-        ::common::errors::InvalidArgument(
-            "The size of loops should be greater than or equal to "
-            "5."));
+    CHECK_GE(loops.size(), 5U);
     ir_sch.Bind(loops[1], "blockIdx.z");
     ir_sch.Bind(loops[2], "blockIdx.y");
     ir_sch.Bind(loops[3], "threadIdx.z");
@@ -1461,38 +1328,22 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,  // NOLINT
 
   all_blocks = ir_sch.GetAllBlocks();
   auto loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      4U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 4."));
+  CHECK_GE(loops.size(), 4U);
   ir_sch.Split(loops[3], {-1, x_param[1], x_param[2], x_param[3]});
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      3U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 3."));
+  CHECK_GE(loops.size(), 3U);
   ir_sch.Split(loops[2], {-1, y_param[1], y_param[2], y_param[3]});
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      2U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 2."));
+  CHECK_GE(loops.size(), 2U);
   ir_sch.Split(loops[1], {-1, f_param[1], f_param[2], f_param[3]});
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      13U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 13."));
+  CHECK_GE(loops.size(), 13U);
   ir_sch.Reorder({loops[0],
                   loops[1],
                   loops[5],
@@ -1509,11 +1360,7 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,  // NOLINT
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      13U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 13."));
+  CHECK_GE(loops.size(), 13U);
   ir_sch.Bind(loops[1], "blockIdx.z");
   ir_sch.Bind(loops[2], "blockIdx.y");
   ir_sch.Bind(loops[3], "blockIdx.x");
@@ -1526,44 +1373,24 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,  // NOLINT
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[4]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      10U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 10."));
+  CHECK_GE(loops.size(), 10U);
   ir_sch.ComputeAt(all_blocks[3], loops[9]);
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      16U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 16."));
+  CHECK_GE(loops.size(), 16U);
   ir_sch.Split(loops[15], {-1, rx_param[1]});
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      15U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 15."));
+  CHECK_GE(loops.size(), 15U);
   ir_sch.Split(loops[14], {-1, ry_param[1]});
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      14U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 14."));
+  CHECK_GE(loops.size(), 14U);
   ir_sch.Split(loops[13], {-1, rc_param[1]});
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      14U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 14."));
+  CHECK_GE(loops.size(), 14U);
   ir_sch.Reorder({loops[13],
                   loops[15],
                   loops[17],
@@ -1576,19 +1403,11 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,  // NOLINT
 
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      13U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 13."));
+  CHECK_GE(loops.size(), 13U);
   ir_sch.ComputeAt(all_blocks[0], loops[12]);
   all_blocks = ir_sch.GetAllBlocks();
   loops = ir_sch.GetLoops(all_blocks[3]);
-  PADDLE_ENFORCE_GE(
-      loops.size(),
-      13U,
-      ::common::errors::InvalidArgument(
-          "The size of loops should be greater than or equal to 13."));
+  CHECK_GE(loops.size(), 13U);
   ir_sch.ComputeAt(all_blocks[1], loops[12]);
   // Work In Progress
   VLOG(3) << "After IRCudaScheduleConv2, expr is: "

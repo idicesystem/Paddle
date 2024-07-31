@@ -34,7 +34,7 @@ def grad_hook(grad):
     return grad
 
 
-class TestBackwardFunctionHookError(unittest.TestCase):
+class TestBakcwardFunctionHookError(unittest.TestCase):
     def test_hook(self):
         input_data = np.ones([4, 4]).astype('float32')
 

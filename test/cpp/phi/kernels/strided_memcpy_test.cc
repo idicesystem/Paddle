@@ -32,7 +32,7 @@ TEST(StridedMemcpy, CPUCrop) {
 
   phi::DDim src_stride({5, 1});
 
-  std::array<int, 4> dst = {};
+  std::array<int, 4> dst;
   phi::DDim dst_dim({2, 2});
   phi::DDim dst_stride({2, 1});
 
@@ -54,7 +54,7 @@ TEST(StridedMemcpy, CPUConcat) {
   };
   // clang-format on
 
-  std::array<int, 8> dst = {};
+  std::array<int, 8> dst;
   phi::DDim src_stride({2, 1});
   phi::DDim dst_dim({2, 2});
   phi::DDim dst_stride({4, 1});
@@ -79,7 +79,7 @@ TEST(StridedMemcpy, CPUConcat) {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 TEST(StridedMemcpy, GPUCrop) {
   // clang-format off
-  std::array<int, 15> src = {
+  int src[] = {
       0, 1, 2, 0, 0,
       0, 3, 4, 0, 0,
       0, 0, 0, 0, 0,
@@ -95,12 +95,11 @@ TEST(StridedMemcpy, GPUCrop) {
   auto src_allocation = phi::memory_utils::Alloc(gpu0, sizeof(src));
 
   int* gpu_src = reinterpret_cast<int*>(src_allocation->ptr());
-  memory_utils::Copy(
-      gpu0, gpu_src, cpu, src.data(), sizeof(src), ctx->stream());
+  memory_utils::Copy(gpu0, gpu_src, cpu, src, sizeof(src), ctx->stream());
 
   phi::DDim src_stride({5, 1});
 
-  std::array<int, 4> dst = {};
+  int dst[4];
   auto dst_allocation = phi::memory_utils::Alloc(gpu0, sizeof(dst));
   int* gpu_dst = reinterpret_cast<int*>(dst_allocation->ptr());
 
@@ -110,8 +109,7 @@ TEST(StridedMemcpy, GPUCrop) {
   phi::funcs::StridedMemcpy<int>(
       *ctx, gpu_src + 1, src_stride, dst_dim, dst_stride, gpu_dst);
 
-  memory_utils::Copy(
-      cpu, dst.data(), gpu0, gpu_dst, sizeof(dst), ctx->stream());
+  memory_utils::Copy(cpu, dst, gpu0, gpu_dst, sizeof(dst), ctx->stream());
   ctx->Wait();
 
   ASSERT_EQ(1, dst[0]);
@@ -122,7 +120,7 @@ TEST(StridedMemcpy, GPUCrop) {
 
 TEST(StridedMemcpy, GPUConcat) {
   // clang-format off
-  std::array<int, 4> src = {
+  int src[] = {
       1, 2,
       3, 4
   };
@@ -136,10 +134,9 @@ TEST(StridedMemcpy, GPUConcat) {
 
   auto gpu_src_allocation = phi::memory_utils::Alloc(gpu0, sizeof(src));
   int* gpu_src = reinterpret_cast<int*>(gpu_src_allocation->ptr());
-  memory_utils::Copy(
-      gpu0, gpu_src, cpu, src.data(), sizeof(src), ctx->stream());
+  memory_utils::Copy(gpu0, gpu_src, cpu, src, sizeof(src), ctx->stream());
 
-  std::array<int, 8> dst = {};
+  int dst[8];
   auto gpu_dst_allocation = phi::memory_utils::Alloc(gpu0, sizeof(dst));
   int* gpu_dst = reinterpret_cast<int*>(gpu_dst_allocation->ptr());
 
@@ -152,12 +149,11 @@ TEST(StridedMemcpy, GPUConcat) {
   phi::funcs::StridedMemcpy<int>(
       *ctx, gpu_src, src_stride, dst_dim, dst_stride, gpu_dst + 2);
 
-  memory_utils::Copy(
-      cpu, dst.data(), gpu0, gpu_dst, sizeof(dst), ctx->stream());
+  memory_utils::Copy(cpu, dst, gpu0, gpu_dst, sizeof(dst), ctx->stream());
   ctx->Wait();
 
   // clang-format off
-  std::array<int, 8> expect_dst = {
+  int expect_dst[] = {
       1, 2, 1, 2,
       3, 4, 3, 4
   };

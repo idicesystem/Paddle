@@ -38,6 +38,7 @@ DEFINE_C_REDUCE_CPU_KERNEL(CReduceMin, kRedMin)
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_WITHOUT_GRADIENT(c_reduce_min,
                              ops::CReduceOp,
@@ -51,4 +52,4 @@ PD_REGISTER_STRUCT_KERNEL(c_reduce_min,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

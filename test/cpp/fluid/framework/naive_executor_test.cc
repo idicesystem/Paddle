@@ -40,7 +40,7 @@ TEST(NaiveExecutor, Basic) {
   add->SetInput("Y", {"b"});
   add->SetOutput("Out", {"c"});
 
-  auto place = phi::CPUPlace();
+  auto place = platform::CPUPlace();
   NaiveExecutor exe(place);
   exe.Prepare(nullptr, program, 0, false);
   auto* a_tensor = exe.FindTensor("a");

@@ -14,8 +14,9 @@
 
 #include "paddle/phi/kernels/gaussian_kernel.h"
 
+#include "paddle/phi/backends/cpu/cpu_context.h"
+#include "paddle/phi/core/generator.h"
 #include "paddle/phi/core/kernel_registry.h"
-#include "paddle/phi/kernels/funcs/norm_distribution.h"
 
 namespace phi {
 
@@ -27,9 +28,13 @@ void GaussianKernel(const Context& dev_ctx,
                     int seed,
                     DataType dtype,
                     DenseTensor* out) {
-  out->Resize(common::make_ddim(shape.GetData()));
-  int64_t size = out->numel();
-  T* data = dev_ctx.template Alloc<T>(out);
+  auto tensor = out;
+
+  std::normal_distribution<T> dist(mean, std);
+
+  tensor->Resize(common::make_ddim(shape.GetData()));
+  int64_t size = tensor->numel();
+  T* data = dev_ctx.template Alloc<T>(tensor);
   std::shared_ptr<std::mt19937_64> engine;
   if (seed) {
     engine = std::make_shared<std::mt19937_64>();
@@ -37,7 +42,10 @@ void GaussianKernel(const Context& dev_ctx,
   } else {
     engine = dev_ctx.GetGenerator()->GetCPUEngine();
   }
-  NormalDistribution<T>(data, size, mean, std, engine);
+
+  for (int64_t i = 0; i < size; ++i) {
+    data[i] = dist(*engine);
+  }
 }
 
 template <typename T, typename Context>
@@ -48,6 +56,7 @@ void GaussianInplaceKernel(const Context& dev_ctx,
                            int seed,
                            DenseTensor* out) {
   T* data = dev_ctx.template Alloc<T>(out);
+  std::normal_distribution<T> dist(mean, std);
 
   int64_t size = out->numel();
   std::shared_ptr<std::mt19937_64> engine;
@@ -58,27 +67,19 @@ void GaussianInplaceKernel(const Context& dev_ctx,
     engine = dev_ctx.GetGenerator()->GetCPUEngine();
   }
 
-  NormalDistribution<T>(data, size, mean, std, engine);
+  for (int64_t i = 0; i < size; ++i) {
+    data[i] = dist(*engine);
+  }
 }
 
 }  // namespace phi
 
-PD_REGISTER_KERNEL(gaussian,
-                   CPU,
-                   ALL_LAYOUT,
-                   phi::GaussianKernel,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   float,
-                   double,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+PD_REGISTER_KERNEL(
+    gaussian, CPU, ALL_LAYOUT, phi::GaussianKernel, float, double) {}
 
 PD_REGISTER_KERNEL(gaussian_inplace,
                    CPU,
                    ALL_LAYOUT,
                    phi::GaussianInplaceKernel,
                    float,
-                   double,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   double) {}

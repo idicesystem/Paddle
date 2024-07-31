@@ -18,7 +18,9 @@
 #include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/framework/program_desc.h"
 
-namespace paddle::inference::analysis {
+namespace paddle {
+namespace inference {
+namespace analysis {
 
 void IrGraphToProgramPass::RunImpl(Argument *argument) {
   auto cache_pass =
@@ -42,4 +44,6 @@ void IrGraphToProgramPass::RunImpl(Argument *argument) {
       new framework::proto::ProgramDesc(*desc.Proto()));
 }
 
-}  // namespace paddle::inference::analysis
+}  // namespace analysis
+}  // namespace inference
+}  // namespace paddle

@@ -54,7 +54,7 @@ void XPUQuantizeOpPass::QuantizeInput(Graph* g,
       std::find(inputs.begin(), inputs.end(), input_arg_name) != inputs.end();
   PADDLE_ENFORCE_EQ(name_found,
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Var(%s) isn't the input of the %s operator.",
                         input_arg_name,
                         op->Op()->Type()));
@@ -97,7 +97,7 @@ void XPUQuantizeOpPass::DequantizeOutput(Graph* g,
       outputs.end();
   PADDLE_ENFORCE_EQ(name_found,
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Var(%s) isn't the output of the %s operator.",
                         output_arg_name,
                         op->Op()->Type()));
@@ -164,9 +164,7 @@ void XPUQuantizeOpPass::QuantizeConv(ir::Graph* graph) const {
           out_var_node = output_node;
         }
       }
-      if (!AreScalesPresentForNodes(&var_quant_scales_, {x_var_node}) ||
-          w_var_node->Var()->GetDataType() !=
-              proto::VarType::Type::VarType_Type_INT8) {
+      if (!AreScalesPresentForNodes(&var_quant_scales_, {x_var_node})) {
         VLOG(4) << "Skip quantize op: " << n->Name()
                 << "x_var_node_name:" << x_var_node->Name()
                 << " w_var_node_name:" << w_var_node->Name();
@@ -241,9 +239,8 @@ void XPUQuantizeOpPass::QuantizeFC(ir::Graph* graph) const {
           out_var_node = output_node;
         }
       }
-      if (!AreScalesPresentForNodes(&var_quant_scales_, {x_var_node}) ||
-          w_var_node->Var()->GetDataType() !=
-              proto::VarType::Type::VarType_Type_INT8) {
+      if (!AreScalesPresentForNodes(&var_quant_scales_,
+                                    {x_var_node, w_var_node})) {
         MarkAndLogCannotQuantizeOp(n, "No scale available for the operator");
         continue;
       }
@@ -264,84 +261,18 @@ void XPUQuantizeOpPass::QuantizeFC(ir::Graph* graph) const {
   }
 }
 
-void XPUQuantizeOpPass::QuantizeQkvAttention(ir::Graph* graph) const {
-  for (auto* n : graph->Nodes()) {
-    if (n->IsOp()) {
-      auto* op = n->Op();
-      if (op->Type() != "qkv_attention_xpu") {
-        continue;
-      }
-      std::vector<std::string> max_node_names = {
-          "q_max", "k_max", "v_max", "qk_max"};
-      std::unordered_map<std::string, Node*> input_node_map;
-      for (auto* input_node : n->inputs) {
-        if (!input_node->IsVar()) {
-          continue;
-        }
-        for (auto input_name : op->InputNames()) {
-          if (op->Input(input_name)[0] == input_node->Var()->Name()) {
-            input_node_map[input_name] = input_node;
-          }
-        }
-      }
-      bool continue_flag = false;
-      for (auto max_name : max_node_names) {
-        if (input_node_map.find(max_name) == input_node_map.end()) {
-          continue_flag = true;
-          break;
-        }
-      }
-      if (continue_flag) {
-        continue;
-      }
-      Node* out_var_node = nullptr;
-      for (auto* output_node : n->outputs) {
-        if (!output_node->IsVar()) {
-          continue;
-        }
-        if (output_node->Var()->Name() == op->Output("qkv")[0]) {
-          out_var_node = output_node;
-        }
-      }
-      if (input_node_map["q"]->Name() == input_node_map["k"]->Name() &&
-          input_node_map["q"]->Name() == input_node_map["v"]->Name()) {
-        QuantizeInput(graph, n, input_node_map["q"], "q");
-        op->SetInput("k", op->Input("q"));
-        op->SetInput("v", op->Input("q"));
-        UnlinkNodes(input_node_map["k"], n);
-        UnlinkNodes(input_node_map["v"], n);
-      } else {
-        QuantizeInput(graph, n, input_node_map["q"], "q");
-        QuantizeInput(graph, n, input_node_map["k"], "k");
-        QuantizeInput(graph, n, input_node_map["v"], "v");
-      }
-      auto has_output_scale =
-          AreScalesPresentForNodes(&var_quant_scales_, {out_var_node});
-      if (has_output_scale) {
-        DequantizeOutput(graph, n, out_var_node, "qkv");
-        n->Op()->SetAttr(
-            "out_dtype",
-            static_cast<int>(proto::VarType::Type::VarType_Type_INT8));
-      } else {
-        n->Op()->SetAttr("out_dtype",
-                         input_node_map["q"]->Var()->GetDataType());
-      }
-    }
-  }
-}
 void XPUQuantizeOpPass::ApplyImpl(ir::Graph* graph) const {
   VLOG(3) << "Insert quantize/dequantize op to the graph.";
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::InvalidArgument("Graph cannot be nullptr."));
+      graph, platform::errors::InvalidArgument("Graph cannot be nullptr."));
   FusePassBase::Init(name_scope_, graph);
   PADDLE_ENFORCE_NOT_NULL(
       param_scope(),
-      common::errors::InvalidArgument("Scope cannot be nullptr."));
+      platform::errors::InvalidArgument("Scope cannot be nullptr."));
 
   GetQuantInfo(graph);
   QuantizeConv(graph);
   QuantizeFC(graph);
-  QuantizeQkvAttention(graph);
 }
 
 }  // namespace ir

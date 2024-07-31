@@ -14,9 +14,9 @@
 
 #include "glog/logging.h"
 #include "gtest/gtest.h"
-#include "paddle/common/flags.h"
 #include "paddle/fluid/inference/api/paddle_infer_contrib.h"
 #include "paddle/fluid/platform/enforce.h"
+#include "paddle/utils/flags.h"
 
 namespace paddle_infer {
 namespace contrib {
@@ -27,7 +27,7 @@ struct FakeException {
   void pd_exception(int a) const {
     PADDLE_ENFORCE_NE(a,
                       a,
-                      common::errors::InvalidArgument(
+                      paddle::platform::errors::InvalidArgument(
                           "This is a preset error message used to verify "
                           "whether the exception meets expectations: %d, %d.",
                           a,
@@ -43,11 +43,7 @@ TEST(Status, pd_exception) {
   CHECK(!status.ok());
   CHECK(status == status);
   CHECK(!(status != status));
-  PADDLE_ENFORCE_EQ(
-      status.code(),
-      phi::ErrorCode::INVALID_ARGUMENT + 1,
-      phi::errors::InvalidArgument(
-          "Required status.code() should be equal to INVALID_ARGUMENT + 1. "));
+  CHECK_EQ(status.code(), paddle::platform::error::INVALID_ARGUMENT + 1);
   LOG(INFO) << status.error_message();
 }
 

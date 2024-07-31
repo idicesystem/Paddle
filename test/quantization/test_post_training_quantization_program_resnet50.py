@@ -203,7 +203,7 @@ class TestPostTrainingQuantizationProgram(TestPostTrainingQuantization):
         try:
             os.system("mkdir " + self.int8_model)
         except Exception as e:
-            print(f"Failed to create {self.int8_model} due to {e}")
+            print(f"Failed to create {self.int8_model} due to {str(e)}")
             sys.exit(-1)
 
         place = paddle.CPUPlace()
@@ -262,7 +262,9 @@ class TestPostTrainingQuantizationProgram(TestPostTrainingQuantization):
         model_cache_folder = self.download_data(data_urls, data_md5s, model)
 
         print(
-            f"Start FP32 inference for {model} on {infer_iterations * batch_size} images ..."
+            "Start FP32 inference for {} on {} images ...".format(
+                model, infer_iterations * batch_size
+            )
         )
         (
             fp32_throughput,
@@ -293,7 +295,9 @@ class TestPostTrainingQuantizationProgram(TestPostTrainingQuantization):
         )
 
         print(
-            f"Start INT8 inference for {model} on {infer_iterations * batch_size} images ..."
+            "Start INT8 inference for {} on {} images ...".format(
+                model, infer_iterations * batch_size
+            )
         )
         (int8_throughput, int8_latency, int8_acc1, _, _, _) = self.run_program(
             self.int8_model,
@@ -305,10 +309,14 @@ class TestPostTrainingQuantizationProgram(TestPostTrainingQuantization):
 
         print(f"---Post training quantization of {algo} method---")
         print(
-            f"FP32 {model}: batch_size {batch_size}, throughput {fp32_throughput} images/second, latency {fp32_latency} second, accuracy {fp32_acc1}."
+            "FP32 {}: batch_size {}, throughput {} images/second, latency {} second, accuracy {}.".format(
+                model, batch_size, fp32_throughput, fp32_latency, fp32_acc1
+            )
         )
         print(
-            f"INT8 {model}: batch_size {batch_size}, throughput {int8_throughput} images/second, latency {int8_latency} second, accuracy {int8_acc1}.\n"
+            "INT8 {}: batch_size {}, throughput {} images/second, latency {} second, accuracy {}.\n".format(
+                model, batch_size, int8_throughput, int8_latency, int8_acc1
+            )
         )
         sys.stdout.flush()
 

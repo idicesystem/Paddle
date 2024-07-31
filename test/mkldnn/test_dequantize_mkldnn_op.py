@@ -65,8 +65,8 @@ class TestDeQuantizeOp(OpTest):
         self.outputs = {'Output': output}
 
     def test_check_output(self):
-        # TODO(wangzhongpu): support onednn op in dygraph mode
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        # TODO(wangzhongpu): support mkldnn op in dygraph mode
+        self.check_output(check_dygraph=False)
 
     def check_raise_error(self, msg):
         try:

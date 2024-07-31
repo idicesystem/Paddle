@@ -105,13 +105,5 @@ void CrossKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-PD_REGISTER_KERNEL(cross,
-                   CPU,
-                   ALL_LAYOUT,
-                   phi::CrossKernel,
-                   float,
-                   double,
-                   int,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+PD_REGISTER_KERNEL(
+    cross, CPU, ALL_LAYOUT, phi::CrossKernel, float, double, int, int64_t) {}

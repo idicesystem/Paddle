@@ -28,8 +28,8 @@ phi::ccl::CCLReduceOp ToXCCLRedType(ReduceOp reduction) {
   PADDLE_ENFORCE_EQ(
       it != red_type.end(),
       true,
-      phi::errors::InvalidArgument("Invalid CustomCCL reduction. "
-                                   "Must be Min | Max | Prod | Sum"));
+      platform::errors::InvalidArgument("Invalid CustomCCL reduction. "
+                                        "Must be Min | Max | Prod | Sum"));
   return it->second;
 }
 

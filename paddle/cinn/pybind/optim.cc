@@ -42,10 +42,7 @@ void BindSimplify(py::module* m) {
       },
       py::arg("expr"));
 
-  m->def("ir_copy",
-         py::overload_cast<Expr, bool>(&ir::ir_utils::IRCopy),
-         py::arg("x"),
-         py::arg("copy_buffer_node") = true);
+  m->def("ir_copy", py::overload_cast<Expr>(&ir::ir_utils::IRCopy));
 }
 
 }  // namespace

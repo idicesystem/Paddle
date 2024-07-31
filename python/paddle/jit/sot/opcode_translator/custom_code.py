@@ -14,12 +14,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
-
-if TYPE_CHECKING:
-    from types import CodeType
+import types
+from typing import NamedTuple
 
 
 class CustomCode(NamedTuple):
-    code: CodeType | None
+    code: types.CodeType | None
     disable_eval_frame: bool

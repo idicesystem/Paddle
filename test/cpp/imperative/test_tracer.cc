@@ -44,6 +44,10 @@ PD_DECLARE_KERNEL(matmul_with_flatten, GPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(matmul_with_flatten_grad, GPU, ALL_LAYOUT);
 #endif
 
+namespace imperative = paddle::imperative;
+namespace platform = paddle::platform;
+namespace framework = paddle::framework;
+
 namespace paddle {
 namespace imperative {
 
@@ -61,7 +65,7 @@ TEST(test_tracer, test_trace_op) {
       new imperative::VarBase(true, "y_in"));
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};
@@ -94,7 +98,7 @@ TEST(test_tracer, test_trace_op) {
 
 #ifndef PADDLE_WITH_XPU
   ASSERT_THROW(tracer.TraceOp<VarBase>(
-      "mul", ins, outs, mul_attr_map, phi::XPUPlace(0), true);
+      "mul", ins, outs, mul_attr_map, platform::XPUPlace(0), true);
                , platform::EnforceNotMet);
 #endif
 
@@ -113,7 +117,7 @@ TEST(test_tracer, test_trace_op_with_backward) {
       new imperative::VarBase(true, "y_in"));
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};
@@ -156,10 +160,10 @@ TEST(test_tracer, test_track_backward_output) {
       new imperative::VarBase(true, "x_in"));
   std::shared_ptr<imperative::VarBase> y_in(
       new imperative::VarBase(true, "y_in"));
-  x_in->SetOverriddenStopGradient(false);
+  x_in->SetOverridedStopGradient(false);
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};
@@ -203,8 +207,8 @@ TEST(test_tracer, test_track_backward_input) {
       new imperative::VarBase(true, "y_in"));
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  phi::CPUPlace place;
-  x_in->SetOverriddenStopGradient(false);
+  platform::CPUPlace place;
+  x_in->SetOverridedStopGradient(false);
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};
@@ -245,14 +249,14 @@ TEST(test_tracer, test_trace_op_with_multi_device_inputs) {
   imperative::Tracer tracer;
   std::shared_ptr<imperative::VarBase> x_in(
       new imperative::VarBase(true, "x_in"));
-  x_in->SetOverriddenStopGradient(false);  // force to run backward
+  x_in->SetOverridedStopGradient(false);  // force to run backward
   std::shared_ptr<imperative::VarBase> y_in(
       new imperative::VarBase(true, "y_in"));
-  y_in->SetOverriddenStopGradient(false);
+  y_in->SetOverridedStopGradient(false);
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  phi::CPUPlace place;
-  phi::GPUPlace gpu_place(0);
+  platform::CPUPlace place;
+  platform::CUDAPlace gpu_place(0);
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {2, 5};
@@ -358,21 +362,21 @@ TEST(test_tracer, test_current_tracer) {
 TEST(test_tracer, test_expected_place) {
   // default expected place is CPUPlace
   imperative::Tracer tracer;
-  ASSERT_EQ(phi::is_cpu_place(tracer.ExpectedPlace()), true);
+  ASSERT_EQ(platform::is_cpu_place(tracer.ExpectedPlace()), true);
   {
 #ifdef PADDLE_WITH_CUDA
     // set to CUDAPlace
-    phi::GPUPlace gpu_place(0);
+    platform::CUDAPlace gpu_place(0);
     tracer.SetExpectedPlace(gpu_place);
-    ASSERT_EQ(phi::is_gpu_place(tracer.ExpectedPlace()), true);
+    ASSERT_EQ(platform::is_gpu_place(tracer.ExpectedPlace()), true);
 #endif
   }
   {
 #ifdef PADDLE_WITH_XPU
     // set to XPUPlace
-    phi::XPUPlace xpu_place(0);
+    platform::XPUPlace xpu_place(0);
     tracer.SetExpectedPlace(xpu_place);
-    ASSERT_EQ(phi::is_xpu_place(tracer.ExpectedPlace()), true);
+    ASSERT_EQ(platform::is_xpu_place(tracer.ExpectedPlace()), true);
 #endif
   }
 }
@@ -387,9 +391,9 @@ TEST(test_tracer, test_var_without_grad_var) {
       new imperative::VarBase(true, "y_in"));
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(true, "vout"));
-  x_in->SetOverriddenStopGradient(false);
-  y_in->SetOverriddenStopGradient(false);
-  phi::CPUPlace place;
+  x_in->SetOverridedStopGradient(false);
+  y_in->SetOverridedStopGradient(false);
+  platform::CPUPlace place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};
@@ -457,7 +461,7 @@ template <typename T>
 using WeakPtrSet =
     std::set<std::weak_ptr<T>, std::owner_less<std::weak_ptr<T>>>;
 
-static void TestVarOpDestructionMain(const phi::Place& place,
+static void TestVarOpDestructionMain(const platform::Place& place,
                                      int64_t tensor_size = 10,
                                      size_t loop_num = 10) {
   WeakPtrSet<VariableWrapper> var_wrappers;
@@ -480,8 +484,8 @@ static void TestVarOpDestructionMain(const phi::Place& place,
         ->Resize({tensor_size, tensor_size})
         .mutable_data<float>(place);
 
-    x->SetOverriddenStopGradient(false);
-    y->SetOverriddenStopGradient(true);
+    x->SetOverridedStopGradient(false);
+    y->SetOverridedStopGradient(true);
 
     for (size_t i = 0; i < loop_num; ++i) {
       size_t var_wrapper_num = var_wrappers.size();
@@ -577,9 +581,9 @@ static void TestVarOpDestructionMain(const phi::Place& place,
 }
 
 TEST(test_tracer, test_var_op_destruction) {
-  TestVarOpDestructionMain(phi::CPUPlace());
+  TestVarOpDestructionMain(platform::CPUPlace());
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
-  TestVarOpDestructionMain(phi::GPUPlace(0));
+  TestVarOpDestructionMain(platform::CUDAPlace(0));
 #endif
 }
 
@@ -589,8 +593,8 @@ TEST(test_tracer, test_execution_context) {
   auto ctx = framework::RuntimeContext({}, {});
   NameVarBaseMap ins = {{"X", {nullptr}}, {"Y", {nullptr}}};
   NameVarBaseMap outs = {{"Out", {nullptr}}};
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
-  auto* dev_ctx = pool.Get(phi::CPUPlace());
+  platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
+  auto* dev_ctx = pool.Get(platform::CPUPlace());
   auto dy_ctx = DygraphExecutionContext<VarBase>((*op.get()),
                                                  scope,
                                                  *dev_ctx,
@@ -608,7 +612,7 @@ TEST(test_tracer, eager_tracer) {
   std::shared_ptr<egr::EagerVariable> x_in(new egr::EagerVariable("x_in"));
   std::shared_ptr<egr::EagerVariable> y_in(new egr::EagerVariable("y_in"));
   std::shared_ptr<egr::EagerVariable> vout(new egr::EagerVariable("vout"));
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims1 = {2, 5};
   std::vector<int64_t> dims2 = {5, 2};

@@ -32,8 +32,8 @@ class GradientClipHelper:
         prune: square, reduce_sum, elementwise_mul
         keep: sum, sqrt, elementwise_max, elementwise_div
         """
-        deprecated_vars = set()
-        deprecate_op_idx = set()
+        deperated_vars = set()
+        deperate_op_idx = set()
         reversed_x_paramname = []
         global_norm_sum_op_idx = -1
         for idx, op in enumerate(block.ops):
@@ -42,10 +42,10 @@ class GradientClipHelper:
             if op.type == "sum":
                 global_norm_sum_op_idx = idx
                 continue
-            deprecate_op = False
+            deperate_op = False
             for input_name in op.desc.input_arg_names():
-                if input_name in deprecated_vars:
-                    deprecate_op = True
+                if input_name in deperated_vars:
+                    deperate_op = True
                 # TODO (JZ-LIANG) revise this for uniform mixed parallelism
                 if "@MERGED" in input_name:
                     param_name = input_name.strip("@GRAD@MERGED")
@@ -54,34 +54,34 @@ class GradientClipHelper:
                 if shard.is_param(param_name) and not shard.has_param(
                     param_name
                 ):
-                    deprecate_op = True
+                    deperate_op = True
                 elif shard.is_param(param_name):
                     reversed_x_paramname.append(param_name)
 
-            if deprecate_op:
-                deprecate_op_idx.add(idx)
+            if deperate_op:
+                deperate_op_idx.add(idx)
                 for output_name in op.desc.output_arg_names():
                     if output_name not in op.desc.input_arg_names():
-                        deprecated_vars.add(output_name)
+                        deperated_vars.add(output_name)
 
         # NOTE(wangxi): If only have 2 sharding, and 1 param.
-        # sharding 0 will not deprecated_vars, will return, only
+        # sharding 0 will not deperated_vars, will return, only
         # sharding 1 will insert allreduce, then hang.
-        if not deprecated_vars and global_norm_sum_op_idx == -1:
+        if not deperated_vars and global_norm_sum_op_idx == -1:
             # got no gradient_clip op
             return
 
         for idx, op in reversed(list(enumerate(block.ops))):
             if not self._is_gradient_clip_op(op):
                 continue
-            if idx in deprecate_op_idx:
+            if idx in deperate_op_idx:
                 block._remove_op(idx, sync=False)
                 continue
             if op.type == "sum":
                 reversed_inputs = []
                 global_norm_sum_op_idx = idx
                 for input_name in op.desc.input_arg_names():
-                    if input_name not in deprecated_vars:
+                    if input_name not in deperated_vars:
                         reversed_inputs.append(input_name)
 
                 op.desc.set_input("X", reversed_inputs)
@@ -142,10 +142,13 @@ class GradientClipHelper:
         )
         assert (
             to_check_param == should_check_param
-        ), f"amp check_finite_and_unscale \
-        checking miss [{should_check_param - to_check_param}] and got unexpected [{to_check_param - should_check_param}]"
+        ), "amp check_finite_and_unscale \
+        checking miss [{}] and got unexpected [{}]".format(
+            should_check_param - to_check_param,
+            to_check_param - should_check_param,
+        )
 
-        for var_name in deprecated_vars:
+        for var_name in deperated_vars:
             block._remove_var(var_name, sync=False)
         block._sync_with_cpp()
         return

@@ -12,23 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any, Callable, Sequence, TypeVar
-
-from typing_extensions import Concatenate
-
 import paddle
 from paddle.base import core
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-
 
 __all__ = []
 
 
-_RetT = TypeVar('_RetT')
+def with_mateclass(meta, *bases):
+    class impl(meta):
+        def __new__(cls, name, temp_bases, attrs):
+            return meta(name, bases, attrs)
+
+    return type.__new__(impl, "impl", (), {})
 
 
 class PyLayerContext:
@@ -57,12 +52,7 @@ class PyLayerContext:
             ...         return grad
     """
 
-    container: tuple[Tensor, ...]
-    not_inplace_tensors: tuple[Tensor, ...]
-    non_differentiable: tuple[Tensor, ...]
-    materialize_grads: bool
-
-    def save_for_backward(self, *tensors: Tensor) -> None:
+    def save_for_backward(self, *tensors):
         """
         Saves given tensors that backward need. Use ``saved_tensor`` in the `backward` to get the saved tensors.
 
@@ -100,7 +90,7 @@ class PyLayerContext:
         """
         self.container = tensors
 
-    def saved_tensor(self) -> tuple[Tensor, ...]:
+    def saved_tensor(self):
         """
         Get the tensors stored by ``save_for_backward``.
 
@@ -132,7 +122,7 @@ class PyLayerContext:
         """
         return self.container
 
-    def mark_not_inplace(self, *args: Tensor) -> None:
+    def mark_not_inplace(self, *args):
         """
         Marks inputs as not inplace.
         This should be called at most once, only from inside the `forward` method,
@@ -173,7 +163,7 @@ class PyLayerContext:
         """
         self.not_inplace_tensors = args
 
-    def mark_non_differentiable(self, *args: Tensor) -> None:
+    def mark_non_differentiable(self, *args):
         """
         Marks outputs as non-differentiable.
         This should be called at most once, only from inside the `forward` method,
@@ -213,7 +203,7 @@ class PyLayerContext:
         """
         self.non_differentiable = args
 
-    def set_materialize_grads(self, value: bool) -> None:
+    def set_materialize_grads(self, value: bool):
         """
         Sets whether to materialize output grad tensors. Default is True.
 
@@ -277,7 +267,7 @@ class PyLayerMeta(type):
         return super().__init__(name, bases, attrs)
 
 
-class PyLayer(core.eager.PyLayer, PyLayerContext, metaclass=PyLayerMeta):
+class PyLayer(with_mateclass(PyLayerMeta, core.eager.PyLayer, PyLayerContext)):
     """
     Paddle implements Python custom operators on the PaddlePaddle framework by creating a subclass of
     ``PyLayer``, which must comply with the following rules:
@@ -332,9 +322,7 @@ class PyLayer(core.eager.PyLayer, PyLayerContext, metaclass=PyLayerMeta):
     """
 
     @staticmethod
-    def forward(
-        ctx: PyLayerContext, *args: Any, **kwargs: Any
-    ) -> Tensor | Sequence[Tensor]:
+    def forward(ctx, *args, **kwargs):
         """
         It is to be overloaded by subclasses. It must accept a object of :ref:`api_paddle_autograd_PyLayerContext` as
         the first argument, followed by any number of arguments (tensors or other types).
@@ -373,7 +361,7 @@ class PyLayer(core.eager.PyLayer, PyLayerContext, metaclass=PyLayerMeta):
         )
 
     @staticmethod
-    def backward(ctx: PyLayerContext, *args: Any) -> Tensor | Sequence[Tensor]:
+    def backward(ctx, *args):
         """
         This is a function to calculate the gradient. It is to be overloaded by subclasses.
         It must accept a object of :ref:`api_paddle_autograd_PyLayerContext` as the first
@@ -414,10 +402,8 @@ class PyLayer(core.eager.PyLayer, PyLayerContext, metaclass=PyLayerMeta):
         )
 
 
-def once_differentiable(
-    backward: Callable[Concatenate[PyLayerContext, ...], _RetT]
-) -> Callable[Concatenate[PyLayerContext, ...], _RetT]:
-    def wrapper(ctx: PyLayerContext, *args: Any) -> _RetT:
+def once_differentiable(backward):
+    def wrapper(ctx, *args):
         with paddle.base.dygraph.no_grad():
             outputs = backward(ctx, *args)
         return outputs

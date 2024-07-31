@@ -49,7 +49,7 @@ static void ConstructFwdAndBwdMap(
   PADDLE_ENFORCE_LE(
       grad_outputs_names.size(),
       inputs_names.size(),
-      phi::errors::InvalidArgument(
+      paddle::platform::errors::InvalidArgument(
           "Grad outputs num should be less equal than forward inputs num."));
   for (size_t i = 0; i < grad_outputs_names.size(); i++) {
     auto end = grad_outputs_names[i].find("@GRAD@GRAD");
@@ -89,7 +89,7 @@ static void ConstructFwdAndBwdMap(
             }
           }
         } else {
-          PADDLE_THROW(phi::errors::NotFound(
+          PADDLE_THROW(paddle::platform::errors::NotFound(
               "All Grad outputs should be end of @GRAD@GRAD or @GRAD@NEW or "
               "@GRAD and we got %s is not one of them, "
               "please check your op and change to fit the rule.",
@@ -144,7 +144,7 @@ static void ConstructFwdAndBwdMap(
         std::find(attrs_names.begin(), attrs_names.end(), grad_attrs_names[i]);
     PADDLE_ENFORCE_NE(end,
                       attrs_names.end(),
-                      phi::errors::NotFound(
+                      paddle::platform::errors::NotFound(
                           "All Grad attrs should be one of forward attrs and "
                           "we got %s is not one of them, please check your "
                           "op and change to fit the rule.",
@@ -209,8 +209,8 @@ RunCustomOpNode::operator()(paddle::small_vector<std::vector<paddle::Tensor>,
                ->meta()
                .is_contiguous()) {
         tensor.set_impl(std::make_shared<phi::DenseTensor>(
-            paddle::experimental::Trans2Contiguous(*(
-                std::dynamic_pointer_cast<phi::DenseTensor>(tensor.impl())))));
+            std::move(paddle::experimental::Trans2Contiguous(*(
+                std::dynamic_pointer_cast<phi::DenseTensor>(tensor.impl()))))));
       }
     }
 
@@ -436,7 +436,7 @@ RunCustomOpDoubleGradNode::operator()(
               << " to tmp_outputs: " << grad_output_idx;
       for (size_t j = 0; j < OutputMeta()[grad_output_idx].size(); j++) {
         outs[grad_output_idx]
-            .emplace_back(/* init it in case of copy nullptr of shared_ptr */
+            .emplace_back(/* init it incase of copy nullptr of shared_ptr */
                           std::make_shared<phi::DenseTensor>(
                               phi::DataType::UNDEFINED),
                           egr::Controller::Instance().GenerateUniqueName(

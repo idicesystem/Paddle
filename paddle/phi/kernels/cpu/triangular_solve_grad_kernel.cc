@@ -20,6 +20,4 @@ PD_REGISTER_KERNEL(triangular_solve_grad,
                    ALL_LAYOUT,
                    phi::TriangularSolveGradKernel,
                    float,
-                   double,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   double) {}

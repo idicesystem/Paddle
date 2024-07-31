@@ -56,7 +56,8 @@ class TestBase(IPUOpTest):
         scope = paddle.static.Scope()
         main_prog = paddle.static.Program()
         startup_prog = paddle.static.Program()
-        paddle.seed(self.SEED)
+        main_prog.random_seed = self.SEED
+        startup_prog.random_seed = self.SEED
         generator = paddle.base.unique_name.UniqueNameGenerator()
         self.full_name = '/'.join(
             [self.attrs['path'].name, self.attrs['model_name']]
@@ -70,12 +71,13 @@ class TestBase(IPUOpTest):
                         shape=self.feed_shape[0],
                         dtype='float32',
                     )
-                    conv1 = paddle.nn.Conv2D(
-                        in_channels=x.shape[1],
-                        out_channels=3,
-                        kernel_size=3,
+                    conv1 = paddle.static.nn.conv2d(
+                        x,
+                        num_filters=3,
+                        filter_size=3,
                         bias_attr=False,
-                    )(x)
+                        name='conv2d',
+                    )
                     loss = paddle.mean(conv1)
 
                     if self.attrs['is_training']:
@@ -88,7 +90,7 @@ class TestBase(IPUOpTest):
                         elif self.attrs['opt_type'] == 'lamb':
                             lamb = paddle.optimizer.Lamb(learning_rate=1e-2)
                             lamb.minimize(loss)
-                fetch_list = [loss]
+                fetch_list = [loss.name]
 
                 place = paddle.IPUPlace()
                 exe = paddle.static.Executor(place)

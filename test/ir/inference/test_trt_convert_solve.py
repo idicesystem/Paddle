@@ -88,8 +88,9 @@ class TrtConvertSolve(TrtLayerAutoScanTest):
         generate_dynamic_shape(attrs)
         self.trt_param.precision = paddle_infer.PrecisionType.Float32
         yield self.create_inference_config(), (1, 3), 1e-5
+
         self.trt_param.precision = paddle_infer.PrecisionType.Half
-        yield self.create_inference_config(), (1, 3), (1e-3, 1e-3)
+        yield self.create_inference_config(), (1, 3), 1e-3
 
     def test(self):
         self.run_test()

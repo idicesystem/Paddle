@@ -83,7 +83,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   int offset_factor{0};
   //! The place the buffer locates.
   Target target{UnkTarget()};
-  //! Alignment requirement of data pointer in bytes.
+  //! Aignment requirement of data pointer in bytes.
   mutable int data_alignment{0};
   //! The memory type of the buffer.
   MemoryType memory_type{MemoryType::Heap};
@@ -141,9 +141,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   void Verify() const override;
 
-  int64_t numel() const;
-
-  ir::Expr SymbolicNumel() const;
+  int numel() const;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 

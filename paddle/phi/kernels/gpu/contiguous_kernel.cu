@@ -13,6 +13,8 @@ limitations under the License. */
 
 #include <set>
 
+#include "paddle/fluid/memory/malloc.h"
+#include "paddle/fluid/memory/memcpy.h"
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/transpose_kernel.h"
@@ -559,6 +561,4 @@ PD_REGISTER_KERNEL(contiguous,
                    ::phi::dtype::float16,
                    ::phi::dtype::bfloat16,
                    ::phi::dtype::complex<float>,
-                   ::phi::dtype::complex<double>,
-                   ::phi::dtype::float8_e4m3fn,
-                   ::phi::dtype::float8_e5m2) {}
+                   ::phi::dtype::complex<double>) {}

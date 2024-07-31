@@ -11,17 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import datetime
 import hashlib
 import os
-from typing import (
-    TYPE_CHECKING,
-    Literal,
-)
-
-from typing_extensions import TypeAlias
 
 import paddle
 
@@ -45,8 +38,6 @@ from .fleet.layers.mpu.mp_ops import (  # noqa: F401
     split,
 )
 
-if TYPE_CHECKING:
-    _BackendList: TypeAlias = Literal["gloo", "nccl", "xccl", "bkcl"]
 __all__ = []
 
 _global_env = None
@@ -156,21 +147,15 @@ def _new_process_group_impl(
     group_name,
     pg_options,
     group_id=0,
-    nccl_comm_init_option=0,
 ):
     pg = None
     genv = _get_global_env()
-    assert backend in _valid_backend_list, f"Unsupported backend: {backend}."
+    assert backend in _valid_backend_list, "Unsupported backend: %s." % backend
     if backend == "gloo":
         pg = core.ProcessGroupGloo.create(store, rank, world_size, group_id)
     elif backend == "nccl":
         pg = core.ProcessGroupNCCL.create(
-            store,
-            rank,
-            world_size,
-            group_id,
-            genv.pg_timeout,
-            nccl_comm_init_option,
+            store, rank, world_size, group_id, genv.pg_timeout
         )
     elif backend == "xccl":
         pg = core.ProcessGroupCustom.create(
@@ -192,12 +177,7 @@ def _set_custom_gid(gid):
     _custom_gid = gid
 
 
-def new_group(
-    ranks: list[int] | None = None,
-    backend: Literal['nccl'] | None = None,
-    timeout: datetime.timedelta = _default_timeout,
-    nccl_comm_init_option: int = 0,
-) -> Group:
+def new_group(ranks=None, backend=None, timeout=_default_timeout):
     """
 
     Creates a new distributed communication group.
@@ -251,7 +231,6 @@ def new_group(
                 group_name,
                 pg_options=None,
                 group_id=gid,
-                nccl_comm_init_option=nccl_comm_init_option,
             )
         else:
             rank = -1
@@ -266,9 +245,7 @@ def new_group(
 
         if int(os.getenv("FLAGS_eager_communication_connection", 0)) == 1:
             paddle.distributed.all_reduce(
-                paddle.zeros([1], dtype=paddle.float32),
-                group=group,
-                sync_op=True,
+                paddle.zeros([1], dtype=paddle.uint8), group=group, sync_op=True
             )
 
         return group
@@ -329,7 +306,7 @@ def new_group(
     return gp
 
 
-def is_available() -> bool:
+def is_available():
     """
     Check whether the distributed package is available.
 
@@ -346,7 +323,7 @@ def is_available() -> bool:
     return core.is_compiled_with_dist()
 
 
-def _init_parallel_env(backend: _BackendList) -> None:
+def _init_parallel_env(backend):
     store = core.create_or_get_global_tcp_store()
     global_env = _get_global_env()
     rank = global_env.rank

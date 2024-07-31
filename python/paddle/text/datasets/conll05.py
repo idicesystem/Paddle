@@ -11,13 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import numpy as np
-    import numpy.typing as npt
 
 import gzip
 import tarfile
@@ -52,15 +45,15 @@ class Conll05st(Dataset):
           only test dataset of Conll05st is public.
 
     Args:
-        data_file(str|None): path to data tar file, can be set None if
+        data_file(str): path to data tar file, can be set None if
             :attr:`download` is True. Default None
-        word_dict_file(str|None): path to word dictionary file, can be set None if
+        word_dict_file(str): path to word dictionary file, can be set None if
             :attr:`download` is True. Default None
-        verb_dict_file(str|None): path to verb dictionary file, can be set None if
+        verb_dict_file(str): path to verb dictionary file, can be set None if
             :attr:`download` is True. Default None
-        target_dict_file(str|None): path to target dictionary file, can be set None if
+        target_dict_file(str): path to target dictionary file, can be set None if
             :attr:`download` is True. Default None
-        emb_file(str|None): path to embedding dictionary file, only used for
+        emb_file(str): path to embedding dictionary file, only used for
             :code:`get_embedding` can be set None if :attr:`download` is
             True. Default None
         download(bool): whether to download dataset automatically if
@@ -110,26 +103,14 @@ class Conll05st(Dataset):
 
     """
 
-    data_file: str | None
-    word_dict_file: str | None
-    verb_dict_file: str | None
-    target_dict_file: str | None
-    emb_file: str | None
-    word_dict: dict[str, int]
-    predicate_dict: dict[str, int]
-    label_dict: dict[str, int]
-    sentences: list
-    predicates: list
-    labels: list
-
     def __init__(
         self,
-        data_file: str | None = None,
-        word_dict_file: str | None = None,
-        verb_dict_file: str | None = None,
-        target_dict_file: str | None = None,
-        emb_file: str | None = None,
-        download: bool = True,
+        data_file=None,
+        word_dict_file=None,
+        verb_dict_file=None,
+        target_dict_file=None,
+        emb_file=None,
+        download=True,
     ):
         self.data_file = data_file
         if self.data_file is None:
@@ -195,7 +176,7 @@ class Conll05st(Dataset):
         # read dataset into memory
         self._load_anno()
 
-    def _load_label_dict(self, filename: str) -> dict[str, int]:
+    def _load_label_dict(self, filename):
         d = {}
         tag_dict = set()
         with open(filename, 'r') as f:
@@ -214,14 +195,14 @@ class Conll05st(Dataset):
             d["O"] = index
         return d
 
-    def _load_dict(self, filename: str) -> dict[str, int]:
+    def _load_dict(self, filename):
         d = {}
         with open(filename, 'r') as f:
             for i, line in enumerate(f):
                 d[line.strip()] = i
         return d
 
-    def _load_anno(self) -> None:
+    def _load_anno(self):
         tf = tarfile.open(self.data_file)
         wf = tf.extractfile(
             "conll05st-release/test.wsj/words/test.wsj.words.gz"
@@ -275,7 +256,9 @@ class Conll05st(Dataset):
                                     lbl_seq.append('B-' + cur_tag)
                                     is_in_bracket = True
                                 else:
-                                    raise RuntimeError(f'Unexpected label: {l}')
+                                    raise RuntimeError(
+                                        'Unexpected label: %s' % l
+                                    )
 
                             self.sentences.append(sentences)
                             self.predicates.append(verb_list[i])
@@ -292,19 +275,7 @@ class Conll05st(Dataset):
         wf.close()
         tf.close()
 
-    def __getitem__(
-        self, idx: int
-    ) -> tuple[
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-        npt.NDArray[np.int_],
-    ]:
+    def __getitem__(self, idx):
         sentence = self.sentences[idx]
         predicate = self.predicates[idx]
         labels = self.labels[idx]
@@ -363,10 +334,10 @@ class Conll05st(Dataset):
             np.array(label_idx),
         )
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.sentences)
 
-    def get_dict(self) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    def get_dict(self):
         """
         Get the word, verb and label dictionary of Wikipedia corpus.
 
@@ -382,7 +353,7 @@ class Conll05st(Dataset):
         """
         return self.word_dict, self.predicate_dict, self.label_dict
 
-    def get_embedding(self) -> str:
+    def get_embedding(self):
         """
         Get the embedding dictionary file.
 

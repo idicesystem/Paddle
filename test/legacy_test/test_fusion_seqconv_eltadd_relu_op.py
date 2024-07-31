@@ -18,7 +18,7 @@ import unittest
 import numpy as np
 from op_test import OpTest
 
-sys.path.append("../sequence")
+sys.path.append("../../test/sequence")
 from test_sequence_conv import seqconv
 
 

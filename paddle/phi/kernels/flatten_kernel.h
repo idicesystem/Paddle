@@ -40,8 +40,7 @@ void FlattenInferStridedKernel(const Context& dev_ctx,
                                const DenseTensor& x,
                                int start_axis,
                                int stop_axis,
-                               DenseTensor* out,
-                               DenseTensor* xshape);
+                               DenseTensor* out);
 
 template <typename Context>
 void FlattenStridedKernel(const Context& dev_ctx,

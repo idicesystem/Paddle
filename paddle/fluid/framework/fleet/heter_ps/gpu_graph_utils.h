@@ -21,10 +21,10 @@
 #include <algorithm>
 #include <random>
 #include <vector>
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/enforce.h"
+#include "paddle/phi/core/flags.h"
 
-COMMON_DECLARE_bool(gpugraph_debug_gpu_memory);
+PHI_DECLARE_bool(gpugraph_debug_gpu_memory);
 
 namespace paddle {
 namespace framework {
@@ -92,10 +92,11 @@ inline void debug_gpu_memory_info(int gpu_id, const char* desc) {
   size_t total{0};
   cudaSetDevice(gpu_id);
   auto err = cudaMemGetInfo(&avail, &total);
-  PADDLE_ENFORCE_EQ(err,
-                    cudaSuccess,
-                    common::errors::InvalidArgument("cudaMemGetInfo failed!"));
-  VLOG(0) << "update gpu memory on device " << gpu_id << ", "
+  PADDLE_ENFORCE_EQ(
+      err,
+      cudaSuccess,
+      platform::errors::InvalidArgument("cudaMemGetInfo failed!"));
+  VLOG(0) << "updatex gpu memory on device " << gpu_id << ", "
           << "avail=" << avail / 1024.0 / 1024.0 / 1024.0 << "g, "
           << "total=" << total / 1024.0 / 1024.0 / 1024.0 << "g, "
           << "use_rate=" << (total - avail) / static_cast<double>(total)
@@ -114,7 +115,7 @@ inline void debug_gpu_memory_info(const char* desc) {
   PADDLE_ENFORCE_EQ(
       err,
       cudaSuccess,
-      common::errors::InvalidArgument("cudaGetDeviceCount failed!"));
+      platform::errors::InvalidArgument("cudaGetDeviceCount failed!"));
 
   size_t avail{0};
   size_t total{0};
@@ -124,7 +125,7 @@ inline void debug_gpu_memory_info(const char* desc) {
     PADDLE_ENFORCE_EQ(
         err,
         cudaSuccess,
-        common::errors::InvalidArgument("cudaMemGetInfo failed!"));
+        platform::errors::InvalidArgument("cudaMemGetInfo failed!"));
     VLOG(0) << "update gpu memory on device " << i << ", "
             << "avail=" << avail / 1024.0 / 1024.0 / 1024.0 << "g, "
             << "total=" << total / 1024.0 / 1024.0 / 1024.0 << "g, "
@@ -142,7 +143,7 @@ inline void show_gpu_mem(const char* desc) {
   PADDLE_ENFORCE_EQ(
       err,
       cudaSuccess,
-      common::errors::InvalidArgument("cudaGetDeviceCount failed!"));
+      platform::errors::InvalidArgument("cudaGetDeviceCount failed!"));
 
   size_t avail{0};
   size_t total{0};
@@ -152,7 +153,7 @@ inline void show_gpu_mem(const char* desc) {
     PADDLE_ENFORCE_EQ(
         err,
         cudaSuccess,
-        common::errors::InvalidArgument("cudaMemGetInfo failed!"));
+        platform::errors::InvalidArgument("cudaMemGetInfo failed!"));
     VLOG(0) << "[" << desc << "] hbm on device " << i << ", "
             << "avail=" << avail / 1024.0 / 1024.0 / 1024.0 << "g, "
             << "total=" << total / 1024.0 / 1024.0 / 1024.0 << "g";

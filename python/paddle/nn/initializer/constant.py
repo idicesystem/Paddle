@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
-import paddle
 from paddle import _C_ops
 
 from ...base import core, framework
@@ -37,17 +35,13 @@ class ConstantInitializer(Initializer):
 
     """
 
-    def __init__(self, value: float = 0.0, force_cpu: bool = False) -> None:
+    def __init__(self, value=0.0, force_cpu=False):
         assert value is not None
         super().__init__()
         self._value = value
         self._force_cpu = force_cpu
 
-    def forward(
-        self,
-        var: paddle.Tensor,
-        block: paddle.pir.Block | None = None,
-    ) -> paddle.Tensor | None:
+    def forward(self, var, block=None):
         """Initialize the input tensor with constant.
 
         Args:
@@ -58,6 +52,7 @@ class ConstantInitializer(Initializer):
         Returns:
             The initialization op
         """
+        import paddle
 
         block = self._check_block(block)
 
@@ -66,7 +61,7 @@ class ConstantInitializer(Initializer):
             (
                 framework.Variable,
                 framework.EagerParamBase,
-                paddle.pir.Value,
+                paddle.pir.OpResult,
                 paddle.pir.core.ParameterMeta,
             ),
         )
@@ -77,20 +72,9 @@ class ConstantInitializer(Initializer):
             if self._force_cpu:
                 place = core.CPUPlace()
             if in_dygraph_mode():
-                if isinstance(var, framework.EagerParamBase) and var.is_dist():
-                    out_var = _C_ops.full(
-                        var._local_shape, float(self._value), var.dtype, place
-                    )
-                    out_var = (
-                        paddle.distributed.auto_parallel.api.dtensor_from_local(
-                            out_var, var.process_mesh, var.placements
-                        )
-                    )
-                    out_var._share_underline_tensor_to(var)
-                else:
-                    _C_ops.full_(
-                        var, var.shape, float(self._value), var.dtype, place
-                    )
+                _C_ops.full_(
+                    var, var.shape, float(self._value), var.dtype, place
+                )
                 return None
             else:
                 return _C_ops.full(
@@ -140,7 +124,7 @@ class Constant(ConstantInitializer):
 
     """
 
-    def __init__(self, value: float = 0.0) -> None:
+    def __init__(self, value=0.0):
         if value is None:
             raise ValueError("value must not be none.")
         super().__init__(value=value, force_cpu=False)

@@ -18,7 +18,6 @@ from get_test_cover_info import get_xpu_op_support_types
 from xpu.test_collective_api_base import TestDistBase
 
 import paddle
-import paddle.distributed as dist
 from paddle import core
 
 paddle.enable_static()
@@ -30,32 +29,22 @@ class TestCollectiveAllreduceAPI(TestDistBase):
 
     @unittest.skipIf(
         not core.is_compiled_with_xpu() or paddle.device.xpu.device_count() < 2,
-        "run test when having at least 2 XPUs.",
+        "run test when having at leaset 2 XPUs.",
     )
-    def test_allreduce_sum(self):
+    def test_allreduce(self):
         support_types = get_xpu_op_support_types('c_allreduce_sum')
         for dtype in support_types:
             self.check_with_place(
                 "collective_allreduce_api.py",
                 "allreduce",
                 dtype=dtype,
-            )
-
-    def test_allreduce_max(self):
-        support_types = get_xpu_op_support_types('c_allreduce_max')
-        for dtype in support_types:
-            self.check_with_place(
-                "collective_allreduce_api.py",
-                "allreduce",
-                dtype=dtype,
-                reduce_type=dist.ReduceOp.MAX,
             )
 
     @unittest.skipIf(
         not core.is_compiled_with_xpu() or paddle.device.xpu.device_count() < 2,
-        "run test when having at least 2 XPUs.",
+        "run test when having at leaset 2 XPUs.",
     )
-    def test_allreduce_sum_dygraph(self):
+    def test_allreduce_dygraph(self):
         support_types = get_xpu_op_support_types('c_allreduce_sum')
         for dtype in support_types:
             self.check_with_place(
@@ -63,17 +52,6 @@ class TestCollectiveAllreduceAPI(TestDistBase):
                 "allreduce",
                 static_mode="0",
                 dtype=dtype,
-            )
-
-    def test_allreduce_max_dygraph(self):
-        support_types = get_xpu_op_support_types('c_allreduce_max')
-        for dtype in support_types:
-            self.check_with_place(
-                "collective_allreduce_api_dygraph.py",
-                "allreduce",
-                static_mode="0",
-                dtype=dtype,
-                reduce_type=dist.ReduceOp.MAX,
             )
 
 

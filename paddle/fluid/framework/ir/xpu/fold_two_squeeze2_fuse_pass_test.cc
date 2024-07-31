@@ -34,7 +34,7 @@ TEST(FoldTwoSqueeze2FusePass, basic) {
   PADDLE_ENFORCE_EQ(
       ops_num,
       1,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "graph should only have 2 op nodes, but received %d.", ops_num));
 }
 

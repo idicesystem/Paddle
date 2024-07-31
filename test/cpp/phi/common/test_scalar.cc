@@ -26,7 +26,7 @@ bool StartsWith(const std::string& s, const std::string& prefix) {
   return s.rfind(prefix, 0) == 0;
 }
 
-TEST(Scalar, Formatting) {
+TEST(Scalar, Formating) {
   paddle::experimental::Scalar s;
 
   s = paddle::experimental::Scalar(static_cast<float>(42.1));

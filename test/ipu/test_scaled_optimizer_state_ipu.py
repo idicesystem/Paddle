@@ -59,9 +59,9 @@ class TestBase(IPUOpTest):
         image = paddle.static.data(
             name='image', shape=[1, 3, 10, 10], dtype='float32'
         )
-        conv1 = paddle.nn.Conv2D(
-            in_channels=3, out_channels=3, kernel_size=3, bias_attr=False
-        )(image)
+        conv1 = paddle.static.nn.conv2d(
+            image, num_filters=3, filter_size=3, bias_attr=False
+        )
         loss = paddle.mean(conv1)
 
         weight_decay = self.attrs['weight_decay']
@@ -74,7 +74,7 @@ class TestBase(IPUOpTest):
             )
         opt.minimize(loss)
         self.feed_list = [image.name]
-        self.fetch_list = [loss]
+        self.fetch_list = [loss.name]
 
     def run_model(self, exec_mode):
         ipu_strategy = paddle.static.IpuStrategy()

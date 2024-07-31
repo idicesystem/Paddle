@@ -67,7 +67,7 @@ void TrainerBase::DumpWork(int tid) {
     VLOG(3) << "dump field mode overwrite";
     fp = fs_open_write(path, &err_no, dump_converter_);
   }
-  while (true) {
+  while (1) {
     std::string out_str;
     if (!queue_->Get(out_str)) {
       break;

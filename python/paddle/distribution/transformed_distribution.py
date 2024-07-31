@@ -11,17 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import typing
-from typing import TYPE_CHECKING, Sequence
 
 from paddle.distribution import distribution, independent, transform
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle.distribution.distribution import Distribution
-    from paddle.distribution.transform import Transform
 
 
 class TransformedDistribution(distribution.Distribution):
@@ -55,12 +48,8 @@ class TransformedDistribution(distribution.Distribution):
                 -1.64333570)
             >>> # doctest: -SKIP
     """
-    base: Distribution
-    transforms: Sequence[Transform]
 
-    def __init__(
-        self, base: Distribution, transforms: Sequence[Transform]
-    ) -> None:
+    def __init__(self, base, transforms):
         if not isinstance(base, distribution.Distribution):
             raise TypeError(
                 f"Expected type of 'base' is Distribution, but got {type(base)}."
@@ -85,7 +74,7 @@ class TransformedDistribution(distribution.Distribution):
             )
         if chain._domain.event_rank > len(base.event_shape):
             base = independent.Independent(
-                base, chain._domain.event_rank - len(base.event_shape)
+                (base, chain._domain.event_rank - len(base.event_shape))
             )
 
         transformed_shape = chain.forward_shape(
@@ -103,7 +92,7 @@ class TransformedDistribution(distribution.Distribution):
             ],
         )
 
-    def sample(self, shape: Sequence[int] = ()) -> Tensor:
+    def sample(self, shape=()):
         """Sample from ``TransformedDistribution``.
 
         Args:
@@ -117,7 +106,7 @@ class TransformedDistribution(distribution.Distribution):
             x = t.forward(x)
         return x
 
-    def rsample(self, shape: Sequence[int] = ()) -> Tensor:
+    def rsample(self, shape=()):
         """Reparameterized sample from ``TransformedDistribution``.
 
         Args:
@@ -131,7 +120,7 @@ class TransformedDistribution(distribution.Distribution):
             x = t.forward(x)
         return x
 
-    def log_prob(self, value: Tensor) -> Tensor:
+    def log_prob(self, value):
         """The log probability evaluated at value.
 
         Args:
@@ -156,5 +145,5 @@ class TransformedDistribution(distribution.Distribution):
         return log_prob
 
 
-def _sum_rightmost(value: Tensor, n: int) -> Tensor:
+def _sum_rightmost(value, n):
     return value.sum(list(range(-n, 0))) if n > 0 else value

@@ -20,11 +20,17 @@ limitations under the License. */
 
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 class Node;
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::inference::analysis {
+namespace paddle {
+namespace inference {
+namespace analysis {
 using framework::ir::Node;
 
 std::vector<std::string> ExtractParameters(
@@ -128,7 +134,7 @@ void RenameAndGetOutputs(
     auto arg_var_node = graph_var_map.find(graph_arg);
     PADDLE_ENFORCE_NE(arg_var_node,
                       graph_var_map.end(),
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Can not find %s in graph_var_map", graph_arg));
     auto *var_t = block_desc->Var(block_arg);
     var_t->SetShape(arg_var_node->second->Var()->GetShape());
@@ -143,9 +149,9 @@ void RenameAndGetOutputs(
     PADDLE_ENFORCE_EQ(
         correspond_node->Name(),
         op->type(),
-        common::errors::PreconditionNotMet("We should get %s, but get %s",
-                                           op->type(),
-                                           correspond_node->Name()));
+        platform::errors::PreconditionNotMet("We should get %s, but get %s",
+                                             op->type(),
+                                             correspond_node->Name()));
 
     std::unordered_map<std::string, size_t> var2id;
     std::unordered_map<std::string, framework::ir::Node *> in_vars;
@@ -232,4 +238,6 @@ std::string RenameVarBeUnique(std::string original_var_name,
   return original_var_name + "_subgraph_" + var_id;
 }
 
-}  // namespace paddle::inference::analysis
+}  // namespace analysis
+}  // namespace inference
+}  // namespace paddle

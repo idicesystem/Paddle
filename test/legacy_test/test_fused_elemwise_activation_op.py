@@ -18,6 +18,8 @@ from functools import partial
 import numpy as np
 from op_test import OpTest
 
+from paddle.base import core
+
 #   TestFusedElementwiseActivationOp
 #   TestFusedElementwiseActivationOp_scalar
 #   TestFusedElementwiseActivationOp_scalar2
@@ -30,35 +32,14 @@ from op_test import OpTest
 #   TestFusedElementwiseActivationOp_rowwise_add_0
 #   TestFusedElementwiseActivationOp_rowwise_add_1
 #   TestFusedElementwiseActivationOp_channelwise_add
-import paddle
-from paddle.base import core
-
-
-def api_wrapper(
-    x, y, functor_list=[], axis=-1, scale=0.0, save_intermediate_out=False
-):
-    return paddle._legacy_C_ops.fused_elemwise_activation(
-        x,
-        y,
-        "axis",
-        axis,
-        "scale",
-        scale,
-        "save_intermediate_out",
-        save_intermediate_out,
-        "functor_list",
-        functor_list,
-    )
 
 
 def create_test_class(
-    test_case, callback, attrs, dtype=np.float32, grad_check=True
+    test_case, callback, attrs, dtype=np.float32, grad_chek=True
 ):
     class TestFusedElementwiseActivationOp_base(OpTest):
         def setUp(self):
             self.op_type = "fused_elemwise_activation"
-            self.python_api = api_wrapper
-            self.python_out_sig = ['Out']
             self.dtype = dtype
             self.axis = -1
 
@@ -108,15 +89,15 @@ def create_test_class(
 
         # FIXME(zcd): the intermediate_out_grad is not checked.
         def test_check_grad_normal(self):
-            if not grad_check:
+            if not grad_chek:
                 return
             if self.attrs["save_intermediate_out"]:
                 self.check_grad(['X', 'Y'], ['Out'], check_dygraph=False)
             else:
                 self.check_grad(['X', 'Y'], ['Out'], check_dygraph=False)
 
-        def test_check_grad_ignore_x(self):
-            if not grad_check:
+        def test_check_grad_ingore_x(self):
+            if not grad_chek:
                 return
             if self.attrs["save_intermediate_out"]:
                 self.check_grad(
@@ -135,8 +116,8 @@ def create_test_class(
                     check_dygraph=False,
                 )
 
-        def test_check_grad_ignore_y(self):
-            if not grad_check:
+        def test_check_grad_ingore_y(self):
+            if not grad_chek:
                 return
             if self.attrs["save_intermediate_out"]:
                 self.check_grad(
@@ -467,7 +448,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
             create_test_class(
                 'add_scale_fp16' + suffix,
@@ -478,7 +459,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
 
             create_test_class(
@@ -489,7 +470,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
             create_test_class(
                 'relu_add_fp16' + suffix,
@@ -499,7 +480,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
             create_test_class(
                 'mul_scale_fp16' + suffix,
@@ -510,7 +491,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
             create_test_class(
                 'gelu_add_fp16' + suffix,
@@ -520,7 +501,7 @@ for mode in {0, 1}:
                     'save_intermediate_out': save_intermediate_out,
                 },
                 dtype=np.float16,
-                grad_check=False,
+                grad_chek=False,
             )
 
 if __name__ == '__main__':

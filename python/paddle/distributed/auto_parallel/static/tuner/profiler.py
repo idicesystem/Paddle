@@ -171,7 +171,11 @@ def init_comm(profile_ctx):
     genv = _get_global_env()
     genv = dist_env
     print(
-        f"current process rank: {genv.rank}, device_id: {genv.device_id}, ip: {genv.current_endpoint}."
+        "current process rank: {}, device_id: {}, ip: {}.".format(
+            genv.rank,
+            genv.device_id,
+            genv.current_endpoint,
+        )
     )
 
     # init nccl comm
@@ -254,7 +258,7 @@ def profiler(args):
         )
 
         result_dict = {
-            "Throughput": avg_tput,
+            "Throughtput": avg_tput,
             "ErrorType": None,
         }
 
@@ -270,7 +274,7 @@ def profiler(args):
     except Exception as e:
         error_type = get_cpp_error_type(e)
         result_dict = {
-            "Throughput": -1,
+            "Throughtput": -1,
             "ErrorType": error_type,
         }
         if not os.path.isfile(result_path):

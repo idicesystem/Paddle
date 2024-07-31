@@ -19,14 +19,19 @@
 #include "paddle/fluid/framework/lod_tensor.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 #include "paddle/fluid/framework/tensor.h"
+#include "paddle/fluid/platform/float16.h"
 #include "paddle/phi/common/data_type.h"
-#include "paddle/phi/common/float16.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Scope;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 
 static void ReplaceOutputVar(Node* op, Node* old_var, Node* new_var) {
   if (op->IsOp() && op->Op()) {
@@ -447,7 +452,7 @@ PDNode* MultiHeadMatmulPattern::operator()() {
 }
 
 PDNode* MultiHeadMatmulV3Pattern::operator()() {
-  // Add mul op to support huggingface onnx model conversion by x2paddle
+  // Add mul op to support huggingface onnx model convertsion by x2paddle
   std::unordered_set<std::string> matmul_ops{"mul", "matmul", "matmul_v2"};
   auto* input0 = pattern->NewNode(input0_repr());
   input0->assert_is_ops_input(matmul_ops);
@@ -630,8 +635,7 @@ PDNode* MultiHeadMatmulV3Pattern::operator()() {
 
   return transpose2_2_out_var;
 }
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 
 namespace {
 template <typename T>
@@ -641,12 +645,12 @@ inline void QKVWeightsProcess(phi::DenseTensor* wq_tensor,
                               phi::DenseTensor* bq_tensor,
                               phi::DenseTensor* bk_tensor,
                               phi::DenseTensor* bv_tensor) {
-  auto* wq_data = wq_tensor->mutable_data<T>(phi::CPUPlace());
-  auto* wk_data = wk_tensor->mutable_data<T>(phi::CPUPlace());
-  auto* wv_data = wv_tensor->mutable_data<T>(phi::CPUPlace());
-  auto* bq_data = bq_tensor->mutable_data<T>(phi::CPUPlace());
-  auto* bk_data = bk_tensor->mutable_data<T>(phi::CPUPlace());
-  auto* bv_data = bv_tensor->mutable_data<T>(phi::CPUPlace());
+  auto* wq_data = wq_tensor->mutable_data<T>(platform::CPUPlace());
+  auto* wk_data = wk_tensor->mutable_data<T>(platform::CPUPlace());
+  auto* wv_data = wv_tensor->mutable_data<T>(platform::CPUPlace());
+  auto* bq_data = bq_tensor->mutable_data<T>(platform::CPUPlace());
+  auto* bk_data = bk_tensor->mutable_data<T>(platform::CPUPlace());
+  auto* bv_data = bv_tensor->mutable_data<T>(platform::CPUPlace());
 
   auto combined_w_dims =
       common::make_ddim({wq_tensor->dims()[0], 3, wq_tensor->dims()[1]});
@@ -655,7 +659,7 @@ inline void QKVWeightsProcess(phi::DenseTensor* wq_tensor,
   phi::DenseTensor tmp_combined_w_tensor;
   tmp_combined_w_tensor.Resize(combined_w_dims);
   auto* tmp_combined_w_data =
-      tmp_combined_w_tensor.mutable_data<T>(phi::CPUPlace());
+      tmp_combined_w_tensor.mutable_data<T>(platform::CPUPlace());
 
   std::vector<T*> w_vec = {wq_data, wk_data, wv_data};
   int dims_h = static_cast<int>(combined_w_dims[0]),
@@ -672,14 +676,14 @@ inline void QKVWeightsProcess(phi::DenseTensor* wq_tensor,
   }
 
   wq_tensor->Resize(combined_w_dims);
-  auto* new_combined_w_data = wq_tensor->mutable_data<T>(phi::CPUPlace());
+  auto* new_combined_w_data = wq_tensor->mutable_data<T>(platform::CPUPlace());
   memcpy(
       new_combined_w_data, tmp_combined_w_data, sizeof(T) * wq_tensor->numel());
 
   phi::DenseTensor tmp_combined_bias_tensor;
   tmp_combined_bias_tensor.Resize(combined_bias_dims);
   auto* tmp_combined_bias_data =
-      tmp_combined_bias_tensor.mutable_data<T>(phi::CPUPlace());
+      tmp_combined_bias_tensor.mutable_data<T>(platform::CPUPlace());
 
   size_t bias_size = bq_tensor->numel();
   memcpy(tmp_combined_bias_data, bq_data, sizeof(T) * bias_size);
@@ -688,7 +692,8 @@ inline void QKVWeightsProcess(phi::DenseTensor* wq_tensor,
       tmp_combined_bias_data + 2 * bias_size, bv_data, sizeof(T) * bias_size);
 
   bq_tensor->Resize(combined_bias_dims);
-  auto* new_combined_bias_data = bq_tensor->mutable_data<T>(phi::CPUPlace());
+  auto* new_combined_bias_data =
+      bq_tensor->mutable_data<T>(platform::CPUPlace());
   memcpy(new_combined_bias_data,
          tmp_combined_bias_data,
          sizeof(T) * bq_tensor->numel());
@@ -704,13 +709,13 @@ void MultiHeadMatmulFusePass::ApplyImpl(Graph* graph) const {
 
 MultiHeadMatmulV2FusePass::MultiHeadMatmulV2FusePass() {
   AddOpCompat(OpCompat("mul"))
-      .AddInput("X")  // the shape should be (B, S, N*H)
+      .AddInput("X")  // the shape shoule be (B, S, N*H)
       .IsTensor()
       .End()
-      .AddInput("Y")  // the shape should be (N*H, N*H)
+      .AddInput("Y")  // the shape shoule be (N*H, N*H)
       .IsTensor()
       .End()
-      .AddOutput("Out")  // the shape should be (B, S, N*H)
+      .AddOutput("Out")  // the shape shoule be (B, S, N*H)
       .IsTensor()
       .End()
       .AddAttr("x_num_col_dims")
@@ -908,10 +913,10 @@ int MultiHeadMatmulV2FusePass::BuildFusionV2(Graph* graph,
       QKVWeightsProcess<float>(
           wq_tensor, wk_tensor, wv_tensor, bq_tensor, bk_tensor, bv_tensor);
     } else if (wq_tensor->dtype() == phi::DataType::FLOAT16) {
-      QKVWeightsProcess<phi::dtype::float16>(
+      QKVWeightsProcess<platform::float16>(
           wq_tensor, wk_tensor, wv_tensor, bq_tensor, bk_tensor, bv_tensor);
     } else {
-      PADDLE_THROW(common::errors::Unavailable(
+      PADDLE_THROW(platform::errors::Unavailable(
           "multihead_matmul not supported weight dtype. we now only support "
           "fp32 and fp16."));
     }
@@ -927,7 +932,7 @@ int MultiHeadMatmulV2FusePass::BuildFusionV2(Graph* graph,
 
     scope->EraseVars({mul1_w->Name(), mul2_w->Name()});
     scope->EraseVars({eltadd1_b->Name(), eltadd2_b->Name()});
-    paddle::memory::Release(phi::CPUPlace());
+    paddle::memory::Release(platform::CPUPlace());
 
     auto reshape_desc = reshape2->Op();
     int head_number =
@@ -1160,7 +1165,7 @@ void MultiHeadMatmulV2FusePass::ApplyImpl(Graph* graph) const {
   auto* scope = param_scope();
   PADDLE_ENFORCE_NOT_NULL(
       scope,
-      common::errors::Fatal(
+      platform::errors::Fatal(
           "During the multiheadMatmul pass, The scope should not be null."));
 
   int fusion_count = BuildFusionV2(graph, name_scope_, scope);
@@ -1172,13 +1177,13 @@ void MultiHeadMatmulV2FusePass::ApplyImpl(Graph* graph) const {
 
 MultiHeadMatmulV3FusePass::MultiHeadMatmulV3FusePass() {
   AddOpCompat(OpCompat("mul"))
-      .AddInput("X")  // the shape should be (B, S, N*H)
+      .AddInput("X")  // the shape shoule be (B, S, N*H)
       .IsTensor()
       .End()
-      .AddInput("Y")  // the shape should be (N*H, N*H)
+      .AddInput("Y")  // the shape shoule be (N*H, N*H)
       .IsTensor()
       .End()
-      .AddOutput("Out")  // the shape should be (B, S, N*H)
+      .AddOutput("Out")  // the shape shoule be (B, S, N*H)
       .IsTensor()
       .End()
       .AddAttr("x_num_col_dims")
@@ -1349,12 +1354,12 @@ int MultiHeadMatmulV3FusePass::BuildFusionV3(Graph* graph,
     auto* bv_tensor =
         scope->FindVar(eltadd2_b->Name())->GetMutable<phi::DenseTensor>();
 
-    auto* wq_data = wq_tensor->mutable_data<float>(phi::CPUPlace());
-    auto* wk_data = wk_tensor->mutable_data<float>(phi::CPUPlace());
-    auto* wv_data = wv_tensor->mutable_data<float>(phi::CPUPlace());
-    auto* bq_data = bq_tensor->mutable_data<float>(phi::CPUPlace());
-    auto* bk_data = bk_tensor->mutable_data<float>(phi::CPUPlace());
-    auto* bv_data = bv_tensor->mutable_data<float>(phi::CPUPlace());
+    auto* wq_data = wq_tensor->mutable_data<float>(platform::CPUPlace());
+    auto* wk_data = wk_tensor->mutable_data<float>(platform::CPUPlace());
+    auto* wv_data = wv_tensor->mutable_data<float>(platform::CPUPlace());
+    auto* bq_data = bq_tensor->mutable_data<float>(platform::CPUPlace());
+    auto* bk_data = bk_tensor->mutable_data<float>(platform::CPUPlace());
+    auto* bv_data = bv_tensor->mutable_data<float>(platform::CPUPlace());
 
     auto combined_w_dims =
         common::make_ddim({wq_tensor->dims()[0], 3, wq_tensor->dims()[1]});
@@ -1372,7 +1377,7 @@ int MultiHeadMatmulV3FusePass::BuildFusionV3(Graph* graph,
     phi::DenseTensor tmp_combined_w_tensor;
     tmp_combined_w_tensor.Resize(combined_w_dims);
     auto* tmp_combined_w_data =
-        tmp_combined_w_tensor.mutable_data<float>(phi::CPUPlace());
+        tmp_combined_w_tensor.mutable_data<float>(platform::CPUPlace());
 
     std::vector<float*> w_vec = {wq_data, wk_data, wv_data};
     int dims_h = static_cast<int>(combined_w_dims[0]),
@@ -1389,18 +1394,19 @@ int MultiHeadMatmulV3FusePass::BuildFusionV3(Graph* graph,
     }
 
     wq_tensor->Resize(combined_w_dims);
-    auto* new_combined_w_data = wq_tensor->mutable_data<float>(phi::CPUPlace());
+    auto* new_combined_w_data =
+        wq_tensor->mutable_data<float>(platform::CPUPlace());
     memcpy(new_combined_w_data,
            tmp_combined_w_data,
            sizeof(float) * wq_tensor->numel());
 
     scope->EraseVars({mul1_w->Name(), mul2_w->Name()});
-    paddle::memory::Release(phi::CPUPlace());
+    paddle::memory::Release(platform::CPUPlace());
 
     phi::DenseTensor tmp_combined_bias_tensor;
     tmp_combined_bias_tensor.Resize(combined_bias_dims);
     auto* tmp_combined_bias_data =
-        tmp_combined_bias_tensor.mutable_data<float>(phi::CPUPlace());
+        tmp_combined_bias_tensor.mutable_data<float>(platform::CPUPlace());
 
     size_t bias_size = bq_tensor->numel();
     memcpy(tmp_combined_bias_data, bq_data, sizeof(float) * bias_size);
@@ -1412,7 +1418,7 @@ int MultiHeadMatmulV3FusePass::BuildFusionV3(Graph* graph,
 
     bq_tensor->Resize(combined_bias_dims);
     auto* new_combined_bias_data =
-        bq_tensor->mutable_data<float>(phi::CPUPlace());
+        bq_tensor->mutable_data<float>(platform::CPUPlace());
     memcpy(new_combined_bias_data,
            tmp_combined_bias_data,
            sizeof(float) * bq_tensor->numel());
@@ -1599,7 +1605,7 @@ void MultiHeadMatmulV3FusePass::ApplyImpl(Graph* graph) const {
   auto* scope = param_scope();
   PADDLE_ENFORCE_NOT_NULL(
       scope,
-      common::errors::Fatal(
+      platform::errors::Fatal(
           "During the multiheadMatmul pass, The scope should not be null."));
 
   int fusion_count = BuildFusionV3(graph, name_scope_, scope);
@@ -1609,7 +1615,9 @@ void MultiHeadMatmulV3FusePass::ApplyImpl(Graph* graph) const {
   AddStatis(fusion_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(multihead_matmul_fuse_pass,
               paddle::framework::ir::MultiHeadMatmulFusePass);

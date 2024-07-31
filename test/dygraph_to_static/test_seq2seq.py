@@ -20,16 +20,19 @@ import unittest
 import numpy as np
 from dygraph_to_static_utils import (
     Dy2StTestBase,
-    enable_to_static_guard,
-    test_default_and_pir,
+    test_legacy_only,
+    test_sot_mgs0_only,
 )
 from seq2seq_dygraph_model import AttentionModel, BaseModel
 from seq2seq_utils import Seq2SeqModelHyperParams, get_data_iter
 
 import paddle
-from paddle.base.framework import unique_name
+from paddle import base
 from paddle.nn import ClipGradByGlobalNorm
 
+place = (
+    paddle.CUDAPlace(0) if paddle.is_compiled_with_cuda() else paddle.CPUPlace()
+)
 STEP_NUM = 10
 PRINT_STEP = 2
 
@@ -47,8 +50,9 @@ def prepare_input(batch):
 
 
 def train(args, attn_model=False):
-    with unique_name.guard():
-        paddle.seed(2020)
+    with base.dygraph.guard(place):
+        paddle.static.default_startup_program().random_seed = 2020
+        paddle.static.default_main_program().random_seed = 2020
 
         if attn_model:
             model = paddle.jit.to_static(
@@ -137,49 +141,52 @@ def train(args, attn_model=False):
 
 
 def infer(args, attn_model=False):
-    if attn_model:
-        model = paddle.jit.to_static(
-            AttentionModel(
-                args.hidden_size,
-                args.src_vocab_size,
-                args.tar_vocab_size,
-                args.batch_size,
-                beam_size=args.beam_size,
-                num_layers=args.num_layers,
-                init_scale=args.init_scale,
-                dropout=0.0,
-                mode='beam_search',
+    with base.dygraph.guard(place):
+        if attn_model:
+            model = paddle.jit.to_static(
+                AttentionModel(
+                    args.hidden_size,
+                    args.src_vocab_size,
+                    args.tar_vocab_size,
+                    args.batch_size,
+                    beam_size=args.beam_size,
+                    num_layers=args.num_layers,
+                    init_scale=args.init_scale,
+                    dropout=0.0,
+                    mode='beam_search',
+                )
             )
-        )
-    else:
-        model = paddle.jit.to_static(
-            BaseModel(
-                args.hidden_size,
-                args.src_vocab_size,
-                args.tar_vocab_size,
-                args.batch_size,
-                beam_size=args.beam_size,
-                num_layers=args.num_layers,
-                init_scale=args.init_scale,
-                dropout=0.0,
-                mode='beam_search',
+        else:
+            model = paddle.jit.to_static(
+                BaseModel(
+                    args.hidden_size,
+                    args.src_vocab_size,
+                    args.tar_vocab_size,
+                    args.batch_size,
+                    beam_size=args.beam_size,
+                    num_layers=args.num_layers,
+                    init_scale=args.init_scale,
+                    dropout=0.0,
+                    mode='beam_search',
+                )
             )
+
+        model_path = (
+            args.attn_model_path if attn_model else args.base_model_path
         )
+        state_dict = paddle.load(model_path + '.pdparams')
+        model.set_dict(state_dict)
+        model.eval()
+        train_data_iter = get_data_iter(args.batch_size, mode='infer')
+        for batch_id, batch in enumerate(train_data_iter):
+            input_data_feed, word_num = prepare_input(batch)
+            input_data_feed = [
+                paddle.to_tensor(np_inp) for np_inp in input_data_feed
+            ]
+            outputs = paddle.jit.to_static(model.beam_search)(input_data_feed)
+            break
 
-    model_path = args.attn_model_path if attn_model else args.base_model_path
-    state_dict = paddle.load(model_path + '.pdparams')
-    model.set_dict(state_dict)
-    model.eval()
-    train_data_iter = get_data_iter(args.batch_size, mode='infer')
-    for batch_id, batch in enumerate(train_data_iter):
-        input_data_feed, word_num = prepare_input(batch)
-        input_data_feed = [
-            paddle.to_tensor(np_inp) for np_inp in input_data_feed
-        ]
-        outputs = paddle.jit.to_static(model.beam_search)(input_data_feed)
-        break
-
-    return outputs.numpy()
+        return outputs.numpy()
 
 
 class TestSeq2seq(Dy2StTestBase):
@@ -200,13 +207,14 @@ class TestSeq2seq(Dy2StTestBase):
         self.temp_dir.cleanup()
 
     def run_dygraph(self, mode="train", attn_model=False):
-        with enable_to_static_guard(False):
-            if mode == "train":
-                return train(self.args, attn_model)
-            else:
-                return infer(self.args, attn_model)
+        paddle.jit.enable_to_static(False)
+        if mode == "train":
+            return train(self.args, attn_model)
+        else:
+            return infer(self.args, attn_model)
 
     def run_static(self, mode="train", attn_model=False):
+        paddle.jit.enable_to_static(True)
         if mode == "train":
             return train(self.args, attn_model)
         else:
@@ -230,12 +238,14 @@ class TestSeq2seq(Dy2StTestBase):
             msg=f"\npred_dygraph = {pred_dygraph} \npred_static = {pred_static}",
         )
 
-    @test_default_and_pir
+    @test_sot_mgs0_only
+    @test_legacy_only
     def test_base_model(self):
         self._test_train(attn_model=False)
         self._test_predict(attn_model=False)
 
-    @test_default_and_pir
+    @test_sot_mgs0_only
+    @test_legacy_only
     def test_attn_model(self):
         self._test_train(attn_model=True)
         # TODO(liym27): add predict

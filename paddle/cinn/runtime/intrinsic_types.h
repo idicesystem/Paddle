@@ -18,7 +18,6 @@
  */
 
 #include "paddle/cinn/common/common.h"
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace runtime {
@@ -36,10 +35,8 @@ struct BufferType {
  private:
   explicit BufferType(const Type& primitive_type)
       : primitive_type(primitive_type) {
-    PADDLE_ENFORCE_EQ(primitive_type.valid() && primitive_type.is_primitive(),
-                      true,
-                      ::common::errors::InvalidArgument(
-                          "primitive type should be valid and primitive."));
+    CHECK(primitive_type.valid());
+    CHECK(primitive_type.is_primitive());
   }
 
   //! Determine the primitive of cinn_buffer_t.
@@ -48,10 +45,8 @@ struct BufferType {
 };
 
 static Type make_intrinsic_buffer_type(Type primitive_type) {
-  PADDLE_ENFORCE_EQ(primitive_type.valid() && primitive_type.is_primitive(),
-                    true,
-                    ::common::errors::InvalidArgument(
-                        "primitive type should be valid and primitive."));
+  CHECK(primitive_type.is_primitive());
+  CHECK(primitive_type.valid());
   Type res = BufferType::cinn_type();
   return res;
 }

@@ -26,7 +26,9 @@
 #include "paddle/fluid/framework/ir/node.h"
 #include "paddle/phi/common/data_type.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 namespace {
 
@@ -148,7 +150,7 @@ bool IsWeight(ir::Node *op_node,
 
 void TrtSupportNHWCPass::ApplyImpl(Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(graph,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "During the trt_support_nhwc_pass, the graph "
                               "should not be null."));
   FusePassBase::Init("trt_support_nhwc_pass", graph);
@@ -299,7 +301,7 @@ void TrtSupportNHWCPass::ApplyImpl(Graph *graph) const {
       UpdateWeightVars();
       UpdateOutputVars();
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "During the trt_support_nhwc_pass, %s op not supported. Please "
           "update the supported op lists.",
           op_desc->Type()));
@@ -381,6 +383,8 @@ void TrtSupportNHWCPass::ApplyImpl(Graph *graph) const {
   AddStatis(transposed_ops.size());
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(trt_support_nhwc_pass, paddle::framework::ir::TrtSupportNHWCPass);

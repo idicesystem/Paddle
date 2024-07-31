@@ -20,11 +20,13 @@ import numpy as np
 from dygraph_to_static_utils import (
     Dy2StTestBase,
     test_legacy_and_pt_and_pir,
+    test_sot_only,
 )
 
 import paddle
 import paddle.nn.functional as F
-from paddle.jit.dy2static.transformers.loop_transformer import NameVisitor
+from paddle import base
+from paddle.jit.dy2static.loop_transformer import NameVisitor
 from paddle.utils import gast
 
 SEED = 2020
@@ -32,7 +34,7 @@ np.random.seed(SEED)
 
 
 def while_loop_dyfunc(x):
-    i = paddle.assign(x)
+    i = base.dygraph.to_variable(x)
     while x < 10:
         i = i + x
         x = x + 1
@@ -51,7 +53,7 @@ def while_loop_dyfunc_without_tensor(x):
 
 
 def while_loop_dyfun_with_conflict_var(x):
-    i = paddle.assign(x)
+    i = base.dygraph.to_variable(x)
 
     def relu(y):
         # 'y' is not visible outside the scope.
@@ -68,8 +70,15 @@ def while_loop_dyfun_with_conflict_var(x):
 
 
 def while_loop_dyfunc_with_none(x):
-    i = paddle.assign(x) if x is not None else paddle.assign(x + 1)
-
+    i = (
+        base.dygraph.to_variable(x)
+        if x is not None
+        else base.dygraph.to_variable(x + 1)
+    )
+    # Use `to_variable` so that static analysis can analyze the type of X is Tensor
+    x = base.dygraph.to_variable(
+        x
+    )  # TODO(liym27): Delete it if the type of parameter x can be resolved
     flag = 1
     while x < 10:
         i = i + x if flag is not None else x + i
@@ -86,7 +95,7 @@ def for_loop_dyfunc(max_len):
 
 def for_loop_dyfunc2(max_len):
     # Test case: a variable is used and created in loop, but used before created
-    x = paddle.full(shape=[1, 2], fill_value=1, dtype="int32")
+    x = paddle.tensor.fill_constant(shape=[1, 2], dtype="int32", value=1)
 
     for i in range(max_len):
         if i > 1:
@@ -94,7 +103,7 @@ def for_loop_dyfunc2(max_len):
         a = 1
         q, _ = x.shape  # test var x.shape only used but not created in loop
 
-    ret = paddle.full(shape=[1], fill_value=s + q, dtype="int32")
+    ret = paddle.tensor.fill_constant(shape=[1], dtype="int32", value=s + q)
     return ret
 
 
@@ -130,7 +139,7 @@ def for_break_single_return(max_len):
 
 
 def while_loop_bool_op(x):
-    i = paddle.assign(x)
+    i = base.dygraph.to_variable(x)
 
     while x <= -1 or x < -3 or (x < -7 or x < -5) or (x >= 0 and x < 10):
         i = i + x
@@ -139,7 +148,7 @@ def while_loop_bool_op(x):
 
 
 def while_loop_bool_op2(x):
-    i = paddle.assign(x)
+    i = base.dygraph.to_variable(x)
     a = 1
 
     # In the while condition, there are both Paddle Variable and non-Variable.
@@ -158,7 +167,7 @@ def while_loop_class_var(x):
             self.c = 5
 
     foo = Foo()
-    i = paddle.assign(x)
+    i = base.dygraph.to_variable(x)
     while i < 10:
         foo.b = paddle.zeros(shape=[1], dtype='float32')
         foo.c = foo.b + foo.a
@@ -185,7 +194,10 @@ def for_loop_class_var(max_len):
 
     foo = Foo()
 
-    max_len = paddle.full(shape=[1], fill_value=max_len, dtype="int32")
+    # Use `to_variable` so that static analysis can analyze the type of X is Tensor
+    max_len = paddle.tensor.fill_constant(
+        shape=[1], value=max_len, dtype="int32"
+    )
 
     for i in range(max_len):
         foo.b = paddle.zeros(shape=[1], dtype='float32')
@@ -200,8 +212,8 @@ def var_create_in_for_loop(max_len):
 
 
 def nested_for_loop_dyfunc():
-    two = paddle.full(shape=[1], fill_value=2, dtype="int32")
-    three = paddle.full(shape=[1], fill_value=3, dtype="int32")
+    two = paddle.tensor.fill_constant(shape=[1], value=2, dtype="int32")
+    three = paddle.tensor.fill_constant(shape=[1], value=3, dtype="int32")
     for j in range(two):
         for i in range(10):
             a = 2 + j
@@ -281,12 +293,16 @@ class TestNameVisitor(Dy2StTestBase):
                 self.assertEqual(
                     loop_var_names,
                     self.loop_var_names[i],
-                    msg=f"loop_var_names : {loop_var_names}, \nexpected loop_var_names : {self.loop_var_names[i]}",
+                    msg="loop_var_names : {}, \nexpected loop_var_names : {}".format(
+                        loop_var_names, self.loop_var_names[i]
+                    ),
                 )
                 self.assertEqual(
                     create_var_names,
                     self.create_var_names[i],
-                    msg=f"i = {i}\ncreate_var_names : {create_var_names}, \nexpected create_var_names : {self.create_var_names[i]}",
+                    msg="i = {}\ncreate_var_names : {}, \nexpected create_var_names : {}".format(
+                        i, create_var_names, self.create_var_names[i]
+                    ),
                 )
                 i += 1
 
@@ -312,7 +328,7 @@ class TestTransformWhileLoop(Dy2StTestBase):
 
     def _run(self, to_static):
         # Set the input of dyfunc to Tensor
-        tensor_x = paddle.to_tensor(self.x)
+        tensor_x = base.dygraph.to_variable(self.x, zero_copy=False)
         if to_static:
             ret = paddle.jit.to_static(self.dyfunc)(tensor_x)
         else:
@@ -322,7 +338,7 @@ class TestTransformWhileLoop(Dy2StTestBase):
         else:
             return ret
 
-    @test_legacy_and_pt_and_pir
+    @test_sot_only
     def test_ast_to_func(self):
         static_numpy = self._run_static()
         dygraph_numpy = self._run_dygraph()
@@ -396,7 +412,7 @@ class TestTransformForLoop(Dy2StTestBase):
             ret = self.dyfunc(self.len)
         return ret.numpy()
 
-    @test_legacy_and_pt_and_pir
+    @test_sot_only
     def test_ast_to_func(self):
         np.testing.assert_allclose(
             self._run_dygraph(), self._run_static(), rtol=1e-05
@@ -453,7 +469,6 @@ class Net(paddle.nn.Layer):
 
 
 class TestForLoopMeetDict(Dy2StTestBase):
-    @test_legacy_and_pt_and_pir
     def test_start(self):
         net = Net()
         model = paddle.jit.to_static(

@@ -19,7 +19,7 @@ limitations under the License. */
 #include <vector>
 
 #include "paddle/fluid/framework/op_registry.h"
-#include "paddle/phi/kernels/xpu/xpu_api_wrapper.h"
+#include "paddle/fluid/operators/xpu_api_wrapper.h"
 
 namespace paddle {
 namespace operators {
@@ -45,7 +45,8 @@ class MatMulXPUKernel : public framework::OpKernel<T> {
 
     phi::XpuFcInfo fc_info;
     phi::GetFCInfo(x_dims, y_dims, trans_x, trans_y, &fc_info);
-    auto& dev_ctx = context.template device_context<phi::XPUContext>();
+    auto& dev_ctx =
+        context.template device_context<paddle::platform::XPUDeviceContext>();
     xpu::Context* xpu_ctx = dev_ctx.x_context();
 
     phi::MatMulXPUFunction<XPUType>(
@@ -98,7 +99,8 @@ class MatMulGradXPUKernel : public framework::OpKernel<T> {
     if (dy) {
       dy->mutable_data<T>(context.GetPlace());
     }
-    auto& dev_ctx = context.template device_context<phi::XPUContext>();
+    auto& dev_ctx =
+        context.template device_context<paddle::platform::XPUDeviceContext>();
 
     const XPUType* dout_ptr = reinterpret_cast<const XPUType*>(dout.data<T>());
     const XPUType* x_ptr = reinterpret_cast<const XPUType*>(x.data<T>());
@@ -148,15 +150,15 @@ class MatMulGradXPUKernel : public framework::OpKernel<T> {
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_XPU_KERNEL(
     matmul,
-    ops::MatMulXPUKernel<phi::XPUContext, float>,
-    ops::MatMulXPUKernel<phi::XPUContext, phi::dtype::bfloat16>,
-    ops::MatMulXPUKernel<phi::XPUContext, phi::dtype::float16>);
+    ops::MatMulXPUKernel<paddle::platform::XPUDeviceContext, float>,
+    ops::MatMulXPUKernel<paddle::platform::XPUDeviceContext, plat::float16>);
 REGISTER_OP_XPU_KERNEL(
     matmul_grad,
-    ops::MatMulGradXPUKernel<phi::XPUContext, float>,
-    ops::MatMulGradXPUKernel<phi::XPUContext, phi::dtype::bfloat16>,
-    ops::MatMulGradXPUKernel<phi::XPUContext, phi::dtype::float16>);
+    ops::MatMulGradXPUKernel<paddle::platform::XPUDeviceContext, float>,
+    ops::MatMulGradXPUKernel<paddle::platform::XPUDeviceContext,
+                             plat::float16>);
 #endif

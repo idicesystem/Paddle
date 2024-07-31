@@ -12,19 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import functools
 import sys
 from contextlib import ContextDecorator, contextmanager
-from typing import TYPE_CHECKING
+from typing import Any
 from warnings import warn
 
 from paddle.base import core
 from paddle.base.core import TracerEventType, _RecordEvent
-
-if TYPE_CHECKING:
-    import types
 
 _is_profiler_used = False
 _has_optimizer_wrapped = False
@@ -87,12 +82,7 @@ class RecordEvent(ContextDecorator):
         self.begin()
         return self
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: types.TracebackType | None,
-    ):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
         self.end()
 
     def begin(self):
@@ -184,9 +174,9 @@ def in_profiler_mode():
 
 
 def wrap_optimizers():
-    def optimizer_wrapper(func):
+    def optimizer_warpper(func):
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def warpper(*args, **kwargs):
             if in_profiler_mode():
                 with RecordEvent(
                     'Optimization Step', event_type=TracerEventType.Optimization
@@ -195,7 +185,7 @@ def wrap_optimizers():
             else:
                 return func(*args, **kwargs)
 
-        return wrapper
+        return warpper
 
     global _has_optimizer_wrapped
     if _has_optimizer_wrapped:
@@ -206,7 +196,7 @@ def wrap_optimizers():
         if classname != 'Optimizer':
             classobject = getattr(optimizer, classname)
             if getattr(classobject, 'step', None) is not None:
-                classobject.step = optimizer_wrapper(classobject.step)
+                classobject.step = optimizer_warpper(classobject.step)
     _has_optimizer_wrapped = True
 
 
@@ -258,12 +248,3 @@ def job_schedule_profiler_range(iter_id, start, end, exit_after_prof=True):
         if iter_id == end - 1:
             if exit_after_prof:
                 sys.exit()
-
-
-def switch_job_schedule_profiler(
-    model, iter_id, start, end, exit_after_prof=True
-):
-    with job_schedule_profiler_range(
-        iter_id, start, end, exit_after_prof
-    ) as status:
-        model._engine.enable_job_schedule_profiler = status

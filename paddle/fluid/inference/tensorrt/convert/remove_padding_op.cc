@@ -28,7 +28,7 @@ class RemovePadding : public OpConverter {
                   const framework::Scope& scope,
                   bool test_mode) override {
     if (!engine_->with_dynamic_shape()) {
-      PADDLE_THROW(common::errors::Fatal(
+      PADDLE_THROW(platform::errors::Fatal(
           "remove_padding_op: If you want to use transformer, must "
           "be with dynamic shape"));
     }
@@ -50,7 +50,7 @@ class RemovePadding : public OpConverter {
                  "transformer'input: Padding -> VarSeqlen.";
       if (!op_desc.HasAttr("out_threshold")) {
         PADDLE_THROW(
-            common::errors::Fatal("use with_interleaved must be int8."));
+            platform::errors::Fatal("use with_interleaved must be int8."));
       }
       float out_scale =
           PADDLE_GET_CONST(float, op_desc.GetAttr("out_threshold"));

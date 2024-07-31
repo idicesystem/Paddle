@@ -33,10 +33,9 @@ from paddle.distribution.normal import Normal
         ('one-dim', xrand((2,)), xrand((2,)), xrand((2,))),
         ('multi-dim', xrand((3, 3)), xrand((3, 3)), xrand((3, 3))),
     ],
-    test_pir=True,
 )
 class TestLogNormal(unittest.TestCase):
-    def run_program(self):
+    def setUp(self):
         paddle.enable_static()
         startup_program = paddle.static.Program()
         main_program = paddle.static.Program()
@@ -67,13 +66,6 @@ class TestLogNormal(unittest.TestCase):
             self.probs,
             self.log_prob,
         ] = executor.run(main_program, feed=self.feeds, fetch_list=fetch_list)
-
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.run_program()
-        else:
-            self.run_program()
 
     def test_mean(self):
         np_mean = self.np_lognormal.mean
@@ -130,10 +122,9 @@ class TestLogNormal(unittest.TestCase):
 @parameterize_cls(
     (TEST_CASE_NAME, 'loc', 'scale'),
     [('sample', xrand((4,)), xrand((4,), min=0, max=1))],
-    test_pir=True,
 )
 class TestLogNormalSample(unittest.TestCase):
-    def run_program(self):
+    def setUp(self):
         paddle.enable_static()
         startup_program = paddle.static.Program()
         main_program = paddle.static.Program()
@@ -158,13 +149,6 @@ class TestLogNormalSample(unittest.TestCase):
         [self.mean, self.variance, self.samples, self.rsamples] = executor.run(
             main_program, feed=self.feeds, fetch_list=fetch_list
         )
-
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.run_program()
-        else:
-            self.run_program()
 
     def test_sample(self):
         samples_mean = self.samples.mean(axis=0)
@@ -212,10 +196,9 @@ class TestLogNormalSample(unittest.TestCase):
             xrand((2, 2)),
         ),
     ],
-    test_pir=True,
 )
 class TestLogNormalKL(unittest.TestCase):
-    def run_program(self):
+    def setUp(self):
         paddle.enable_static()
         startup_program = paddle.static.Program()
         main_program = paddle.static.Program()
@@ -252,13 +235,6 @@ class TestLogNormalKL(unittest.TestCase):
         [self.kl0, self.kl1, self.kl_normal, self.kl_formula] = executor.run(
             main_program, feed=self.feeds, fetch_list=fetch_list
         )
-
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.run_program()
-        else:
-            self.run_program()
 
     def test_kl_divergence(self):
         np.testing.assert_allclose(

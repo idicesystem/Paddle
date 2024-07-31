@@ -10,10 +10,10 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+# See the License for the specific language governing permissions and 
 # limitations under the License.
 
-target_lists_for_semi_auto_ci=(
+target_lists_for_hybrid_ci=(
     "python/paddle/distributed"
     "paddle/fluid/distributed"
     "paddle/fluid/framework/new_executor"
@@ -21,22 +21,13 @@ target_lists_for_semi_auto_ci=(
     "paddle/fluid/pybind/auto_parallel_py.h"
     "paddle/phi/infermeta/spmd_rules"
     "paddle/phi/core/distributed"
-    "paddle/phi/api/generator/dist_api_gen.py"
-    "paddle/phi/api/generator/dist_bw_api_gen.py"
-    "tools/auto_parallel/target_path_lists.sh"
     "test/auto_parallel"
+)
+
+target_lists_for_pir_ci=(
+    "paddle/fluid/framework/new_executor"
     "paddle/fluid/ir_adaptor/"
     "paddle/fluid/pir/dialect"
     "paddle/fluid/pir/transforms"
     "paddle/pir"
-)
-
-target_lists_for_dygraph_ci=(
-    "python/paddle/distributed/fleet"
-    "python/paddle/distributed/communication"
-    "python/paddle/distributed/sharding"
-    "paddle/fluid/distributed/collective"
-    "paddle/phi/core/distributed"
-    "tools/auto_parallel/target_path_lists.sh"
-    "test/collective/hybrid_strategy"
 )

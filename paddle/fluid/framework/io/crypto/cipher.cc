@@ -18,7 +18,8 @@
 #include "paddle/fluid/framework/io/crypto/cipher_utils.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
 std::shared_ptr<Cipher> CipherFactory::CreateCipher(
     const std::string& config_file) {
@@ -48,12 +49,13 @@ std::shared_ptr<Cipher> CipherFactory::CreateCipher(
     ret->Init(cipher_name, iv_size, tag_size);
     return ret;
   } else {
-    PADDLE_THROW(common::errors::InvalidArgument(
-        "Invalid cipher name is specified. "
+    PADDLE_THROW(paddle::platform::errors::InvalidArgument(
+        "Invalid cipher name is specied. "
         "Please check you have specified valid cipher"
         " name in CryptoProperties."));
   }
   return nullptr;
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

@@ -26,7 +26,7 @@
 #include "paddle/fluid/inference/api/helper.h"
 #include "paddle/fluid/inference/api/paddle_tensor.h"
 #include "paddle/fluid/platform/device_context.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle_infer {
 
@@ -48,7 +48,8 @@ struct TensorWrapper : public Tensor {
 std::unique_ptr<Tensor> CreateTensor(paddle_infer::PlaceType place,
                                      paddle::framework::Scope* scope,
                                      const std::string& name) {
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+  paddle::platform::DeviceContextPool& pool =
+      paddle::platform::DeviceContextPool::Instance();
   const auto& dev_ctxs = pool.device_contexts();
   return std::unique_ptr<Tensor>(
       new TensorWrapper{place, scope, &dev_ctxs, name});
@@ -56,10 +57,9 @@ std::unique_ptr<Tensor> CreateTensor(paddle_infer::PlaceType place,
 
 template <typename T>
 struct RandomGenerator {
-  RandomGenerator(
-      double min = static_cast<double>((std::numeric_limits<T>::min)()),
-      double max = static_cast<double>((std::numeric_limits<T>::max)()))
-      : dist_{min, max} {}
+  RandomGenerator(double min = (std::numeric_limits<T>::min)(),
+                  double max = (std::numeric_limits<T>::max)())
+      : dist_{static_cast<double>(min), static_cast<double>(max)} {}
   T operator()() { return static_cast<T>(dist_(random_engine_)); }
 
  private:

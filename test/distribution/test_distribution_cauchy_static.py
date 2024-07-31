@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
 import numpy as np
@@ -23,8 +22,6 @@ from parameterize import (
     parameterize_func,
     place,
 )
-
-sys.path.append("../../distribution")
 from test_distribution_cauchy import CauchyNumpy, _kstest
 
 import paddle
@@ -82,7 +79,6 @@ default_dtype = paddle.get_default_dtype()
             ),
         )
     ],
-    test_pir=True,
 )
 class CauchyTestFeature(unittest.TestCase):
     def setUp(self):
@@ -276,7 +272,6 @@ class CauchyTestFeature(unittest.TestCase):
             [100, 2],
         ),
     ],
-    test_pir=True,
 )
 class CauchyTestSample(unittest.TestCase):
     def setUp(self):
@@ -338,7 +333,7 @@ class CauchyTestSample(unittest.TestCase):
 
 
 @place(DEVICES)
-@parameterize_cls([TEST_CASE_NAME], ['CauchyTestError'], test_pir=True)
+@parameterize_cls([TEST_CASE_NAME], ['CauchyTestError'])
 class CauchyTestError(unittest.TestCase):
     def setUp(self):
         self.program = paddle.static.Program()
@@ -457,17 +452,17 @@ class CauchyTestError(unittest.TestCase):
 
             # `logits, value = paddle.broadcast_tensors([self.logits, value])`
             # raise ValueError in dygraph, raise TypeError in static.
-            with self.assertRaises((TypeError, ValueError)):
+            with self.assertRaises(TypeError):
                 [_] = self.executor.run(
                     self.program, feed={}, fetch_list=[rv.cdf(value)]
                 )
 
-            with self.assertRaises((TypeError, ValueError)):
+            with self.assertRaises(TypeError):
                 [_] = self.executor.run(
                     self.program, feed={}, fetch_list=[rv.log_prob(value)]
                 )
 
-            with self.assertRaises((TypeError, ValueError)):
+            with self.assertRaises(TypeError):
                 [_] = self.executor.run(
                     self.program, feed={}, fetch_list=[rv.prob(value)]
                 )

@@ -18,7 +18,9 @@
 
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 #define GET_IR_NODE(node__) GET_IR_NODE_FROM_SUBGRAPH(node__, node__, pattern);
 #define GET_NODES             \
@@ -90,7 +92,7 @@ void ShuffleChannelDetectPass::ApplyImpl(ir::Graph* graph) const {
     PADDLE_ENFORCE_GT(
         subgraph.count(x),
         0,
-        common::errors::NotFound("Detector did not find input X."));
+        platform::errors::NotFound("Detector did not find input X."));
     auto* input_node = subgraph.at(x);
     auto reshape1_desc = reshape1_op->Op();
     auto reshape2_desc = reshape2_op->Op();
@@ -172,7 +174,7 @@ void ShuffleChannelDetectPass::ApplyImpl(ir::Graph* graph) const {
         }
       }
 
-      // shuffle_channel doesn't change shape
+      // shuffle_channel dosen't change shape
       if ((reshape2_shape[0] != -1) && (x_shape1[0] != reshape2_shape[0])) {
         return;
       }
@@ -228,7 +230,9 @@ void ShuffleChannelDetectPass::ApplyImpl(ir::Graph* graph) const {
   gpd(graph, handler);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(shuffle_channel_detect_pass,
               paddle::framework::ir::ShuffleChannelDetectPass);

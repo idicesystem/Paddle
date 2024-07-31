@@ -34,7 +34,9 @@ PD_BUILD_OP(custom_op)
         "bools_attr: std::vector<bool>",
     });
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 TEST(CustomPluginCreater, StaticShapePlugin) {
   framework::ProgramDesc prog;
@@ -111,11 +113,7 @@ TEST(CustomPluginCreater, StaticShapePlugin) {
   auto &custom_plugin_tell = OpTeller::Global().GetCustomPluginTeller();
 
   framework::OpDesc custom_op(*op_desc, nullptr);
-  PADDLE_ENFORCE_EQ(
-      (*custom_plugin_tell)(custom_op, false, true),
-      true,
-      phi::errors::InvalidArgument(
-          "(*custom_plugin_tell)(custom_op, false, true) is False."));
+  CHECK_EQ((*custom_plugin_tell)(custom_op, false, false), true);
 
   OpTeller::Global().SetOpConverterType(&custom_op,
                                         OpConverterType::CustomPluginCreater);
@@ -197,11 +195,7 @@ TEST(CustomPluginCreater, DynamicShapePlugin) {
   auto &custom_plugin_tell = OpTeller::Global().GetCustomPluginTeller();
 
   framework::OpDesc custom_op(*op_desc, nullptr);
-  PADDLE_ENFORCE_EQ(
-      (*custom_plugin_tell)(custom_op, false, true),
-      true,
-      phi::errors::InvalidArgument(
-          "(*custom_plugin_tell)(custom_op, false, true) is False."));
+  CHECK_EQ((*custom_plugin_tell)(custom_op, false, true), true);
 
   OpTeller::Global().SetOpConverterType(&custom_op,
                                         OpConverterType::CustomPluginCreater);
@@ -210,6 +204,8 @@ TEST(CustomPluginCreater, DynamicShapePlugin) {
   converter.ConvertBlock(
       *block->Proto(), {}, scope, engine_.get() /*TensorRTEngine*/);
 }
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 USE_TRT_CONVERTER(custom_plugin_creater)

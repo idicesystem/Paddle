@@ -15,7 +15,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/data_layout.h"
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * Affine Channel Op
@@ -34,7 +36,7 @@ class AffineChannelOpConverter : public OpConverter {
     std::string output_name = op_desc.Output("Out").front();
 
     auto input_tensor = engine_->GetITensor(input_name);
-    auto input_dim = input_tensor->getDimensions();
+    auto idim = input_tensor->getDimensions();
 
     auto* scale_v = scope.FindVar(scale_name);
     auto* scale_t = scale_v->GetMutable<phi::DenseTensor>();
@@ -47,17 +49,17 @@ class AffineChannelOpConverter : public OpConverter {
         engine_->GetFp32TrtWeight(bias_name, *bias_t).get().values));
 
     // tensorrt scalend layer only support spatial dims >= 2,
-    // so nhwc is not available (spatial dims == 0)
+    // so nhwc is not availabe (spatial dims == 0)
     const int channel_axis = engine_->with_dynamic_shape();
 
     TensorRTEngine::Weight scale_weights{
         nvinfer1::DataType::kFLOAT,
         static_cast<void*>(scale_ptr),
-        static_cast<size_t>(input_dim.d[channel_axis])};
+        static_cast<size_t>(idim.d[channel_axis])};
     TensorRTEngine::Weight bias_weights{
         nvinfer1::DataType::kFLOAT,
         static_cast<void*>(bias_ptr),
-        static_cast<size_t>(input_dim.d[channel_axis])};
+        static_cast<size_t>(idim.d[channel_axis])};
     TensorRTEngine::Weight power_weights{
         nvinfer1::DataType::kFLOAT, nullptr, 0};
 
@@ -70,10 +72,12 @@ class AffineChannelOpConverter : public OpConverter {
                                       power_weights.get(),
                                       channel_axis);
 
-    ReplenishLayerAndOutput(layer, "affine_channel", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "affine_channel", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(affine_channel, AffineChannelOpConverter);

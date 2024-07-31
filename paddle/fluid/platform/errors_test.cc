@@ -12,14 +12,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-#include "paddle/common/errors.h"
+#include "paddle/fluid/platform/errors.h"
 
 #include <string>
 
 #include "gtest/gtest.h"
 #include "paddle/fluid/platform/enforce.h"
 
-using namespace common::errors;  // NOLINT
+using namespace paddle::platform::errors;  // NOLINT
 
 #define CHECK_PADDLE_THROW(EFUNC)                                          \
   do {                                                                     \

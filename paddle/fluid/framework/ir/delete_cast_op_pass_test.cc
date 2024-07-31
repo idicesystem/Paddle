@@ -16,7 +16,9 @@
 #include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/framework/ir/pass_tester_helper.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 void AddVarToScope(Scope* param_scope,
                    const std::string& name,
@@ -24,7 +26,7 @@ void AddVarToScope(Scope* param_scope,
   auto* tensor = param_scope->Var(name)->GetMutable<phi::DenseTensor>();
   tensor->Resize(dims);
   auto* cpu_ctx = static_cast<phi::CPUContext*>(
-      phi::DeviceContextPool::Instance().Get(phi::CPUPlace()));
+      platform::DeviceContextPool::Instance().Get(phi::CPUPlace()));
   cpu_ctx->Alloc<float>(tensor);
 }
 
@@ -149,14 +151,14 @@ TEST(ApplyCastWriteReadPass, basic) {
   int cast_num_in_graph1 = GetOpNum(graph->GetSubGraph(1), "cast");
   PADDLE_ENFORCE_EQ(cast_num_in_graph1,
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph1 should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph1));
   int cast_num_in_graph0 = GetOpNum(graph.get(), "cast");
   PADDLE_ENFORCE_EQ(cast_num_in_graph0,
                     1,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph0 should have 1 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph0));
@@ -196,14 +198,14 @@ TEST(ApplyCastLodResetWriteReadPass, basic) {
   int cast_num_in_graph1 = GetOpNum(graph->GetSubGraph(1), "cast");
   PADDLE_ENFORCE_EQ(cast_num_in_graph1,
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph1 should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph1));
   int cast_num_in_graph0 = GetOpNum(graph.get(), "cast");
   PADDLE_ENFORCE_EQ(cast_num_in_graph0,
                     2,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph0 should have 2 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph0));
@@ -229,7 +231,7 @@ TEST(ApplyCastIndexSamplePass, basic) {
   int cast_num_in_graph = GetOpNum(graph->GetSubGraph(0), "cast");
   PADDLE_ENFORCE_EQ(GetOpNum(graph->GetSubGraph(0), "cast"),
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph));
@@ -258,7 +260,7 @@ TEST(ApplyCastScatterPass, basic) {
   int cast_num_in_graph = GetOpNum(graph->GetSubGraph(0), "cast");
   PADDLE_ENFORCE_EQ(GetOpNum(graph->GetSubGraph(0), "cast"),
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph));
@@ -288,7 +290,7 @@ TEST(ApplyCastLookupTablePass, basic) {
   int cast_num_in_graph = GetOpNum(graph->GetSubGraph(0), "cast");
   PADDLE_ENFORCE_EQ(GetOpNum(graph->GetSubGraph(0), "cast"),
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph));
@@ -307,12 +309,14 @@ TEST(ApplyCastPass, basic) {
   int cast_num_in_graph = GetOpNum(graph->GetSubGraph(0), "cast");
   PADDLE_ENFORCE_EQ(GetOpNum(graph->GetSubGraph(0), "cast"),
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "graph should have 0 cast after delete_cast_op_pass, "
                         "but actually has %d.",
                         cast_num_in_graph));
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(delete_cast_op_pass);

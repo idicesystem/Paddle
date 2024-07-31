@@ -33,14 +33,16 @@ limitations under the License. */
   auto* ffn1_bias = layers.data("ffn1_bias", {4096}, true);             \
   auto* ffn2_bias = layers.data("ffn2_bias", {1024}, true);
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 void AddVarToScope(Scope* param_scope,
                    const std::string& name,
                    const DDim& dims) {
   auto* tensor = param_scope->Var(name)->GetMutable<phi::DenseTensor>();
   tensor->Resize(dims);
-  tensor->mutable_data<float>(phi::CPUPlace());
+  tensor->mutable_data<float>(platform::CPUPlace());
 }
 
 Scope* CreateParamScope() {
@@ -108,7 +110,7 @@ TEST(FuseMultiTransformerLayerPass, encoder_fp) {
   PADDLE_ENFORCE_EQ(
       num_nodes_after,
       1,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "After the fuse_multi_transformer_layer_pass, "
           "The node num in graph should be 1, but the result is %d",
           num_nodes_after));
@@ -162,11 +164,13 @@ TEST(FuseMultiTransformerLayerPass, decoder_fp) {
   PADDLE_ENFORCE_EQ(
       num_nodes_after,
       1,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "After the fuse_multi_transformer_layer_pass, "
           "The node num in graph should be 1, but the result is %d",
           num_nodes_after));
 }
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(fuse_multi_transformer_layer_pass);

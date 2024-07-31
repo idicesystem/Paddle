@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * DropoutOp. This Layer doesn't has weights.
@@ -41,14 +43,15 @@ class DropoutOpConverter : public OpConverter {
         downgrade_in_infer == "upscale_in_train") {
       auto* layer = TRT_ENGINE_ADD_LAYER(engine_, Shuffle, *input1);
       auto output_name = op_desc.Output("Out")[0];
-      ReplenishLayerAndOutput(layer, "dropout", {output_name}, test_mode);
+      RreplenishLayerAndOutput(layer, "dropout", {output_name}, test_mode);
       return;
     }
 
-    phi::CPUPlace cpu_place;
+    platform::CPUPlace cpu_place;
     std::unique_ptr<phi::DenseTensor> weight_tensor(new phi::DenseTensor());
     weight_tensor->Resize(common::make_ddim({1}));
-    auto* weight_data = weight_tensor->mutable_data<float>(phi::CPUPlace());
+    auto* weight_data =
+        weight_tensor->mutable_data<float>(platform::CPUPlace());
     weight_data[0] = 1 - dropout_prob;
 
     TensorRTEngine::Weight scale_weights{
@@ -72,11 +75,13 @@ class DropoutOpConverter : public OpConverter {
                         std::move(weight_tensor));
     auto output_name = op_desc.Output("Out")[0];
 
-    ReplenishLayerAndOutput(layer, "dropout", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "dropout", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 USE_OP_ITSELF(dropout);
 REGISTER_TRT_OP_CONVERTER(dropout, DropoutOpConverter);

@@ -31,15 +31,15 @@ void MaskedSelectKernel(const Context& dev_ctx,
   auto expanded_size = funcs::MatrixGetBroadcastBatchPortion(
       common::vectorize(x.dims()), common::vectorize(mask.dims()));
 
-  DDim expand_dims = common::make_ddim(expanded_size);
-  if (mask.dims() != expand_dims) {
+  DDim epxand_dims = common::make_ddim(expanded_size);
+  if (mask.dims() != epxand_dims) {
     ExpandKernel<bool, Context>(
         dev_ctx, mask, IntArray(expanded_size), &mask_expand);
   } else {
     mask_expand = mask;
   }
 
-  if (x.dims() != expand_dims) {
+  if (x.dims() != epxand_dims) {
     ExpandKernel<T, Context>(dev_ctx, x, IntArray(expanded_size), &x_expand);
   } else {
     x_expand = x;
@@ -87,17 +87,9 @@ PD_REGISTER_KERNEL(masked_select,
                    CPU,
                    ALL_LAYOUT,
                    phi::MaskedSelectKernel,
-                   bool,
                    float,
                    double,
                    int,
-                   int8_t,
-                   int64_t,
-                   int16_t,
-                   uint8_t,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   int64_t) {
   kernel->InputAt(1).SetDataType(phi::DataType::BOOL);
 }

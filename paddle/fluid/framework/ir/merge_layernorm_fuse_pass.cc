@@ -39,7 +39,9 @@
   GET_IR_NODE(layernorm_40_in_bias);  \
   GET_IR_NODE(layernorm_40_in_scale); \
   GET_IR_NODE(layernorm_40_out);
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 MergeLayernormFusePass::MergeLayernormFusePass() {
   AddOpCompat(OpCompat("reshape2"))
       .AddInput("X")
@@ -174,7 +176,9 @@ void MergeLayernormFusePass::ApplyImpl(ir::Graph* graph) const {
   gpd(graph, handler);
   AddStatis(fusion_count);
 }
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 REGISTER_PASS(merge_layernorm_fuse_pass,
               paddle::framework::ir::MergeLayernormFusePass);
 REGISTER_PASS_CAPABILITY(merge_layernorm_fuse_pass)

@@ -14,7 +14,6 @@
 #pragma once
 
 #include "paddle/fluid/eager/api/utils/global_utils.h"
-#include "paddle/fluid/imperative/amp_utils.h"
 #include "paddle/phi/common/type_promotion.h"
 
 namespace egr {
@@ -24,18 +23,7 @@ inline paddle::Tensor PromoteCast(const std::string& input_name,
                                   const phi::DataType& dst_dtype,
                                   bool trace_backward = true) {
   if (input.dtype() != dst_dtype) {
-    return paddle::imperative::Cast(input, dst_dtype, trace_backward);
-  } else {
-    return input;
-  }
-}
-
-inline paddle::Tensor PromoteCastInplace(const std::string& input_name,
-                                         paddle::Tensor& input,  // NOLINT
-                                         const phi::DataType& dst_dtype,
-                                         bool trace_backward = true) {
-  if (input.dtype() != dst_dtype) {
-    return paddle::experimental::cast_(input, dst_dtype);
+    return Cast(input, dst_dtype, trace_backward);
   } else {
     return input;
   }

@@ -16,4 +16,3 @@
 
 #include "paddle/fluid/primitive/backend/generated/generated_backend.h"
 #include "paddle/fluid/primitive/backend/manual/manual_backend.h"
-#include "paddle/fluid/primitive/backend/manual/manual_prim_backend.h"

@@ -30,12 +30,12 @@ limitations under the License. */
 #include <unordered_map>
 #include <vector>
 
-#include "paddle/common/macros.h"  // for DISABLE_COPY_AND_ASSIGN
 #include "paddle/fluid/framework/heter_util.h"
 #include "paddle/fluid/framework/program_desc.h"
 #include "paddle/fluid/framework/scope.h"
 #include "paddle/fluid/framework/tensor.h"
 #include "paddle/fluid/framework/variable_helper.h"
+#include "paddle/fluid/platform/macros.h"  // for DISABLE_COPY_AND_ASSIGN
 #ifdef PADDLE_WITH_HETERPS
 #include "paddle/fluid/platform/device/gpu/gpu_types.h"
 #endif
@@ -146,7 +146,7 @@ class FleetWrapper {
       const uint64_t table_id,
       int fea_dim,
       uint64_t padding_id,
-      phi::Place place,
+      platform::Place place,
       std::vector<const phi::DenseTensor*>* inputs,  // NOLINT
       std::vector<phi::DenseTensor*>* outputs);      // NOLINT
 
@@ -183,7 +183,7 @@ class FleetWrapper {
       std::vector<::std::future<int32_t>>* push_sparse_status,
       float scale_datanorm,
       int batch_size,
-      const phi::Place& place,
+      const paddle::platform::Place& place,
       gpuStream_t stream,
       gpuEvent_t event);
 #endif
@@ -195,7 +195,7 @@ class FleetWrapper {
       std::vector<::std::future<int32_t>>* push_sparse_status,
       float scale_datanorm,
       int batch_size,
-      const phi::Place& place);
+      const paddle::platform::Place& place);
 #endif
   void PushDenseVarsAsync(
       const Scope& scope,
@@ -253,9 +253,9 @@ class FleetWrapper {
       int fea_dim,
       uint64_t padding_id,
       bool scale_sparse,
-      const std::string& accessor,
+      const std::string& accesor,
       const std::string& click_name,
-      phi::Place place,
+      platform::Place place,
       const std::vector<std::string>& input_names,
       std::vector<const phi::DenseTensor*>* inputs,    // NOLINT
       std::vector<const phi::DenseTensor*>* outputs);  // NOLINT

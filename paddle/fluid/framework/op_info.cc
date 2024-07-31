@@ -14,7 +14,8 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/op_info.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
 // C++11 removes the need for manual locking. Concurrent execution shall wait if
 // a static local variable is already being initialized.
@@ -35,4 +36,5 @@ std::vector<std::string> OpInfoMap::GetUseDefaultGradOpDescMakerOps() const {
   return std::vector<std::string>(result_ops.begin(), result_ops.end());
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

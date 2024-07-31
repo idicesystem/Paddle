@@ -17,33 +17,23 @@ import warnings
 
 from dygraph_to_static_utils import (
     Dy2StTestBase,
-    test_legacy_and_pt,
-    test_pir_only,
+    test_legacy_and_pt_and_pir,
 )
 
 import paddle
 
 
 class TestPlace(Dy2StTestBase):
-    @test_legacy_and_pt
-    def test_place_legacy(self):
-        # TODO(cleanup-legacy-ir): remove this test case
+    @test_legacy_and_pt_and_pir
+    def test_place(self):
         paddle.enable_static()
         x = paddle.to_tensor([1, 2, 3, 4])
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             self.assertIsNone(x.place())
             self.assertTrue(len(w) == 1)
-
-    @test_pir_only
-    def test_place(self):
-        paddle.enable_static()
-        x = paddle.to_tensor([1, 2, 3, 4])
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            self.assertIsNone(x.place)
-            self.assertTrue(len(w) == 1)
-            self.assertIn("Value do not have 'place'", str(w[-1].message))
+            if paddle.framework.use_pir_api():
+                self.assertIn("Value do not have 'place'", str(w[-1].message))
 
 
 if __name__ == '__main__':

@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
-sys.path.append("../deprecated/legacy_test")
 from test_lrn_op import TestLRNOp
 
 
@@ -26,17 +24,14 @@ class TestLRNMKLDNNOp(TestLRNOp):
         return attrs
 
     def test_check_output(self):
-        # We cannot validate MidOut as LRN REF has different meaning in it
-        # TODO(wangzhongpu): support onednn op in dygraph mode
+        # We cannot validate MidOut as LRN REF has diffrent meaning in it
+        # TODO(wangzhongpu): support mkldnn op in dygraph mode
         self.check_output(
-            atol=0.002,
-            no_check_set=['MidOut'],
-            check_dygraph=False,
-            check_pir_onednn=True,
+            atol=0.002, no_check_set=['MidOut'], check_dygraph=False
         )
 
     def test_check_grad_normal(self):
-        # TODO(wangzhongpu): support onednn op in dygraph mode
+        # TODO(wangzhongpu): support mkldnn op in dygraph mode
         self.check_grad(
             ['X'], 'Out', max_relative_error=0.01, check_dygraph=False
         )

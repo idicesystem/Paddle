@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import sys
 import time
 import unittest
@@ -33,8 +32,6 @@ import paddle
 from paddle import base
 from paddle.io import DataLoader
 from paddle.nn import Linear
-
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 class SimpleFCNet(paddle.nn.Layer):
@@ -77,25 +74,10 @@ class SimpleFCNet(paddle.nn.Layer):
         return out
 
 
-def collate_batch(batch_list):
-    batch_size = len(batch_list)
-    image = np.stack([item[0] for item in batch_list], axis=0).astype('float32')
-    image = paddle.to_tensor(image).reshape([batch_size, -1])
-    label = np.stack([item[1] for item in batch_list], axis=0).astype('int64')
-    label = paddle.to_tensor(label).reshape([batch_size, -1])
-    return image, label
-
-
 class TestDygraphDataLoader(unittest.TestCase):
-    def run_main(
-        self,
-        num_workers,
-        places,
-        persistent_workers,
-        collate_fn,
-        use_shared_memory,
-    ):
-        paddle.seed(1)
+    def run_main(self, num_workers, places, persistent_workers):
+        base.default_startup_program().random_seed = 1
+        base.default_main_program().random_seed = 1
         with base.dygraph.guard(places[0]):
             fc_net = SimpleFCNet()
             optimizer = paddle.optimizer.Adam(parameters=fc_net.parameters())
@@ -107,8 +89,6 @@ class TestDygraphDataLoader(unittest.TestCase):
                 batch_size=BATCH_SIZE,
                 drop_last=True,
                 persistent_workers=persistent_workers,
-                collate_fn=collate_fn,
-                use_shared_memory=use_shared_memory,
             )
             assert len(dataloader) == int(SAMPLE_NUM / BATCH_SIZE)
 
@@ -137,45 +117,38 @@ class TestDygraphDataLoader(unittest.TestCase):
             "step": step_list,
             "loss": np.array(loss_list),
         }
-        logging.info(f"time cost {ret['time']} step_list {ret['step']}")
+        print("time cost", ret['time'], 'step_list', ret['step'])
         return ret
 
     def test_main(self):
         for p in prepare_places():
             for persistent_workers in [False, True]:
-                for collate_fn in [None, collate_batch]:
-                    for use_shared_memory in [False, True]:
-                        results = []
-                        for num_workers in [0, 2]:
-                            logging.info(
-                                f"{self.__class__.__name__} {p} {num_workers} {persistent_workers} {collate_fn} {use_shared_memory}"
-                            )
-                            sys.stdout.flush()
-                            ret = self.run_main(
-                                num_workers=num_workers,
-                                places=p,
-                                persistent_workers=persistent_workers,
-                                collate_fn=collate_fn,
-                                use_shared_memory=use_shared_memory,
-                            )
-                            results.append(ret)
-                        diff = np.max(
-                            np.abs(results[0]['loss'] - results[1]['loss'])
-                            / np.abs(results[0]['loss'])
-                        )
-                        self.assertLess(diff, 1e-2)
+                results = []
+                for num_workers in [0, 2]:
+                    print(
+                        self.__class__.__name__,
+                        p,
+                        num_workers,
+                        persistent_workers,
+                    )
+                    sys.stdout.flush()
+                    ret = self.run_main(
+                        num_workers=num_workers,
+                        places=p,
+                        persistent_workers=persistent_workers,
+                    )
+                    results.append(ret)
+                diff = np.max(
+                    np.abs(results[0]['loss'] - results[1]['loss'])
+                    / np.abs(results[0]['loss'])
+                )
+                self.assertLess(diff, 1e-2)
 
 
 class TestDygraphDataLoaderWithBatchedDataset(TestDygraphDataLoader):
-    def run_main(
-        self,
-        num_workers,
-        places,
-        persistent_workers,
-        collate_fn,
-        use_shared_memory,
-    ):
-        paddle.seed(1)
+    def run_main(self, num_workers, places, persistent_workers):
+        base.default_startup_program().random_seed = 1
+        base.default_main_program().random_seed = 1
         with base.dygraph.guard(places[0]):
             fc_net = SimpleFCNet()
             optimizer = paddle.optimizer.Adam(parameters=fc_net.parameters())
@@ -187,8 +160,6 @@ class TestDygraphDataLoaderWithBatchedDataset(TestDygraphDataLoader):
                 batch_size=None,
                 drop_last=True,
                 persistent_workers=persistent_workers,
-                collate_fn=None,
-                use_shared_memory=use_shared_memory,
             )
             assert len(dataloader) == int(SAMPLE_NUM / BATCH_SIZE)
 
@@ -217,7 +188,7 @@ class TestDygraphDataLoaderWithBatchedDataset(TestDygraphDataLoader):
             "step": step_list,
             "loss": np.array(loss_list),
         }
-        logging.info(f"time cost {ret['time']} step_list {ret['step']}")
+        print("time cost", ret['time'], 'step_list', ret['step'])
         return ret
 
 

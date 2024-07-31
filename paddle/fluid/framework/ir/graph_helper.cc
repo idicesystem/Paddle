@@ -17,7 +17,9 @@ limitations under the License. */
 #include <queue>
 #include <stack>
 
+#include "paddle/fluid/framework/details/grad_merge_all_reduce_op_handle.h"
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
+#include "paddle/fluid/framework/details/scale_loss_grad_op_handle.h"
 #include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/framework/op_proto_maker.h"
 #include "paddle/fluid/framework/program_utils.h"
@@ -27,17 +29,19 @@ limitations under the License. */
 #include "paddle/fluid/framework/details/nccl_op_handle.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
-#include "paddle/common/flags.h"
+#include "paddle/fluid/platform/flags.h"
 PD_DECLARE_bool(convert_all_blocks);
-PD_DECLARE_bool(all_blocks_convert_trt);
-PHI_DEFINE_EXPORTED_string(print_sub_graph_dir,
-                           "",
-                           "FLAGS_print_sub_graph_dir is used "
-                           "to print the nodes of sub_graphs.");
+PADDLE_DEFINE_EXPORTED_string(print_sub_graph_dir,
+                              "",
+                              "FLAGS_print_sub_graph_dir is used "
+                              "to print the nodes of sub_graphs.");
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 namespace {
 
 template <class NodeComparator = ir::NodeComp>
@@ -129,10 +133,11 @@ bool VarDescIsConsistency(const Graph &graph) {
   }
   for (auto &iter : var_name2node_set) {
     auto &first_node = *iter.second.begin();
-    bool is_persistable = std::any_of(
-        iter.second.begin(), iter.second.end(), [](const ir::Node *node) {
-          return node->Var()->Persistable();
-        });
+    bool is_persistable = std::any_of(iter.second.begin(),
+                                      iter.second.end(),
+                                      [&first_node](const ir::Node *node) {
+                                        return node->Var()->Persistable();
+                                      });
     if (is_persistable) {
       bool is_consistency =
           std::all_of(iter.second.begin(),
@@ -155,7 +160,7 @@ std::vector<ir::Node *> TopologySortOperations(const Graph &graph) {
       adj_list = BuildOperationAdjList(graph);
   PADDLE_ENFORCE_EQ(HasCircleInternal(adj_list, nullptr),
                     false,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Generated graph shouldn't contain cycle."));
   std::unordered_set<ir::Node *> visited;
   std::vector<ir::Node *> ret;
@@ -208,7 +213,7 @@ std::map<ir::Node *, std::unordered_set<ir::Node *>> BuildOperationOutAdjList(
       for (auto &adj_n : var->outputs) {
         PADDLE_ENFORCE_EQ(adj_n->NodeType(),
                           ir::Node::Type::kOperation,
-                          common::errors::InvalidArgument(
+                          platform::errors::InvalidArgument(
                               "Node(%s)'s type(%d) must be kOperation type.",
                               adj_n->Name(),
                               static_cast<int>(adj_n->NodeType())));
@@ -291,19 +296,21 @@ std::vector<ir::Node *> TopologyDfsSortOperations(const Graph &graph) {
 
   // traverse the graph
   int num_ops = static_cast<int>(op_queue.size());
-  for (auto cur_op : op_queue) {
-    if (!cur_op || in_degree[cur_op] > 0) continue;
-    // visit this node
-    // put all the output var of this op valid.
-    for (auto *out_var : cur_op->outputs) {
-      if (!out_var) continue;
-      set_out_ops_ready(out_var);
-    }
-    VLOG(8) << "visit " << cur_op->Name();
-    nodes.push_back(cur_op);
+  while (num_ops) {
+    for (auto cur_op : op_queue) {
+      if (!cur_op || in_degree[cur_op] > 0) continue;
+      // visit this node
+      // put all the output var of this op valid.
+      for (auto *out_var : cur_op->outputs) {
+        if (!out_var) continue;
+        set_out_ops_ready(out_var);
+      }
+      VLOG(8) << "visit " << cur_op->Name();
+      nodes.push_back(cur_op);
 
-    cur_op = nullptr;
-    num_ops--;
+      cur_op = nullptr;
+      num_ops--;
+    }
   }
 
   return nodes;
@@ -385,7 +392,7 @@ size_t GraphNum(const Graph &graph) {
           new std::ofstream(FLAGS_print_sub_graph_dir));
       PADDLE_ENFORCE_EQ(fout->good(),
                         true,
-                        common::errors::Unavailable(
+                        platform::errors::Unavailable(
                             "Can not open file %s for printing the graph.",
                             FLAGS_print_sub_graph_dir));
       *fout << out.str();
@@ -408,7 +415,7 @@ void CleanIndividualNodes(Graph *graph) {
   }
 }
 
-std::vector<Node *> TopologyVariantSort(const Graph &graph,
+std::vector<Node *> TopologyVarientSort(const Graph &graph,
                                         SortKind sort_kind) {
   switch (sort_kind) {
     case SortKind::TS:
@@ -438,7 +445,7 @@ std::vector<ir::Node *> TopologySortGraphByDescOrder(const Graph &graph) {
       adj_list = BuildOperationAdjList<DescOrderComparator>(graph);
   PADDLE_ENFORCE_EQ(HasCircleInternal<DescOrderComparator>(adj_list, nullptr),
                     false,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Generated graph shouldn't contain cycle."));
   std::unordered_set<ir::Node *> visited;
   std::vector<ir::Node *> ret;
@@ -470,6 +477,37 @@ void RemoveControlDepInputAndOuput(OpDesc *op_desc) {
   remove_control_dep_var(op_desc->MutableInputs());
   remove_control_dep_var(op_desc->MutableOutputs());
   op_desc->Flush();
+}
+
+static OpDesc *ReplaceScaleLossGradOp(const Node &node, OpDesc *desc) {
+  desc->SetType("fill_constant");
+  desc->SetAttr("shape", std::vector<int64_t>({1}));
+  desc->SetAttr("value", 1.0f);
+
+  if (node.IsWrappedBy<details::OpHandleBase>()) {
+    details::OpHandleBase &op_hander =
+        const_cast<Node *>(&node)->Wrapper<details::OpHandleBase>();
+    desc->SetAttr(
+        "dtype",
+        dynamic_cast<details::ScaleLossGradOpHandle *>(&op_hander)->DType());
+    desc->SetAttr(
+        "value",
+        dynamic_cast<details::ScaleLossGradOpHandle *>(&op_hander)->Coeff());
+  }
+
+  desc->SetAttr("force_cpu", false);
+  desc->SetAttr(
+      OpProtoAndCheckerMaker::OpRoleAttrName(),
+      (static_cast<int>(OpRole::kBackward) | static_cast<int>(OpRole::kLoss)));
+  // TODO(Ruibiao) : Set OpDeviceAttrName when needed
+
+  std::vector<std::string> output_names;
+  output_names.reserve(node.outputs.size());
+  for (auto out : node.outputs) {
+    output_names.emplace_back(out->Name());
+  }
+  desc->SetOutput("Out", output_names);
+  return desc;
 }
 
 void ReplaceAllReduceOp(const Node &node,
@@ -546,6 +584,21 @@ void ReplaceAllReduceOp(const Node &node,
   all_reduce_op_desc.SetAttr(OpProtoAndCheckerMaker::OpRoleAttrName(),
                              (static_cast<int>(OpRole::kBackward)));
 
+  // handle grad merge
+  if (dynamic_cast<details::FusedGradMergeAllReduceOpHandle *>(&op_handle)) {
+    VLOG(4) << "FusedGradMergeAllReduceOpHandle: add cond to c_allreduce_sum";
+    const std::string cond_name =
+        dynamic_cast<details::FusedGradMergeAllReduceOpHandle *>(&op_handle)
+            ->GradMergeCondName();
+    all_reduce_op_desc.SetInput("Cond", {cond_name});
+  } else if (dynamic_cast<details::GradMergeAllReduceOpHandle *>(&op_handle)) {
+    VLOG(4) << "GradMergeAllReduceOpHandle: add cond to c_allreduce_sum";
+    const std::string cond_name =
+        dynamic_cast<details::GradMergeAllReduceOpHandle *>(&op_handle)
+            ->GradMergeCondName();
+    all_reduce_op_desc.SetInput("Cond", {cond_name});
+  }
+
   // Add dependency for FusedAllReduce.
   // For the following example:
   // ### fused_grad = FusedAllReduce(grad0, grad1, grad2, ...)
@@ -575,8 +628,8 @@ void ReplaceAllReduceOp(const Node &node,
   }
 #else
   PADDLE_THROW(
-      common::errors::Unimplemented("ReplaceAllReduceOp is only implemented "
-                                    "for paddle compiled with NCCL/RCCL."));
+      platform::errors::Unimplemented("ReplaceAllReduceOp is only implemented "
+                                      "for paddle compiled with NCCL/RCCL."));
 #endif
 }
 
@@ -629,17 +682,21 @@ static void GetGraphOpDesc(const std::vector<Node *> &nodes,
   for (Node *n : nodes) {
     // if node is not Op, skip
     if (!n->IsOp()) continue;
+    // create fill_constant op
+    if (n->Name() == "scale_loss_grad") {
+      VLOG(4) << "convert op node scale_loss_grad to desc fill_constant";
+      ops->emplace_back();
+      auto &desc = ops->back();
+      ReplaceScaleLossGradOp(*n, &desc);
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
-    if ((n->Name() == "allreduce" || n->Name() == "fused_all_reduce") &&
-        dynamic_cast<details::NCCLOpHandleBase *>(
-            &(n->Wrapper<details::OpHandleBase>())) != nullptr) {
+    } else if ((n->Name() == "allreduce" || n->Name() == "fused_all_reduce") &&
+               dynamic_cast<details::NCCLOpHandleBase *>(
+                   &(n->Wrapper<details::OpHandleBase>())) != nullptr) {
       VLOG(4) << "convert op node " << n->Name() << " to desc c_allreduce_sum";
       ReplaceAllReduceOp(*n, block, ops);
       VLOG(4) << n->ToString();
-      continue;
-    }
 #endif
-    if (n->Op()) {
+    } else if (n->Op()) {
       VLOG(4) << "convert op node to desc " << n->Op()->Type();
       if (is_fused_opt(n)) {
         OpDesc depend_desc(n->Op()->Block());
@@ -730,7 +787,7 @@ static void GraphToBlock(const Graph &graph,
   std::vector<Node *> nodes;
   if (sort_kind != nullptr) {
     // Inference Memory Optimize relays on this branch.
-    nodes = TopologyVariantSort(graph, *sort_kind);
+    nodes = TopologyVarientSort(graph, *sort_kind);
   } else {
     if (FLAGS_convert_all_blocks) {
       nodes = TopologySortGraphByDescOrder(graph);
@@ -753,12 +810,12 @@ void GraphToProgram(const Graph &graph,
                     const SortKind *sort_kind) {
   PADDLE_ENFORCE_EQ(graph.IsMainGraph(),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "This graph is a sub_graph, "
                         "and can't convert to program individually"));
   PADDLE_ENFORCE_NOT_NULL(
       program,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "program must not be nullptr when converting graph to program"));
 
   proto::ProgramDesc program_pb(*(program->Proto()));
@@ -865,7 +922,7 @@ static std::vector<std::vector<ir::Node::Dep>> GetOpDependencies(
     PADDLE_ENFORCE_EQ(
         op_id_to_idx.emplace(op_desc->OriginalId(), op_idx).second,
         true,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "There should not be duplicate op id: %d", op_desc->OriginalId()));
   }
 
@@ -879,7 +936,7 @@ static std::vector<std::vector<ir::Node::Dep>> GetOpDependencies(
     auto iter = op_id_to_idx.find(op_id);
     PADDLE_ENFORCE_NE(iter,
                       op_id_to_idx.end(),
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Cannot find OpDesc with id %d", op_id));
     return iter->second;
   };
@@ -909,4 +966,6 @@ std::vector<std::vector<std::vector<ir::Node::Dep>>> GetOpDependencies(
   return deps;
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

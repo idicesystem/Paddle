@@ -31,26 +31,26 @@ class OpBase;
 namespace paddle {
 namespace operators {
 
-class MaxSequenceLenOp : public framework::OperatorBase {
+class MaxSeqenceLenOp : public framework::OperatorBase {
  public:
-  MaxSequenceLenOp(const std::string &type,
-                   const framework::VariableNameMap &inputs,
-                   const framework::VariableNameMap &outputs,
-                   const framework::AttributeMap &attrs)
+  MaxSeqenceLenOp(const std::string &type,
+                  const framework::VariableNameMap &inputs,
+                  const framework::VariableNameMap &outputs,
+                  const framework::AttributeMap &attrs)
       : OperatorBase(type, inputs, outputs, attrs) {}
 
  private:
   void RunImpl(const framework::Scope &scope,
-               const phi::Place &dev_place) const override {
+               const platform::Place &dev_place) const override {
     auto &rank_table =
         scope.FindVar(Input("RankTable"))->Get<framework::LoDRankTable>();
     auto *out = scope.FindVar(Output("Out"))->GetMutable<phi::DenseTensor>();
-    int64_t *out_ptr = out->mutable_data<int64_t>({1}, phi::CPUPlace());
+    int64_t *out_ptr = out->mutable_data<int64_t>({1}, platform::CPUPlace());
     *out_ptr = rank_table.items()[0].length;  // NOLINT
   }
 };
 
-class MaxSequenceLenOpProtoMaker : public framework::OpProtoAndCheckerMaker {
+class MaxSeqenceLenOpProtoMaker : public framework::OpProtoAndCheckerMaker {
  public:
   void Make() override {
     AddInput("RankTable", "Input variable which is a LoDRankTable object");
@@ -65,11 +65,11 @@ class MaxSequenceLenOpProtoMaker : public framework::OpProtoAndCheckerMaker {
   }
 };
 
-class MaxSequenceLenInferShape : public framework::InferShapeBase {
+class MaxSeqenceLenInferShape : public framework::InferShapeBase {
  public:
   void operator()(framework::InferShapeContext *context) const override {
     OP_INOUT_CHECK(
-        context->HasInput("RankTable"), "Input", "RankTable", "MaxSequenceLen");
+        context->HasInput("RankTable"), "Input", "RankTable", "MaxSeqenceLen");
     context->SetOutputDim("Out", {1});
   }
 };
@@ -78,8 +78,8 @@ class MaxSequenceLenInferShape : public framework::InferShapeBase {
 
 REGISTER_OPERATOR(
     max_sequence_len,
-    paddle::operators::MaxSequenceLenOp,
-    paddle::operators::MaxSequenceLenOpProtoMaker,
-    paddle::operators::MaxSequenceLenInferShape,
+    paddle::operators::MaxSeqenceLenOp,
+    paddle::operators::MaxSeqenceLenOpProtoMaker,
+    paddle::operators::MaxSeqenceLenInferShape,
     paddle::framework::EmptyGradOpMaker<paddle::framework::OpDesc>,
     paddle::framework::EmptyGradOpMaker<paddle::imperative::OpBase>);

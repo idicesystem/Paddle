@@ -104,7 +104,7 @@ class TestIndexSelectAPI(unittest.TestCase):
             exe = base.Executor(base.XPUPlace(0))
             (res,) = exe.run(
                 feed={'x': self.data_x, 'index': self.data_index},
-                fetch_list=[z],
+                fetch_list=[z.name],
                 return_numpy=False,
             )
         expect_out = np.array(
@@ -120,7 +120,7 @@ class TestIndexSelectAPI(unittest.TestCase):
             exe = base.Executor(base.XPUPlace(0))
             (res,) = exe.run(
                 feed={'x': self.data_x, 'index': self.data_index},
-                fetch_list=[z],
+                fetch_list=[z.name],
                 return_numpy=False,
             )
         expect_out = np.array(
@@ -132,8 +132,8 @@ class TestIndexSelectAPI(unittest.TestCase):
         self.input_data()
         # case 1:
         with base.dygraph.guard():
-            x = paddle.to_tensor(self.data_x)
-            index = paddle.to_tensor(self.data_index)
+            x = base.dygraph.to_variable(self.data_x)
+            index = base.dygraph.to_variable(self.data_index)
             z = paddle.index_select(x, index)
             np_z = z.numpy()
         expect_out = np.array(
@@ -143,8 +143,8 @@ class TestIndexSelectAPI(unittest.TestCase):
 
         # case 2:
         with base.dygraph.guard():
-            x = paddle.to_tensor(self.data_x)
-            index = paddle.to_tensor(self.data_index)
+            x = base.dygraph.to_variable(self.data_x)
+            index = base.dygraph.to_variable(self.data_index)
             z = paddle.index_select(x, index, axis=1)
             np_z = z.numpy()
         expect_out = np.array(

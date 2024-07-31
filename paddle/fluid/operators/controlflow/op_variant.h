@@ -52,7 +52,7 @@ class OpVariant {
     PADDLE_ENFORCE_NE(
         it,
         attrs.end(),
-        common::errors::NotFound("Cannot find attribute %s.", name));
+        platform::errors::NotFound("Cannot find attribute %s.", name));
     return PADDLE_GET_CONST(AttrType, it->second);
   }
 

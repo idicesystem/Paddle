@@ -18,21 +18,21 @@
 #include <vector>
 
 #include "paddle/cinn/common/target.h"
+#include "paddle/cinn/hlir/framework/instruction.h"
 #include "paddle/cinn/hlir/framework/op_lowering_impl_base.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
-#include "paddle/cinn/hlir/framework/pir/op_lowering_group.h"
-#include "paddle/cinn/hlir/framework/pir/trivial_op_impl.h"
+#include "paddle/cinn/hlir/framework/pir/group.h"
 #include "paddle/cinn/ir/group_schedule/base_group_scheduler.h"
 #include "paddle/cinn/ir/lowered_func.h"
 #include "paddle/cinn/ir/schedule/ir_schedule.h"
 #include "paddle/cinn/ir/schedule/ir_schedule_util.h"
 #include "paddle/cinn/lang/packed_func.h"
-#include "paddle/pir/include/core/operation.h"
+#include "paddle/pir/core/operation.h"
 
 // Fusion Op lowering, there are four kinds of lowering function:
-// Elementwise/Broadcast/Injective,Reduce,OutEWiseFusible,NonFusible.
-// Elementwise/Broadcast/Injective Ops is with same schedule.
-// Reduce,OutEWiseFusible,NonFusible are using different schedule.
+// Elementwise/Broadcast/Injective,Reduce,OutEWiseFusable,NonFusible.
+// Elementwise/Broadcast/Injective Ops is with same shcedule.
+// Reduce,OutEWiseFusable,NonFusible are using different schedule.
 
 namespace cinn {
 namespace hlir {
@@ -40,24 +40,14 @@ namespace framework {
 namespace pir {
 
 class PrettyNamer;
-using OpLoweringGroupPtr = std::shared_ptr<OpLoweringGroup>;
+using GroupPtr = std::shared_ptr<Group>;
 
 using cinn::common::Target;
 class OpLowererImpl;
 
 typedef bool (OpLowererImpl::*ScheduleDetermineFunction)(::pir::Operation*);
 
-struct GroupInfo {
-  std::vector<int64_t> data_space;
-  std::vector<int64_t> reduce_axis;
-  std::vector<int64_t> loop_transform_map;
-  std::set<std::string> reduce_var_names;
-  std::set<std::string> shared_var_names;
-  std::set<std::string> direct_output_var_names;
-  std::vector<std::string> broadcast_output_names;
-};
-
-class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
+class OpLowererImpl : public OpLowererImplBase<GroupPtr> {
  public:
   explicit OpLowererImpl(const Target&);
 
@@ -68,7 +58,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @param apply_group_schedule Whether to schedule at group level.
    * @return The lowered funcs.
    */
-  std::vector<ir::LoweredFunc> Lower(const OpLoweringGroupPtr& group,
+  std::vector<ir::LoweredFunc> Lower(const GroupPtr& group,
                                      bool apply_op_schedule = true,
                                      bool apply_group_schedule = true,
                                      bool apply_pass = true);
@@ -80,10 +70,13 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @param apply_group_schedule Whether to schedule at group level.
    * @return The lowered funcs.
    */
-  BucketLoweredFuncsWrapper BucketLower(const OpLoweringGroupPtr& group,
-                                        bool apply_op_schedule = false,
-                                        bool apply_group_schedule = true,
-                                        bool apply_pass = true);
+  std::vector<std::pair<ir::SymbolicPredicate, ir::LoweredFunc>> BucketLower(
+      const GroupPtr& group,
+      bool apply_op_schedule = false,
+      bool apply_group_schedule = true,
+      bool apply_pass = true);
+
+  void InsertNameGeneToScope(std::shared_ptr<Scope> scope);
 
  private:
   /**
@@ -96,7 +89,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @return The lowered funcs.
    */
   std::vector<ir::LoweredFunc> LowerGroup(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       bool apply_op_schedule,
       bool apply_group_schedule,
       ScheduleDetermineFunction schedule_determine_func);
@@ -106,7 +99,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @param group The group to be lowered.
    * @return The lowered funcs.
    */
-  std::vector<ir::LoweredFunc> LowerCustomCall(const OpLoweringGroupPtr& group);
+  std::vector<ir::LoweredFunc> LowerCustomCall(const GroupPtr& group);
 
   /**
    * @brief Post processing, including preparing function args and temporary
@@ -115,19 +108,16 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @param tensor_map All tensors used for calculating the group.
    * @param done_op_schedule Mark whether the Op level schedule has been
    * applied.
-   * @param func_bodies The scheduled func bodies of group.
+   * @param func_body The scheduled func body of group.
    * @param group_func_arg_tensors Tensors used as the group function arguments.
-   * @param group_func_args Arguments used as the group function arguments.
    * @return The lowered funcs after the post processing.
    */
   std::vector<ir::LoweredFunc> PostProcess(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const std::unordered_map<::pir::Value, ir::Tensor>& tensor_map,
       bool done_op_schedule,
-      std::vector<ir::Expr> func_bodies,
-      std::vector<ir::Tensor>* group_func_arg_tensors,
-      std::vector<ir::Argument>* group_func_args,
-      std::vector<ir::Tensor>* infer_shape_arg_tensor);
+      ir::Expr func_body,
+      std::vector<ir::Tensor>* group_func_arg_tensors);
 
   /**
    * @brief Lower an Op set to CINN IR.
@@ -139,7 +129,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @return The lowered func bodies of Op set.
    */
   void LowerOpsForMapExpr(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const std::vector<::pir::Operation*>& ops,
       std::vector<ir::Tensor>* group_func_arg_tensors,
       std::unordered_map<::pir::Value, ir::Tensor>* tensor_map);
@@ -155,7 +145,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @return The lowered funcs after the post processing.
    */
   std::vector<ir::LoweredFunc> LowerMapExpr(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const std::vector<::pir::Operation*>& ops,
       bool apply_op_schedule,
       bool apply_group_schedule,
@@ -175,7 +165,7 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    * @return The lowered func bodies of Op set.
    */
   std::vector<ir::Expr> LowerOps(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const std::vector<::pir::Operation*>& ops,
       bool apply_op_schedule,
       ScheduleDetermineFunction schedule_determine_func,
@@ -220,21 +210,9 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
    */
   ir::Expr DoGroupSchedule(
       ir::IRSchedule& ir_sch,  // NOLINT
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const std::unordered_map<::pir::Value, ir::Tensor>& tensor_map,
       const std::unordered_map<std::string, ir::Tensor>& tmp_tensor_info);
-
-  /**
-   * @brief  Generates the output tensor infer shape function.
-   * @param group The group to be lowered.
-   * @param group_func_arg_tensors Tensors used as the group function arguments.
-   * @param group_func_args Arguments used as the group function arguments.
-   * @return The lowered func to infer output tensor's shape.
-   */
-  ir::LoweredFunc GenerateInferShapeFunc(
-      const OpLoweringGroupPtr& group,
-      const std::vector<ir::Tensor> group_func_arg_tensors,
-      const std::vector<ir::Argument> group_func_args);
 
   // Functions used to determine which Ops to schedule at op level, define a
   // policy for each type of group.
@@ -245,34 +223,16 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
 
  private:
   std::vector<ir::Tensor> CollectInputTensor(
-      const OpLoweringGroupPtr& group,
+      const GroupPtr& group,
       const ::pir::Operation* op,
       std::vector<ir::Tensor>* func_args,
       std::unordered_map<::pir::Value, ir::Tensor>* tensor_map);
 
-  ir::Tensor GetTensor(const OpLoweringGroupPtr& group,
-                       const ::pir::Value& value);
-  ir::Tensor GetTensorSymbolic(const OpLoweringGroupPtr& group,
-                               const ::pir::Value& value);
-
-  std::shared_ptr<GroupInfo> GetGroupInfo(
-      const OpLoweringGroupPtr& group,
-      const std::unordered_map<::pir::Value, ir::Tensor>& tensor_map);
-
-  std::shared_ptr<GroupInfo> GetGroupInfo(
-      const FusionGroupInfo& fusion_group_info,
-      const OpLoweringGroupPtr& group,
-      const std::unordered_map<::pir::Value, ir::Tensor>& tensor_map);
+  ir::Tensor GetTensor(const GroupPtr& group, const ::pir::Value& value);
 
   void CollectOutputInfo(::pir::Operation* op,
                          std::vector<Type>* out_types,
-                         std::vector<std::vector<int>>* out_shapes,
-                         const OpLoweringGroupPtr& group);
-
-  void CollectOutputInfo(::pir::Operation* op,
-                         std::vector<Type>* out_types,
-                         std::vector<std::vector<ir::Dim>>* out_shapes,
-                         const OpLoweringGroupPtr& group);
+                         std::vector<std::vector<int>>* out_shapes);
 
   std::string ValueName(::pir::Value value);
 
@@ -286,12 +246,8 @@ class OpLowererImpl : public OpLowererImplBase<OpLoweringGroupPtr> {
 
   common::Type GetTensorDtype(const ::pir::Value& value);
 
-  void BuildBroadcastInfo(const OpLoweringGroupPtr& group,
-                          std::shared_ptr<GroupInfo> group_info);
   Target target_;
-  ir::Expr LowerX86(const OpLoweringGroupPtr& group,
-                    const std::vector<::pir::Operation*>& ops,
-                    bool apply_op_schedule);
+
   PrettyNamer* name_gene_;
 };
 

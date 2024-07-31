@@ -15,7 +15,9 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 #include "paddle/fluid/inference/tensorrt/plugin/gather_nd_op_plugin.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class GatherNdOpConverter : public OpConverter {
  public:
@@ -34,7 +36,7 @@ class GatherNdOpConverter : public OpConverter {
     auto layer = TRT_ENGINE_ADD_LAYER(
         engine_, GatherV2, *input, *index, nvinfer1::GatherMode::kND);
     layer->setNbElementWiseDims(0);
-    ReplenishLayerAndOutput(layer, "gather_nd", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "gather_nd", {output_name}, test_mode);
 #else
     VLOG(4) << "convert a paddle gather_nd op to tensorrt gather_nd plugin";
 
@@ -61,6 +63,8 @@ class GatherNdOpConverter : public OpConverter {
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(gather_nd, GatherNdOpConverter);

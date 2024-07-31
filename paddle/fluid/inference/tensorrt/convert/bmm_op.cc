@@ -38,7 +38,7 @@ class BMMOpConverter : public OpConverter {
                                  *input2,
                                  nvinfer1::MatrixOperation::kNONE);
 
-    ReplenishLayerAndOutput(layer, "bmm", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "bmm", {output_name}, test_mode);
   }
 };
 

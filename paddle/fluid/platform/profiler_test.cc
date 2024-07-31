@@ -19,8 +19,8 @@ limitations under the License. */
 #include "gtest/gtest.h"
 
 TEST(Event, CpuElapsedTime) {
-  using phi::Event;
-  using phi::EventType;
+  using paddle::platform::Event;
+  using paddle::platform::EventType;
 
   Event start_event(EventType::kPushRange, "test", 0);
   int counter = 0;
@@ -35,14 +35,14 @@ TEST(Event, CpuElapsedTime) {
 }
 
 TEST(RecordEvent, RecordEvent) {
+  using paddle::platform::Event;
+  using paddle::platform::EventRole;
   using paddle::platform::EventSortingKey;
-  using phi::Event;
-  using phi::EventRole;
-  using phi::EventType;
-  using phi::PopEvent;
-  using phi::ProfilerState;
-  using phi::PushEvent;
-  using phi::RecordEvent;
+  using paddle::platform::EventType;
+  using paddle::platform::PopEvent;
+  using paddle::platform::ProfilerState;
+  using paddle::platform::PushEvent;
+  using paddle::platform::RecordEvent;
 
   ProfilerState state = ProfilerState::kCPU;
   paddle::platform::EnableProfiler(state);

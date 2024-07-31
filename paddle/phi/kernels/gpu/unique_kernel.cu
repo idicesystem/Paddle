@@ -26,12 +26,7 @@
 #include <iostream>
 #include <vector>
 
-#ifdef PADDLE_WITH_CUDA
 #include "cub/cub.cuh"
-#else
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#endif
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -557,7 +552,7 @@ struct UniqueFlattendCUDAFunctor {
   }
 };
 
-// functor for processing a multi-dimensional DenseTensor
+// functor for processing a multi-dimentional DenseTensor
 template <typename Context, typename InT>
 struct UniqueDimsCUDAFunctor {
   const Context& ctx_;

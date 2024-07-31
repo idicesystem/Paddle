@@ -18,12 +18,6 @@ import unittest
 import numpy as np
 from op_test import OpTest
 
-import paddle
-
-
-def api_wrapper(emission, transition, label=None, length=None):
-    return paddle._C_ops.crf_decoding(emission, transition, label, length)
-
 
 class CRFDecoding:
     def __init__(
@@ -126,7 +120,6 @@ class TestCRFDecodingOp1(OpTest):
 
     def setUp(self):
         self.op_type = "crf_decoding"
-        self.python_api = api_wrapper
         self.set_test_data()
 
     def test_check_output(self):
@@ -144,7 +137,6 @@ class TestCRFDecodingOp2(OpTest):
 
     def setUp(self):
         self.op_type = "crf_decoding"
-        self.python_api = api_wrapper
         TAG_NUM = 5
 
         self.init_lod()
@@ -237,7 +229,6 @@ class TestCRFDecodingOp5(OpTest):
 
     def setUp(self):
         self.op_type = "crf_decoding"
-        self.python_api = api_wrapper
         self.set_test_data()
 
     def test_check_output(self):
@@ -250,7 +241,6 @@ class TestCRFDecodingOp6(OpTest):
 
     def setUp(self):
         self.op_type = "crf_decoding"
-        self.python_api = api_wrapper
         TAG_NUM = 5
 
         self.init_lod()

@@ -23,7 +23,6 @@
 namespace phi {
 namespace distributed {
 class TensorDistAttr;
-class DistMetaTensor;
 
 using ArgDistAttr =
     paddle::variant<TensorDistAttr, std::vector<TensorDistAttr>>;

@@ -39,21 +39,22 @@ class InterpreterCoreEventGarbageCollector
  private:
   void Add(Variable* var,
            platform::DeviceEvent* event,
-           const phi::DeviceContext* ctx);
+           const platform::DeviceContext* ctx);
   void Add(Garbage garbage,
            platform::DeviceEvent* event,
-           const phi::DeviceContext* ctx);
+           const platform::DeviceContext* ctx);
 
   void Free(const Garbage& garbage,
             platform::DeviceEvent* event,
-            const phi::DeviceContext* ctx);
+            const platform::DeviceContext* ctx);
 
   void FreeGarbages();
 
   std::unique_ptr<WorkQueue> queue_;
   paddle::memory::SpinLock spinlock_;
   std::vector<paddle::platform::DeviceEvent> gc_event_;
-  std::unordered_map<const phi::DeviceContext*, paddle::platform::DeviceEvent*>
+  std::unordered_map<const platform::DeviceContext*,
+                     paddle::platform::DeviceEvent*>
       events_;
 };
 }  // namespace framework

@@ -11,7 +11,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 #include "paddle/fluid/inference/tensorrt/plugin/trans_layernorm_op_plugin.h"
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class TransLayerNormOpConverter : public OpConverter {
  public:
@@ -33,11 +35,11 @@ class TransLayerNormOpConverter : public OpConverter {
                           : 1e-5f;
     PADDLE_ENFORCE_NOT_NULL(
         Bias_v,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Input(Bias) of layer_norm should not be null."));
     PADDLE_ENFORCE_NOT_NULL(
         Scale_v,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Input(Scale) of layer_norm should not be null."));
 
     auto* Bias_t = Bias_v->GetMutable<phi::DenseTensor>();
@@ -51,7 +53,7 @@ class TransLayerNormOpConverter : public OpConverter {
     nvinfer1::ILayer* layernorm_layer = nullptr;
     if (engine_->with_dynamic_shape()) {
       // For dynamic shape,
-      // the shape of mean and variance will be determine in configurePlugin.
+      // the shape of mean and variance will be determine in configuPlugin.
       std::vector<int64_t> mean_shape{1};
       std::vector<int64_t> variance_shape{1};
       bool with_fp16 =
@@ -69,19 +71,21 @@ class TransLayerNormOpConverter : public OpConverter {
               with_fp16);
       layernorm_layer = engine_->AddDynamicPlugin(&X, 1, plugin);
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "trans_layernorm do not support static shape mode yet"));
     }
 
     auto output_layernorm_name = op_desc.Output("Out_layernorm").front();
     auto output_reshape_name = op_desc.Output("Out_reshape").front();
-    ReplenishLayerAndOutput(layernorm_layer,
-                            "trans_layernorm",
-                            {output_layernorm_name, output_reshape_name},
-                            test_mode);
+    RreplenishLayerAndOutput(layernorm_layer,
+                             "trans_layernorm",
+                             {output_layernorm_name, output_reshape_name},
+                             test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(trans_layernorm, TransLayerNormOpConverter);

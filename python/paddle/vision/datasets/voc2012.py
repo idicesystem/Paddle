@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import io
 import tarfile
-from typing import TYPE_CHECKING, Any, Literal, Tuple
 
 import numpy as np
 from PIL import Image
@@ -24,18 +21,6 @@ from PIL import Image
 import paddle
 from paddle.dataset.common import _check_exists_and_download
 from paddle.io import Dataset
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-
-    from paddle._typing import DTypeLike
-    from paddle.vision.transforms.transforms import _Transform
-
-    from ..image import _ImageDataType
-
-    _ImageBackend = Literal["cv2", "pil"]
-
-    _DatasetMode = Literal["train", "valid", "test"]
 
 __all__ = []
 
@@ -51,17 +36,17 @@ CACHE_DIR = 'voc2012'
 MODE_FLAG_MAP = {'train': 'trainval', 'test': 'train', 'valid': "val"}
 
 
-class VOC2012(Dataset[Tuple["_ImageDataType", "npt.NDArray[Any]"]]):
+class VOC2012(Dataset):
     """
     Implementation of `VOC2012 <http://host.robots.ox.ac.uk/pascal/VOC/voc2012/>`_ dataset.
 
     Args:
-        data_file (str|None, optional): Path to data file, can be set None if
+        data_file (str, optional): Path to data file, can be set None if
             :attr:`download` is True. Default: None, default data path: ~/.cache/paddle/dataset/voc2012.
         mode (str, optional): Either train or test mode. Default 'train'.
-        transform (Callable|None, optional): Transform to perform on image, None for no transform. Default: None.
+        transform (Callable, optional): Transform to perform on image, None for no transform. Default: None.
         download (bool, optional): Download dataset automatically if :attr:`data_file` is None. Default: True.
-        backend (str|None, optional): Specifies which type of image to be returned:
+        backend (str, optional): Specifies which type of image to be returned:
             PIL.Image or numpy.ndarray. Should be one of {'pil', 'cv2'}.
             If this option is not set, will get backend from :ref:`paddle.vision.get_image_backend <api_paddle_vision_get_image_backend>`,
             default backend is 'pil'. Default: None.
@@ -73,7 +58,7 @@ class VOC2012(Dataset[Tuple["_ImageDataType", "npt.NDArray[Any]"]]):
 
         .. code-block:: python
 
-            >>> # doctest: +TIMEOUT(120)
+            >>> # doctest: +TIMEOUT(75)
             >>> import itertools
             >>> import paddle.vision.transforms as T
             >>> from paddle.vision.datasets import VOC2012
@@ -113,27 +98,20 @@ class VOC2012(Dataset[Tuple["_ImageDataType", "npt.NDArray[Any]"]]):
 
             >>> for img, label in itertools.islice(iter(voc2012_test), 5):  # only show first 5 images
             ...     # do something with img and label
-            ...     print(type(img), img.shape) # type: ignore
+            ...     print(type(img), img.shape)
             ...     # <class 'paddle.Tensor'> [3, 281, 500]
             ...     print(type(label), label.shape)
             ...     # <class 'numpy.ndarray'> (281, 500)
     """
 
-    data_file: str | None
-    mode: _DatasetMode
-    transform: _Transform[Any, Any] | None
-    backend: _ImageBackend
-    flag: str
-    dtype: DTypeLike
-
     def __init__(
         self,
-        data_file: str | None = None,
-        mode: _DatasetMode = 'train',
-        transform: _Transform[Any, Any] | None = None,
-        download: bool = True,
-        backend: _ImageBackend | None = None,
-    ) -> None:
+        data_file=None,
+        mode='train',
+        transform=None,
+        download=True,
+        backend=None,
+    ):
         assert mode.lower() in [
             'train',
             'valid',
@@ -184,7 +162,7 @@ class VOC2012(Dataset[Tuple["_ImageDataType", "npt.NDArray[Any]"]]):
             self.data.append(data)
             self.labels.append(label)
 
-    def __getitem__(self, idx: int) -> tuple[_ImageDataType, npt.NDArray[Any]]:
+    def __getitem__(self, idx):
         data_file = self.data[idx]
         label_file = self.labels[idx]
 
@@ -205,9 +183,9 @@ class VOC2012(Dataset[Tuple["_ImageDataType", "npt.NDArray[Any]"]]):
 
         return data, label
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.data)
 
-    def __del__(self) -> None:
+    def __del__(self):
         if self.data_tar:
             self.data_tar.close()

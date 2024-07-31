@@ -25,11 +25,11 @@
 #include "extern_pocketfft/pocketfft_hdronly.h"
 #endif
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 #if defined(PADDLE_WITH_ONEMKL)
 
-}  // namespace phi::funcs
-namespace phi::funcs::detail {
+namespace detail {
 // Execute a general fft operation (can be c2c, onesided r2c or onesided c2r)
 template <typename Ti, typename To>
 void exec_fft(const phi::CPUContext& ctx,
@@ -141,8 +141,7 @@ void exec_fft(const phi::CPUContext& ctx,
   TransposeKernel<To, phi::CPUContext>(
       ctx, transposed_output, reverse_dim_permute, out);
 }
-}  // namespace phi::funcs::detail
-namespace phi::funcs {
+}  // namespace detail
 
 template <typename Ti, typename To>
 struct FFTC2CFunctor<phi::CPUContext, Ti, To> {
@@ -193,8 +192,7 @@ struct FFTC2RFunctor<phi::CPUContext, Ti, To> {
 };
 
 #elif defined(PADDLE_WITH_POCKETFFT)
-}  // namespace phi::funcs
-namespace phi::funcs::detail {
+namespace detail {
 template <typename T>
 static T compute_factor(size_t size, FFTNormMode normalization) {
   constexpr auto one = static_cast<T>(1);
@@ -208,8 +206,7 @@ static T compute_factor(size_t size, FFTNormMode normalization) {
   }
   PADDLE_THROW(phi::errors::InvalidArgument("Unsupported normalization type"));
 }
-}  // namespace phi::funcs::detail
-namespace phi::funcs {
+}  // namespace detail
 
 template <typename Ti, typename To>
 struct FFTC2CFunctor<phi::CPUContext, Ti, To> {
@@ -237,7 +234,7 @@ struct FFTC2CFunctor<phi::CPUContext, Ti, To> {
     // pocketfft requires std::vector<size_t>
     std::vector<size_t> axes_(axes.size());
     std::copy(axes.begin(), axes.end(), axes_.begin());
-    // compute factor
+    // compuet factor
     size_t signal_numel = 1;
     for (const auto axis : axes) {
       signal_numel *= in_sizes[axis];
@@ -294,7 +291,7 @@ struct FFTR2CFunctor<phi::CPUContext, Ti, To> {
     // pocketfft requires std::vector<size_t>
     std::vector<size_t> axes_(axes.size());
     std::copy(axes.begin(), axes.end(), axes_.begin());
-    // compute normalization factor
+    // compuet normalization factor
     size_t signal_numel = 1;
     for (const auto axis : axes) {
       signal_numel *= in_sizes[axis];
@@ -351,7 +348,7 @@ struct FFTC2RFunctor<phi::CPUContext, Ti, To> {
     // pocketfft requires std::vector<size_t>
     std::vector<size_t> axes_(axes.size());
     std::copy(axes.begin(), axes.end(), axes_.begin());
-    // compute normalization factor
+    // compuet normalization factor
     size_t signal_numel = 1;
     for (const auto axis : axes) {
       signal_numel *= out_sizes[axis];
@@ -377,4 +374,5 @@ template struct FFTC2RFunctor<phi::CPUContext, complex64_t, float>;
 template struct FFTC2RFunctor<phi::CPUContext, complex128_t, double>;
 template struct FFTR2CFunctor<phi::CPUContext, float, complex64_t>;
 template struct FFTR2CFunctor<phi::CPUContext, double, complex128_t>;
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

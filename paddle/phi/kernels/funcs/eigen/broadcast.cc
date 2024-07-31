@@ -16,7 +16,8 @@ limitations under the License. */
 #include "paddle/phi/common/float16.h"
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename T, int Rank>
 struct EigenBroadcast<Eigen::DefaultDevice, T, Rank> {
@@ -72,9 +73,7 @@ struct EigenBroadcastGrad<Eigen::DefaultDevice, T, Rank> {
   template struct FUNCTOR<Eigen::DefaultDevice, T, 3>; \
   template struct FUNCTOR<Eigen::DefaultDevice, T, 4>; \
   template struct FUNCTOR<Eigen::DefaultDevice, T, 5>; \
-  template struct FUNCTOR<Eigen::DefaultDevice, T, 6>; \
-  template struct FUNCTOR<Eigen::DefaultDevice, T, 7>; \
-  template struct FUNCTOR<Eigen::DefaultDevice, T, 8>
+  template struct FUNCTOR<Eigen::DefaultDevice, T, 6>
 INSTANTIATION(EigenBroadcast, bool);
 INSTANTIATION(EigenBroadcast, dtype::float16);
 INSTANTIATION(EigenBroadcast, dtype::bfloat16);
@@ -105,4 +104,5 @@ template struct EigenBroadcastGrad<Eigen::DefaultDevice, int, 0>;
 template struct EigenBroadcastGrad<Eigen::DefaultDevice, int64_t, 0>;
 #undef INSTANTIATION
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

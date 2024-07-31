@@ -11,67 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import math
 import numbers
 import random
 import traceback
 from collections.abc import Iterable, Sequence
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Generic,
-    Literal,
-    Protocol,
-    TypeVar,
-    overload,
-)
 
 import numpy as np
-from typing_extensions import TypeAlias
 
 import paddle
 
 from . import functional as F
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-    from PIL.Image import Image as PILImage
-
-    from paddle import Tensor
-    from paddle._typing import DataLayoutImage, Size2, Size3, Size4
-
-    _TransformInputKeys: TypeAlias = Sequence[
-        Literal["image", "coords", "boxes", "mask"]
-    ]
-    from .functional import (
-        _InterpolationCv2,
-        _InterpolationPil,
-        _PaddingMode,
-    )
-
-
-_InputT = TypeVar(
-    "_InputT", "Tensor", "PILImage", "npt.NDArray[Any]", contravariant=True
-)
-_RetT = TypeVar(
-    "_RetT", "Tensor", "PILImage", "npt.NDArray[Any]", covariant=True
-)
-
-
-class _Transform(Protocol, Generic[_InputT, _RetT]):
-    @overload
-    def __call__(self, data: _InputT) -> _RetT:
-        ...
-
-    @overload
-    def __call__(self, data: tuple[_InputT, ...]) -> tuple[_RetT, ...]:
-        ...
-
-    def __call__(self, data) -> Any:
-        ...
-
 
 __all__ = []
 
@@ -88,7 +39,9 @@ def _get_image_size(img):
             return img.shape[2:][::-1]  # nchw -> wh
         else:
             raise ValueError(
-                f"The dim for input Tensor should be 3-D or 4-D, but received {len(img.shape)}"
+                "The dim for input Tensor should be 3-D or 4-D, but received {}".format(
+                    len(img.shape)
+                )
             )
     else:
         raise TypeError(f"Unexpected type {type(img)}")
@@ -110,7 +63,7 @@ def _check_input(
             raise ValueError(f"{name} values should be between {bound}")
     else:
         raise TypeError(
-            f"{name} should be a single number or a list/tuple with length 2."
+            f"{name} should be a single number or a list/tuple with lenght 2."
         )
 
     if value[0] == value[1] == center:
@@ -118,7 +71,7 @@ def _check_input(
     return value
 
 
-class Compose(_Transform[_InputT, _RetT]):
+class Compose:
     """
     Composes several transforms together use for composing list of transforms
     together for a dataset transform.
@@ -128,7 +81,7 @@ class Compose(_Transform[_InputT, _RetT]):
 
     Returns:
         A compose object which is callable, __call__ for this Compose
-        object will call each given :attr:`transforms` sequently.
+        object will call each given :attr:`transforms` sequencely.
 
     Examples:
 
@@ -146,20 +99,10 @@ class Compose(_Transform[_InputT, _RetT]):
             (811, 608) [1]
     """
 
-    transforms: Sequence[_Transform[Any, Any]]
-
-    def __init__(self, transforms: Sequence[_Transform[Any, Any]]) -> None:
+    def __init__(self, transforms):
         self.transforms = transforms
 
-    @overload
-    def __call__(self, data: _InputT) -> _RetT:
-        ...
-
-    @overload
-    def __call__(self, data: tuple[_InputT, ...]) -> tuple[_RetT, ...]:
-        ...
-
-    def __call__(self, data) -> Any:
+    def __call__(self, data):
         for f in self.transforms:
             try:
                 data = f(data)
@@ -167,12 +110,12 @@ class Compose(_Transform[_InputT, _RetT]):
                 stack_info = traceback.format_exc()
                 print(
                     f"fail to perform transform [{f}] with error: "
-                    f"{e} and stack:\n{stack_info}"
+                    f"{e} and stack:\n{str(stack_info)}"
                 )
                 raise e
         return data
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         format_string = self.__class__.__name__ + '('
         for t in self.transforms:
             format_string += '\n'
@@ -181,7 +124,7 @@ class Compose(_Transform[_InputT, _RetT]):
         return format_string
 
 
-class BaseTransform(_Transform[_InputT, _RetT]):
+class BaseTransform:
     """
     Base class of all transforms used in computer vision.
 
@@ -232,7 +175,7 @@ class BaseTransform(_Transform[_InputT, _RetT]):
             ...     else:
             ...         raise TypeError("Unexpected type {}".format(type(img)))
             ...
-            >>> class CustomRandomFlip(BaseTransform): # type: ignore[type-arg]
+            >>> class CustomRandomFlip(BaseTransform):
             ...     def __init__(self, prob=0.5, keys=None):
             ...         super().__init__(keys)
             ...         self.prob = prob
@@ -288,10 +231,7 @@ class BaseTransform(_Transform[_InputT, _RetT]):
 
     """
 
-    keys: _TransformInputKeys
-    params: Any
-
-    def __init__(self, keys: _TransformInputKeys | None = None) -> None:
+    def __init__(self, keys=None):
         if keys is None:
             keys = ("image",)
         elif not isinstance(keys, Sequence):
@@ -307,15 +247,7 @@ class BaseTransform(_Transform[_InputT, _RetT]):
     def _get_params(self, inputs):
         pass
 
-    @overload
-    def __call__(self, inputs: _InputT) -> _RetT:
-        ...
-
-    @overload
-    def __call__(self, inputs: tuple[_InputT, ...]) -> tuple[_RetT, ...]:
-        ...
-
-    def __call__(self, inputs) -> Any:
+    def __call__(self, inputs):
         """Apply transform on single input data"""
         if not isinstance(inputs, tuple):
             inputs = (inputs,)
@@ -350,11 +282,8 @@ class BaseTransform(_Transform[_InputT, _RetT]):
     def _apply_mask(self, mask):
         raise NotImplementedError
 
-    def _apply_coords(self, coords):
-        raise NotImplementedError
 
-
-class ToTensor(BaseTransform[_InputT, "Tensor"]):
+class ToTensor(BaseTransform):
     """Convert a ``PIL.Image`` or ``numpy.ndarray`` to ``paddle.Tensor``.
 
     Converts a PIL.Image or numpy.ndarray (H x W x C) to a paddle.Tensor of shape (C x H x W).
@@ -401,13 +330,7 @@ class ToTensor(BaseTransform[_InputT, "Tensor"]):
             paddle.float32
     """
 
-    data_format: DataLayoutImage
-
-    def __init__(
-        self,
-        data_format: DataLayoutImage = 'CHW',
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+    def __init__(self, data_format='CHW', keys=None):
         super().__init__(keys)
         self.data_format = data_format
 
@@ -422,7 +345,7 @@ class ToTensor(BaseTransform[_InputT, "Tensor"]):
         return F.to_tensor(img, self.data_format)
 
 
-class Resize(BaseTransform[_InputT, _RetT]):
+class Resize(BaseTransform):
     """Resize the input Image to the given size.
 
     Args:
@@ -473,15 +396,7 @@ class Resize(BaseTransform[_InputT, _RetT]):
             (150, 200)
     """
 
-    size: Size2
-    interpolation: _InterpolationPil | _InterpolationCv2
-
-    def __init__(
-        self,
-        size: Size2,
-        interpolation: _InterpolationPil | _InterpolationCv2 = 'bilinear',
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+    def __init__(self, size, interpolation='bilinear', keys=None):
         super().__init__(keys)
         assert isinstance(size, int) or (
             isinstance(size, Iterable) and len(size) == 2
@@ -493,11 +408,11 @@ class Resize(BaseTransform[_InputT, _RetT]):
         return F.resize(img, self.size, self.interpolation)
 
 
-class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
+class RandomResizedCrop(BaseTransform):
     """Crop the input data to random size and aspect ratio.
     A crop of random size (default: of 0.08 to 1.0) of the original size and a random
     aspect ratio (default: of 3/4 to 1.33) of the original aspect ratio is made.
-    After applying crop transform, the input data will be resized to given size.
+    After applying crop transfrom, the input data will be resized to given size.
 
     Args:
         size (int|list|tuple): Target size of output image, with (height, width) shape.
@@ -543,19 +458,14 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
 
     """
 
-    size: Size2
-    scale: Sequence[float]
-    ratio: Sequence[float]
-    interpolation: _InterpolationPil | _InterpolationCv2
-
     def __init__(
         self,
-        size: Size2,
-        scale: Sequence[float] = (0.08, 1.0),
-        ratio: Sequence[float] = (3.0 / 4, 4.0 / 3),
-        interpolation: _InterpolationPil | _InterpolationCv2 = 'bilinear',
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        size,
+        scale=(0.08, 1.0),
+        ratio=(3.0 / 4, 4.0 / 3),
+        interpolation='bilinear',
+        keys=None,
+    ):
         super().__init__(keys)
         if isinstance(size, int):
             self.size = (size, size)
@@ -619,13 +529,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
         w = paddle.ones([1], dtype="int32") * (width + 1)
 
         def cond(counter, ten, i, j, h, w):
-            return paddle.logical_and(
-                counter < ten,
-                paddle.logical_or(
-                    w > width,
-                    h > height,
-                ),
-            )
+            return (counter < ten) and (w > width or h > height)
 
         def body(counter, ten, i, j, h, w):
             target_area = (
@@ -644,10 +548,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
             )
 
             i = paddle.static.nn.cond(
-                paddle.logical_and(
-                    paddle.logical_and(0 < h, h <= height),
-                    paddle.logical_and(0 < w, w <= width),
-                ),
+                0 < w <= width and 0 < h <= height,
                 lambda: paddle.uniform(shape=[1], min=0, max=height - h).astype(
                     "int32"
                 ),
@@ -655,10 +556,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
             )
 
             j = paddle.static.nn.cond(
-                paddle.logical_and(
-                    paddle.logical_and(0 < h, h <= height),
-                    paddle.logical_and(0 < w, w <= width),
-                ),
+                0 < w <= width and 0 < h <= height,
                 lambda: paddle.uniform(shape=[1], min=0, max=width - w).astype(
                     "int32"
                 ),
@@ -689,7 +587,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
                 lambda: paddle.static.nn.cond(
                     in_ratio > self.ratio[1],
                     lambda: [
-                        paddle.round(height * self.ratio[1]).astype("int32"),
+                        paddle.round(height * self.ratio[1]),
                         height.astype("int32"),
                     ],
                     lambda: [width.astype("int32"), height.astype("int32")],
@@ -701,10 +599,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
             return i, j, h, w, counter
 
         return paddle.static.nn.cond(
-            paddle.logical_and(
-                paddle.logical_and(0 < h, h <= height),
-                paddle.logical_and(0 < w, w <= width),
-            ),
+            0 < w <= width and 0 < h <= height,
             lambda: [i, j, h, w, counter],
             lambda: central_crop(width, height),
         )
@@ -719,7 +614,7 @@ class RandomResizedCrop(BaseTransform[_InputT, _RetT]):
         return F.resize(cropped_img, self.size, self.interpolation)
 
 
-class CenterCrop(BaseTransform[_InputT, _RetT]):
+class CenterCrop(BaseTransform):
     """Crops the given the input data at the center.
 
     Args:
@@ -749,11 +644,7 @@ class CenterCrop(BaseTransform[_InputT, _RetT]):
 
     """
 
-    size: Size2
-
-    def __init__(
-        self, size: Size2, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, size, keys=None):
         super().__init__(keys)
         if isinstance(size, numbers.Number):
             self.size = (int(size), int(size))
@@ -764,7 +655,7 @@ class CenterCrop(BaseTransform[_InputT, _RetT]):
         return F.center_crop(img, self.size)
 
 
-class RandomHorizontalFlip(BaseTransform[_InputT, _RetT]):
+class RandomHorizontalFlip(BaseTransform):
     """Horizontally flip the input data randomly with a given probability.
 
     Args:
@@ -799,11 +690,7 @@ class RandomHorizontalFlip(BaseTransform[_InputT, _RetT]):
 
     """
 
-    prob: float
-
-    def __init__(
-        self, prob: float = 0.5, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, prob=0.5, keys=None):
         super().__init__(keys)
         assert 0 <= prob <= 1, "probability must be between 0 and 1"
         self.prob = prob
@@ -827,7 +714,7 @@ class RandomHorizontalFlip(BaseTransform[_InputT, _RetT]):
         )
 
 
-class RandomVerticalFlip(BaseTransform[_InputT, _RetT]):
+class RandomVerticalFlip(BaseTransform):
     """Vertically flip the input data randomly with a given probability.
 
     Args:
@@ -862,11 +749,7 @@ class RandomVerticalFlip(BaseTransform[_InputT, _RetT]):
 
     """
 
-    prob: float
-
-    def __init__(
-        self, prob: float = 0.5, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, prob=0.5, keys=None):
         super().__init__(keys)
         assert 0 <= prob <= 1, "probability must be between 0 and 1"
         self.prob = prob
@@ -890,7 +773,7 @@ class RandomVerticalFlip(BaseTransform[_InputT, _RetT]):
         )
 
 
-class Normalize(BaseTransform[_InputT, _RetT]):
+class Normalize(BaseTransform):
     """Normalize the input data with mean and standard deviation.
     Given mean: ``(M1,...,Mn)`` and std: ``(S1,..,Sn)`` for ``n`` channels,
     this transform will normalize each channel of the input data.
@@ -933,19 +816,9 @@ class Normalize(BaseTransform[_InputT, _RetT]):
 
     """
 
-    mean: Sequence[float]
-    std: Sequence[float]
-    data_format: DataLayoutImage
-    to_rgb: bool
-
     def __init__(
-        self,
-        mean: float | Sequence[float] = 0.0,
-        std: float | Sequence[float] = 1.0,
-        data_format: DataLayoutImage = 'CHW',
-        to_rgb: bool = False,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        self, mean=0.0, std=1.0, data_format='CHW', to_rgb=False, keys=None
+    ):
         super().__init__(keys)
         if isinstance(mean, numbers.Number):
             mean = [mean, mean, mean]
@@ -964,7 +837,7 @@ class Normalize(BaseTransform[_InputT, _RetT]):
         )
 
 
-class Transpose(BaseTransform[_InputT, _RetT]):
+class Transpose(BaseTransform):
     """Transpose input data to a target format.
     For example, most transforms use HWC mode image,
     while the Neural Network might use CHW mode input tensor.
@@ -998,13 +871,7 @@ class Transpose(BaseTransform[_InputT, _RetT]):
 
     """
 
-    order: Sequence[int]
-
-    def __init__(
-        self,
-        order: Sequence[int] = (2, 0, 1),
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+    def __init__(self, order=(2, 0, 1), keys=None):
         super().__init__(keys)
         self.order = order
 
@@ -1020,7 +887,7 @@ class Transpose(BaseTransform[_InputT, _RetT]):
         return img.transpose(self.order)
 
 
-class BrightnessTransform(BaseTransform[_InputT, _RetT]):
+class BrightnessTransform(BaseTransform):
     """Adjust brightness of the image.
 
     Args:
@@ -1030,7 +897,7 @@ class BrightnessTransform(BaseTransform[_InputT, _RetT]):
 
     Shape:
         - img(PIL.Image|np.ndarray|Paddle.Tensor): The input image with shape (H x W x C).
-        - output(PIL.Image|np.ndarray|Paddle.Tensor): An image with a transform in brightness.
+        - output(PIL.Image|np.ndarray|Paddle.Tensor): An image with a transform in brghtness.
 
     Returns:
         A callable object of BrightnessTransform.
@@ -1055,11 +922,7 @@ class BrightnessTransform(BaseTransform[_InputT, _RetT]):
 
     """
 
-    value: float
-
-    def __init__(
-        self, value: float, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, value, keys=None):
         super().__init__(keys)
         self.value = _check_input(value, 'brightness')
 
@@ -1071,7 +934,7 @@ class BrightnessTransform(BaseTransform[_InputT, _RetT]):
         return F.adjust_brightness(img, brightness_factor)
 
 
-class ContrastTransform(BaseTransform[_InputT, _RetT]):
+class ContrastTransform(BaseTransform):
     """Adjust contrast of the image.
 
     Args:
@@ -1102,11 +965,7 @@ class ContrastTransform(BaseTransform[_InputT, _RetT]):
 
     """
 
-    value: float
-
-    def __init__(
-        self, value: float, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, value, keys=None):
         super().__init__(keys)
         if value < 0:
             raise ValueError("contrast value should be non-negative")
@@ -1120,7 +979,7 @@ class ContrastTransform(BaseTransform[_InputT, _RetT]):
         return F.adjust_contrast(img, contrast_factor)
 
 
-class SaturationTransform(BaseTransform[_InputT, _RetT]):
+class SaturationTransform(BaseTransform):
     """Adjust saturation of the image.
 
     Args:
@@ -1150,11 +1009,7 @@ class SaturationTransform(BaseTransform[_InputT, _RetT]):
             (224, 224)
     """
 
-    value: float
-
-    def __init__(
-        self, value: float, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, value, keys=None):
         super().__init__(keys)
         self.value = _check_input(value, 'saturation')
 
@@ -1166,7 +1021,7 @@ class SaturationTransform(BaseTransform[_InputT, _RetT]):
         return F.adjust_saturation(img, saturation_factor)
 
 
-class HueTransform(BaseTransform[_InputT, _RetT]):
+class HueTransform(BaseTransform):
     """Adjust hue of the image.
 
     Args:
@@ -1197,11 +1052,7 @@ class HueTransform(BaseTransform[_InputT, _RetT]):
 
     """
 
-    value: float
-
-    def __init__(
-        self, value: float, keys: _TransformInputKeys | None = None
-    ) -> None:
+    def __init__(self, value, keys=None):
         super().__init__(keys)
         self.value = _check_input(
             value, 'hue', center=0, bound=(-0.5, 0.5), clip_first_on_zero=False
@@ -1215,7 +1066,7 @@ class HueTransform(BaseTransform[_InputT, _RetT]):
         return F.adjust_hue(img, hue_factor)
 
 
-class ColorJitter(BaseTransform[_InputT, _RetT]):
+class ColorJitter(BaseTransform):
     """Randomly change the brightness, contrast, saturation and hue of an image.
 
     Args:
@@ -1252,19 +1103,9 @@ class ColorJitter(BaseTransform[_InputT, _RetT]):
 
     """
 
-    brightness: float
-    contrast: float
-    saturation: float
-    hue: float
-
     def __init__(
-        self,
-        brightness: float = 0,
-        contrast: float = 0,
-        saturation: float = 0,
-        hue: float = 0,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        self, brightness=0, contrast=0, saturation=0, hue=0, keys=None
+    ):
         super().__init__(keys)
         self.brightness = brightness
         self.contrast = contrast
@@ -1313,7 +1154,7 @@ class ColorJitter(BaseTransform[_InputT, _RetT]):
         return transform(img)
 
 
-class RandomCrop(BaseTransform[_InputT, _RetT]):
+class RandomCrop(BaseTransform):
     """Crops the given CV Image at a random location.
 
     Args:
@@ -1370,21 +1211,15 @@ class RandomCrop(BaseTransform[_InputT, _RetT]):
             [3, 224, 224]
     """
 
-    size: Size2
-    padding: Size2 | Size4 | None
-    pad_if_needed: bool
-    fill: Size3
-    padding_mode: _PaddingMode
-
     def __init__(
         self,
-        size: Size2,
-        padding: Size2 | Size4 | None = None,
-        pad_if_needed: bool = False,
-        fill: Size3 = 0,
-        padding_mode: _PaddingMode = 'constant',
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        size,
+        padding=None,
+        pad_if_needed=False,
+        fill=0,
+        padding_mode='constant',
+        keys=None,
+    ):
         super().__init__(keys)
         if isinstance(size, numbers.Number):
             self.size = (int(size), int(size))
@@ -1447,7 +1282,7 @@ class RandomCrop(BaseTransform[_InputT, _RetT]):
         return F.crop(img, i, j, h, w)
 
 
-class Pad(BaseTransform[_InputT, _RetT]):
+class Pad(BaseTransform):
     """Pads the given CV Image on all sides with the given "pad" value.
 
     Args:
@@ -1472,7 +1307,7 @@ class Pad(BaseTransform[_InputT, _RetT]):
 
     Shape:
         - img(PIL.Image|np.ndarray|Paddle.Tensor): The input image with shape (H x W x C).
-        - output(PIL.Image|np.ndarray|Paddle.Tensor): A padded image.
+        - output(PIL.Image|np.ndarray|Paddle.Tensor): A paded image.
 
     Returns:
         A callable object of Pad.
@@ -1492,17 +1327,7 @@ class Pad(BaseTransform[_InputT, _RetT]):
             (228, 228)
     """
 
-    padding: Size2 | Size4
-    fill: Size3
-    padding_mode: _PaddingMode
-
-    def __init__(
-        self,
-        padding: Size2 | Size4,
-        fill: Size3 = 0,
-        padding_mode: _PaddingMode = 'constant',
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+    def __init__(self, padding, fill=0, padding_mode='constant', keys=None):
         assert isinstance(padding, (numbers.Number, list, tuple))
         assert isinstance(fill, (numbers.Number, str, list, tuple))
         assert padding_mode in ['constant', 'edge', 'reflect', 'symmetric']
@@ -1559,7 +1384,7 @@ def _setup_angle(x, name, req_sizes=(2,)):
     return [float(d) for d in x]
 
 
-class RandomAffine(BaseTransform[_InputT, _RetT]):
+class RandomAffine(BaseTransform):
     """Random affine transformation of the image.
 
     Args:
@@ -1590,10 +1415,10 @@ class RandomAffine(BaseTransform[_InputT, _RetT]):
             - "bicubic": cv2.INTER_CUBIC
         fill (int|list|tuple, optional): Pixel fill value for the area outside the transformed
             image. If given a number, the value is used for all bands respectively.
-        center (tuple|None, optional): Optional center of rotation, (x, y).
+        center (2-tuple, optional): Optional center of rotation, (x, y).
             Origin is the upper left corner.
             Default is the center of the image.
-        keys (list[str]|tuple[str]|None, optional): Same as ``BaseTransform``. Default: None.
+        keys (list[str]|tuple[str], optional): Same as ``BaseTransform``. Default: None.
 
     Shape:
         - img(PIL.Image|np.ndarray|Paddle.Tensor): The input image with shape (H x W x C).
@@ -1616,37 +1441,17 @@ class RandomAffine(BaseTransform[_InputT, _RetT]):
             [3, 256, 300]
     """
 
-    degrees: float | list[float] | tuple[float, float]
-    translate: list[float] | tuple[float, float] | None
-    scale: list[float] | tuple[float, float] | None
-    shear: (
-        float
-        | list[float]
-        | tuple[float, float]
-        | tuple[float, float, float, float]
-        | None
-    )
-    interpolation: _InterpolationPil | _InterpolationCv2
-    fill: Size3
-    center: list[float] | tuple[float, float] | None
-
     def __init__(
         self,
-        degrees: float | list[float] | tuple[float, float],
-        translate: list[float] | tuple[float, float] | None = None,
-        scale: list[float] | tuple[float, float] | None = None,
-        shear: (
-            float
-            | list[float]
-            | tuple[float, float]
-            | tuple[float, float, float, float]
-            | None
-        ) = None,
-        interpolation: _InterpolationPil | _InterpolationCv2 = 'nearest',
-        fill: Size3 = 0,
-        center: list[float] | tuple[float, float] | None = None,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        degrees,
+        translate=None,
+        scale=None,
+        shear=None,
+        interpolation='nearest',
+        fill=0,
+        center=None,
+        keys=None,
+    ):
         self.degrees = _setup_angle(degrees, name="degrees", req_sizes=(2,))
 
         super().__init__(keys)
@@ -1742,7 +1547,7 @@ class RandomAffine(BaseTransform[_InputT, _RetT]):
         )
 
 
-class RandomRotation(BaseTransform[_InputT, _RetT]):
+class RandomRotation(BaseTransform):
     """Rotates the image by angle.
 
     Args:
@@ -1790,21 +1595,15 @@ class RandomRotation(BaseTransform[_InputT, _RetT]):
             (150, 200)
     """
 
-    degrees: Sequence[float]
-    interpolation: _InterpolationPil | _InterpolationCv2
-    expand: bool
-    center: tuple[float, float]
-    fill: Size3
-
     def __init__(
         self,
-        degrees: float | Sequence[float],
-        interpolation: _InterpolationPil | _InterpolationCv2 = 'nearest',
-        expand: bool = False,
-        center: tuple[float, float] = None,
-        fill: Size3 = 0,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        degrees,
+        interpolation='nearest',
+        expand=False,
+        center=None,
+        fill=0,
+        keys=None,
+    ):
         if isinstance(degrees, numbers.Number):
             if degrees < 0:
                 raise ValueError(
@@ -1850,7 +1649,7 @@ class RandomRotation(BaseTransform[_InputT, _RetT]):
         )
 
 
-class RandomPerspective(BaseTransform[_InputT, _RetT]):
+class RandomPerspective(BaseTransform):
     """Random perspective transformation with a given probability.
 
     Args:
@@ -1894,19 +1693,14 @@ class RandomPerspective(BaseTransform[_InputT, _RetT]):
             [3, 200, 150]
     """
 
-    prob: float
-    distortion_scale: float
-    interpolation: _InterpolationPil | _InterpolationCv2
-    fill: Size3
-
     def __init__(
         self,
-        prob: float = 0.5,
-        distortion_scale: float = 0.5,
-        interpolation: _InterpolationPil | _InterpolationCv2 = 'nearest',
-        fill: Size3 = 0,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        prob=0.5,
+        distortion_scale=0.5,
+        interpolation='nearest',
+        fill=0,
+        keys=None,
+    ):
         super().__init__(keys)
         assert 0 <= prob <= 1, "probability must be between 0 and 1"
         assert (
@@ -1920,9 +1714,7 @@ class RandomPerspective(BaseTransform[_InputT, _RetT]):
         self.interpolation = interpolation
         self.fill = fill
 
-    def get_params(
-        self, width: int, height: int, distortion_scale: float
-    ) -> tuple[list[list[int]], list[list[int]]]:
+    def get_params(self, width, height, distortion_scale):
         """
         Returns:
             startpoints (list[list[int]]): [top-left, top-right, bottom-right, bottom-left] of the original image,
@@ -1993,7 +1785,7 @@ class RandomPerspective(BaseTransform[_InputT, _RetT]):
         return img
 
 
-class Grayscale(BaseTransform[_InputT, _RetT]):
+class Grayscale(BaseTransform):
     """Converts image to grayscale.
 
     Args:
@@ -2024,13 +1816,7 @@ class Grayscale(BaseTransform[_InputT, _RetT]):
             (224, 224)
     """
 
-    num_output_channels: int
-
-    def __init__(
-        self,
-        num_output_channels: int = 1,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+    def __init__(self, num_output_channels=1, keys=None):
         super().__init__(keys)
         self.num_output_channels = num_output_channels
 
@@ -2045,7 +1831,7 @@ class Grayscale(BaseTransform[_InputT, _RetT]):
         return F.to_grayscale(img, self.num_output_channels)
 
 
-class RandomErasing(BaseTransform[_InputT, _RetT]):
+class RandomErasing(BaseTransform):
     """Erase the pixels in a rectangle region selected randomly.
 
     Args:
@@ -2055,7 +1841,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
         ratio (sequence, optional): Aspect ratio range of the erased area. Default: (0.3, 3.3).
         value (int|float|sequence|str, optional): The value each pixel in erased area will be replaced with.
                                If value is a single number, all pixels will be erased with this value.
-                               If value is a sequence with length 3, the R, G, B channels will be erased
+                               If value is a sequence with length 3, the R, G, B channels will be ereased
                                respectively. If value is set to "random", each pixel will be erased with
                                random values. Default: 0.
         inplace (bool, optional): Whether this transform is inplace. Default: False.
@@ -2089,21 +1875,15 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
 
     """
 
-    prob: float
-    scale: Sequence[float]
-    ratio: Sequence[float]
-    value: int | float | Sequence[float] | str
-    inplace: bool
-
     def __init__(
         self,
-        prob: float = 0.5,
-        scale: Sequence[float] = (0.02, 0.33),
-        ratio: Sequence[float] = (0.3, 3.3),
-        value: float | Sequence[float] | str = 0,
-        inplace: bool = False,
-        keys: _TransformInputKeys | None = None,
-    ) -> None:
+        prob=0.5,
+        scale=(0.02, 0.33),
+        ratio=(0.3, 3.3),
+        value=0,
+        inplace=False,
+        keys=None,
+    ):
         super().__init__(keys)
         assert isinstance(
             scale, (tuple, list)
@@ -2140,7 +1920,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
             scale (sequence, optional): The proportional range of the erased area to the input image.
             ratio (sequence, optional): Aspect ratio range of the erased area.
             value (sequence | None): The value each pixel in erased area will be replaced with.
-                               If value is a sequence with length 3, the R, G, B channels will be erased
+                               If value is a sequence with length 3, the R, G, B channels will be ereased
                                respectively. If value is None, each pixel will be erased with random values.
 
         Returns:
@@ -2190,7 +1970,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
             scale (sequence, optional): The proportional range of the erased area to the input image.
             ratio (sequence, optional): Aspect ratio range of the erased area.
             value (sequence | None): The value each pixel in erased area will be replaced with.
-                               If value is a sequence with length 3, the R, G, B channels will be erased
+                               If value is a sequence with length 3, the R, G, B channels will be ereased
                                respectively. If value is None, each pixel will be erased with random values.
 
         Returns:
@@ -2203,13 +1983,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
         log_ratio = np.log(np.array(ratio))
 
         def cond(counter, ten, erase_h, erase_w):
-            return paddle.logical_and(
-                counter < ten,
-                paddle.logical_or(
-                    erase_h >= h,
-                    erase_w > w,
-                ),
-            )
+            return counter < ten and (erase_h >= h or erase_w >= w)
 
         def body(counter, ten, erase_h, erase_w):
             erase_area = (
@@ -2249,7 +2023,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
 
         zero = paddle.zeros([1]).astype("int32")
         top = paddle.static.nn.cond(
-            paddle.logical_and(erase_h < h, erase_w < w),
+            erase_h < h and erase_w < w,
             lambda: paddle.uniform(
                 shape=[1], min=0, max=h - erase_h + 1
             ).astype("int32"),
@@ -2257,7 +2031,7 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
         )
 
         left = paddle.static.nn.cond(
-            paddle.logical_and(erase_h < h, erase_w < w),
+            erase_h < h and erase_w < w,
             lambda: paddle.uniform(
                 shape=[1], min=0, max=w - erase_w + 1
             ).astype("int32"),
@@ -2265,19 +2039,15 @@ class RandomErasing(BaseTransform[_InputT, _RetT]):
         )
 
         erase_h = paddle.static.nn.cond(
-            paddle.logical_and(erase_h < h, erase_w < w),
-            lambda: erase_h,
-            lambda: h,
+            erase_h < h and erase_w < w, lambda: erase_h, lambda: h
         )
 
         erase_w = paddle.static.nn.cond(
-            paddle.logical_and(erase_h < h, erase_w < w),
-            lambda: erase_w,
-            lambda: w,
+            erase_h < h and erase_w < w, lambda: erase_w, lambda: w
         )
 
         v = paddle.static.nn.cond(
-            paddle.logical_and(erase_h < h, erase_w < w), lambda: v, lambda: img
+            erase_h < h and erase_w < w, lambda: v, lambda: img
         )
 
         return top, left, erase_h, erase_w, v, counter

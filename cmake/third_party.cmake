@@ -13,12 +13,7 @@
 # limitations under the License.
 
 include(ExternalProject)
-# Create a target named "third_party", which can compile external dependencies on all platform(windows/linux/mac)
-
-# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
-  cmake_policy(SET CMP0135 NEW)
-endif()
+# Creat a target named "third_party", which can compile external dependencies on all platform(windows/linux/mac)
 
 set(THIRD_PARTY_PATH
     "${CMAKE_BINARY_DIR}/third_party"
@@ -38,57 +33,19 @@ if(NOT WITH_SETUP_INSTALL)
   #NOTE(risemeup1):Initialize any submodules.
   message(
     STATUS
-      "Check submodules of paddle, and run 'git submodule sync --recursive && git submodule update --init --recursive'"
+      "Check submodules of paddle, and run 'git submodule update --init --recursive'"
   )
-
-  # execute_process does not support sequential commands, so we execute echo command separately
-  execute_process(
-    COMMAND git submodule sync --recursive
-    WORKING_DIRECTORY ${PADDLE_SOURCE_DIR}
-    RESULT_VARIABLE result_var)
-  if(NOT result_var EQUAL 0)
-    message(FATAL_ERROR "Failed to sync submodule, please check your network !")
-  endif()
-
   execute_process(
     COMMAND git submodule update --init --recursive
     WORKING_DIRECTORY ${PADDLE_SOURCE_DIR}
     RESULT_VARIABLE result_var)
   if(NOT result_var EQUAL 0)
-    if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-      set(THIRD_PARTY_TAR_URL
-          https://xly-devops.bj.bcebos.com/PR/build_whl/0/third_party.tar.gz
-          CACHE STRING "third_party.tar.gz url")
-      execute_process(
-        COMMAND wget -q ${THIRD_PARTY_TAR_URL}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        RESULT_VARIABLE wget_result)
-      if(NOT wget_result EQUAL 0)
-        message(
-          FATAL_ERROR
-            "Failed to download third_party.tar.gz, please check your network !"
-        )
-      else()
-        execute_process(
-          COMMAND tar -xzf third_party.tar.gz -C ${CMAKE_SOURCE_DIR}/
-          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-          RESULT_VARIABLE tar_result)
-        if(NOT tar_result EQUAL 0)
-          message(
-            FATAL_ERROR
-              "Failed to extract third_party.tar.gz, please make sure tar.gz file is not corrupted !"
-          )
-        endif()
-      endif()
-    else()
-      message(
-        FATAL_ERROR "Failed to update submodule, please check your network !")
-    endif()
+    message(FATAL_ERROR "Failed to get submodule, please check your network !")
   endif()
 
 endif()
-# cache function to avoid repeat download code of third_party.
-# This function has 4 parameters, URL / REPOSITORY / TAG / DIR:
+# cache funciton to avoid repeat download code of third_party.
+# This function has 4 parameters, URL / REPOSITOR / TAG / DIR:
 # 1. URL:           specify download url of 3rd party
 # 2. REPOSITORY:    specify git REPOSITORY of 3rd party
 # 3. TAG:           specify git tag/branch/commitID of 3rd party
@@ -96,7 +53,7 @@ endif()
 #
 # The function Return 1 PARENT_SCOPE variables:
 #  - ${TARGET}_DOWNLOAD_CMD: Simply place "${TARGET}_DOWNLOAD_CMD" in ExternalProject_Add,
-#                            and you no longer need to set any download steps in ExternalProject_Add.
+#                            and you no longer need to set any donwnload steps in ExternalProject_Add.
 # For example:
 #    Cache_third_party(${TARGET}
 #            REPOSITORY ${TARGET_REPOSITORY}
@@ -177,10 +134,10 @@ macro(UNSET_VAR VAR_NAME)
   unset(${VAR_NAME})
 endmacro()
 
-# Function to Download the dependencies during compilation
+# Funciton to Download the dependencies during compilation
 # This function has 2 parameters, URL / DIRNAME:
 # 1. URL:           The download url of 3rd dependencies
-# 2. NAME:          The name of file, that determine the dirname
+# 2. NAME:          The name of file, that determin the dirname
 #
 function(file_download_and_uncompress URL NAME)
   set(options "")
@@ -281,19 +238,19 @@ if(WIN32 OR APPLE)
 endif()
 
 set(WITH_MKLML ${WITH_MKL})
-if(NOT DEFINED WITH_ONEDNN)
+if(NOT DEFINED WITH_MKLDNN)
   if(WITH_MKL AND AVX2_FOUND)
-    set(WITH_ONEDNN ON)
+    set(WITH_MKLDNN ON)
   else()
     message(STATUS "Do not have AVX2 intrinsics and disabled MKL-DNN.")
-    set(WITH_ONEDNN OFF)
+    set(WITH_MKLDNN OFF)
   endif()
 endif()
 
 if(WIN32)
   if(MSVC)
     if(MSVC_VERSION LESS 1920)
-      set(WITH_ONEDNN OFF)
+      set(WITH_MKLDNN OFF)
     endif()
   endif()
 endif()
@@ -330,7 +287,7 @@ if(WITH_CINN)
   if(WITH_MKL)
     add_definitions(-DCINN_WITH_MKL_CBLAS)
   endif()
-  if(WITH_ONEDNN)
+  if(WITH_MKLDNN)
     add_definitions(-DCINN_WITH_DNNL)
   endif()
   include(cmake/cinn/version.cmake)
@@ -345,6 +302,22 @@ if(WITH_CINN)
   include(cmake/cinn/external/ginac.cmake)
   include(cmake/cinn/external/openmp.cmake)
   include(cmake/cinn/external/jitify.cmake)
+endif()
+
+# cinn_only includes third-party libraries separately
+if(CINN_ONLY)
+  include(external/gtest)
+  include(external/protobuf)
+  if(WITH_PYTHON)
+    include(external/pybind11)
+  endif()
+  if(WITH_MKL)
+    include(external/mklml)
+  endif()
+  if(WITH_MKLDNN)
+    include(external/mkldnn)
+  endif()
+  return()
 endif()
 
 include(external/eigen) # download eigen3
@@ -389,24 +362,14 @@ elseif(${CBLAS_PROVIDER} STREQUAL EXTERN_OPENBLAS)
   list(APPEND third_party_deps extern_openblas)
 endif()
 
-if(WITH_ONEDNN)
-  include(external/onednn) # download, build, install onednn
-  list(APPEND third_party_deps extern_onednn)
+if(WITH_MKLDNN)
+  include(external/mkldnn) # download, build, install mkldnn
+  list(APPEND third_party_deps extern_mkldnn)
 endif()
 
 include(external/protobuf) # find first, then download, build, install protobuf
 if(TARGET extern_protobuf)
   list(APPEND third_party_deps extern_protobuf)
-endif()
-
-include(external/json) # find first, then build json
-if(TARGET extern_json)
-  list(APPEND third_party_deps extern_json)
-endif()
-
-include(external/yaml) # find first, then build yaml
-if(TARGET extern_yaml)
-  list(APPEND third_party_deps extern_yaml)
 endif()
 
 if(NOT ((NOT WITH_PYTHON) AND ON_INFER))
@@ -566,6 +529,11 @@ if(WITH_DGC)
   list(APPEND third_party_deps extern_dgc)
 endif()
 
+if(WITH_LITE)
+  message(STATUS "Compile Paddle with Lite Engine.")
+  include(external/lite)
+endif()
+
 if(WITH_CRYPTO)
   include(external/cryptopp) # download, build, install cryptopp
   list(APPEND third_party_deps extern_cryptopp)
@@ -591,12 +559,6 @@ endif()
 if(WITH_CUSPARSELT)
   include(external/cusparselt) # download, build, install cusparselt
   list(APPEND third_party_deps extern_cusparselt)
-endif()
-
-if(WITH_ROCM)
-  include(external/flashattn)
-  list(APPEND third_party_deps extern_flashattn)
-  set(WITH_FLASHATTN ON)
 endif()
 
 if(WITH_GPU

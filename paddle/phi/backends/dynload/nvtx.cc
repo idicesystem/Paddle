@@ -14,7 +14,8 @@ limitations under the License. */
 #ifndef _WIN32
 #include "paddle/phi/backends/dynload/nvtx.h"
 
-namespace phi::dynload {
+namespace phi {
+namespace dynload {
 
 std::once_flag nvtx_dso_flag;
 void *nvtx_dso_handle;
@@ -23,5 +24,6 @@ void *nvtx_dso_handle;
 
 NVTX_ROUTINE_EACH(DEFINE_WRAP);
 
-}  // namespace phi::dynload
+}  // namespace dynload
+}  // namespace phi
 #endif

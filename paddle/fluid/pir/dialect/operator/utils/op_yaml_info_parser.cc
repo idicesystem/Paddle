@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include "paddle/fluid/pir/dialect/operator/utils/op_yaml_info_parser.h"
-
-#include <utility>
 #include "paddle/phi/core/enforce.h"
 
-namespace paddle::dialect {
+namespace paddle {
+namespace dialect {
 
-OpYamlInfoParser::OpYamlInfoParser(OpInfoTuple op_info_tuple, bool is_legacy_op)
-    : op_info_tuple_(std::move(op_info_tuple)), is_legacy_op_(is_legacy_op) {
+OpYamlInfoParser::OpYamlInfoParser(const OpInfoTuple& op_info_tuple,
+                                   bool is_legacy_op)
+    : op_info_tuple_(op_info_tuple), is_legacy_op_(is_legacy_op) {
   parse();
 }
 
@@ -28,7 +28,7 @@ bool OpYamlInfoParser::IsTensorAttribute(size_t index) const {
   PADDLE_ENFORCE_LT(
       index,
       InputInfo().size(),
-      phi::errors::OutOfRange("Input index [%d] large than op input size [%d]",
+      phi::errors::OutOfRange("Input index [%d] large than op input size [d]",
                               index,
                               InputInfo().size()));
 
@@ -153,8 +153,8 @@ std::unordered_map<uint32_t, uint32_t> OpYamlInfoParser::GetInplaceIdMap()
 
 bool OpYamlInfoParser::HasView(const std::string& out_name) const {
   auto& view_info = std::get<3>(op_info_tuple_).view;
-  for (const auto& i : view_info) {
-    if (out_name == i.first) {
+  for (size_t i = 0; i < view_info.size(); i++) {
+    if (out_name == view_info[i].first) {
       return true;
     }
   }
@@ -164,9 +164,9 @@ bool OpYamlInfoParser::HasView(const std::string& out_name) const {
 const std::string& OpYamlInfoParser::ViewName(
     const std::string& out_name) const {
   auto& view_info = std::get<3>(op_info_tuple_).view;
-  for (const auto& i : view_info) {
-    if (out_name == i.first) {
-      return i.second;
+  for (size_t i = 0; i < view_info.size(); i++) {
+    if (out_name == view_info[i].first) {
+      return view_info[i].second;
     }
   }
   PADDLE_THROW(phi::errors::PreconditionNotMet(
@@ -232,10 +232,11 @@ int OpYamlInfoParser::GetTensorParamIndexByArgsName(
                                kernel_fn_tensor_params_.end(),
                                args_name);
   if (iter != kernel_fn_tensor_params_.end()) {
-    return std::distance(kernel_fn_tensor_params_.begin(), iter);  // NOLINT
+    return std::distance(kernel_fn_tensor_params_.begin(), iter);
   } else {
     return -1;
   }
 }
 
-}  // namespace paddle::dialect
+}  // namespace dialect
+}  // namespace paddle

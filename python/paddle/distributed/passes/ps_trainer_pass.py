@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+
 from _collections import defaultdict
 
 import paddle
@@ -564,7 +565,11 @@ class DeleteOptimizesPass(PassBase):
             set(remote_optimize_op_role_vars)
         )  # param + grad
         print(
-            f"remote_optimize_vars: {remote_optimize_vars}, remote_optimize_op_role_vars: {remote_optimize_op_role_vars}, local_optimize_vars: {local_optimize_vars}"
+            "remote_optimize_vars: {}, remote_optimize_op_role_vars: {}, local_optimize_vars: {}".format(
+                remote_optimize_vars,
+                remote_optimize_op_role_vars,
+                local_optimize_vars,
+            )
         )
         for var in remote_optimize_vars:
             if var in local_optimize_vars:
@@ -840,21 +845,10 @@ class PsTranspilePass(PassBase):
         return True
 
     def _apply_single_impl(self, main_program, startup_program, pass_ctx):
-        attrs = pass_ctx._attrs
-        if attrs['use_gpu_graph'] == 0:
-            from ..transpiler.collective import MultiThread
-
-            t = MultiThread()
-            print("ps_transpile_pass use MultiThread for non_gpu_graph mode")
-        else:
-            from ..transpiler.collective import SingleProcessMultiThread
-
-            t = SingleProcessMultiThread()
-            print(
-                "ps_transpile_pass use SingleProcessMultiThread for gpu_graph mode"
-            )
+        from ..transpiler.collective import SingleProcessMultiThread
 
         attrs = pass_ctx._attrs
+        t = SingleProcessMultiThread()
         env = get_dist_env()
         t.transpile(
             startup_program=startup_program,
@@ -896,8 +890,8 @@ class SplitHeterWorkerOpsPass(PassBase):
         #         joint_var.0_1 -> slice -> reshape -> origin_var
         #         origin_var -> origin_program
         #         reshape -> concat -> joint_var.1_2
-        #     d) copy send op from origin program for var@grad which located in current heter block
-        #     e) re-check every op in current block if its device is not current heter device
+        #     d) copy send op from origin program for var@grad which loacted in current heter block
+        #     e) re-check every op in current blcok if its device is not current heter devie
         # 2. Create send op for step counter in last heter-block
         # 3. Create Listen&Serv OP and Send&Recv OP for distributed training
         # 4. update CompileTimeStrategy for heter_program
@@ -1046,9 +1040,9 @@ class SplitHeterWorkerOpsPass(PassBase):
         3. create heter worker program, add listen&serv op
         """
         attrs = pass_ctx._attrs
-        default_device = "cpu"
+        default_deveice = "cpu"
         program, heter_ops, _, program_block_ops = find_heter_ops(
-            main_program, default_device
+            main_program, default_deveice
         )
         if len(heter_ops) == 0:
             warnings.warn(

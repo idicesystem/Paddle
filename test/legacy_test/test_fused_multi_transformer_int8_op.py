@@ -21,11 +21,12 @@ import paddle
 import paddle.nn.functional as F
 from paddle import _legacy_C_ops, tensor
 from paddle.base import core
+from paddle.base.framework import default_main_program
 from paddle.nn.layer.common import Dropout
 from paddle.nn.layer.norm import LayerNorm
 from paddle.nn.layer.transformer import _convert_attention_mask
 
-paddle.seed(42)
+default_main_program().random_seed = 42
 np.random.seed(0)
 
 

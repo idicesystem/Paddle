@@ -21,7 +21,7 @@
 
 #include "paddle/common/ddim.h"
 #include "paddle/fluid/framework/lod_tensor_array.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace framework {
@@ -37,26 +37,26 @@ class ReaderBase {
     PADDLE_ENFORCE_EQ(
         shapes_.size(),
         need_check_feed_.size(),
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Construct ReaderBase with mismatched sizes of shapes "
             "and need_check_feed"));
     PADDLE_ENFORCE_EQ(
         var_types_.size(),
         need_check_feed_.size(),
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Construct ReaderBase with mismatched sizes of var_types "
             "and need_check_feed"));
   }
 
-  TEST_API virtual void ReadNext(paddle::framework::LoDTensorArray* out);
+  virtual void ReadNext(paddle::framework::LoDTensorArray* out);
 
-  TEST_API virtual void Shutdown();
+  virtual void Shutdown();
 
-  TEST_API virtual void Start();
+  virtual void Start();
 
   // Return the readers which are the end of decorating chain. Basically
   // they are readers just before read op.
-  TEST_API std::unordered_set<ReaderBase*> GetEndPoints();
+  std::unordered_set<ReaderBase*> GetEndPoints();
 
   // Returns the shapes of the fed variables
   const std::vector<DDim>& Shapes() const { return shapes_; }
@@ -70,7 +70,7 @@ class ReaderBase {
   // This function returns whether you have the check shape for this Reader.
   const std::vector<bool>& NeedCheckFeed() const { return need_check_feed_; }
 
-  TEST_API virtual ~ReaderBase();
+  virtual ~ReaderBase();
 
  protected:
   virtual void ReadNextImpl(paddle::framework::LoDTensorArray* out UNUSED) {}
@@ -98,7 +98,7 @@ class ReaderBase {
   friend class DecoratedReader;
   // These methods can be only invoked inside DecoratedReader to record the
   // decorating chain.
-  TEST_API void InsertDecoratedReader(
+  void InsertDecoratedReader(
       const std::shared_ptr<ReaderBase>& decorated_reader);
   // A set of which readers that decorated this reader.
   std::vector<std::weak_ptr<ReaderBase>> decorated_readers_;
@@ -113,7 +113,7 @@ class DecoratedReader : public ReaderBase,
         reader_(reader) {
     PADDLE_ENFORCE_NOT_NULL(
         reader_,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The underlying reader of DecoratedReader should not be null"));
   }
 
@@ -121,7 +121,7 @@ class DecoratedReader : public ReaderBase,
     reader_->InsertDecoratedReader(shared_from_this());
   }
 
-  TEST_API ~DecoratedReader();
+  ~DecoratedReader();
 
   const std::shared_ptr<ReaderBase>& UnderlyingReader() const {
     return reader_;
@@ -156,7 +156,7 @@ class ReaderHolder {
     auto reader_base = std::dynamic_pointer_cast<ReaderBase>(reader);
     PADDLE_ENFORCE_NOT_NULL(
         reader_base,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The underlying reader of ReaderHolder should not be null"));
     reader_ = reader_base;
   }
@@ -168,7 +168,7 @@ class ReaderHolder {
   void ReadNext(paddle::framework::LoDTensorArray* out) {
     PADDLE_ENFORCE_NOT_NULL(
         reader_,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The underlying reader of ReaderHolder should not be null"));
     reader_->ReadNext(out);
   }
@@ -188,7 +188,7 @@ class ReaderHolder {
     VLOG(1) << "Shutdown";
     PADDLE_ENFORCE_NOT_NULL(
         reader_,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The underlying reader of ReaderHolder should not be null"));
     reader_->Shutdown();
   }
@@ -197,7 +197,7 @@ class ReaderHolder {
     VLOG(1) << "start";
     PADDLE_ENFORCE_NOT_NULL(
         reader_,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The underlying reader of ReaderHolder should not be null"));
     reader_->Start();
   }

@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-from paddle.cinn import ir, lang, to_cinn_llir
-from paddle.cinn.runtime.data_array import DataArray
+from cinn import ir, lang, to_cinn_llir
+from cinn.runtime.data_array import DataArray
 
 
 def test_call_extern():

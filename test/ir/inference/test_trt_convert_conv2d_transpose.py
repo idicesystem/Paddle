@@ -80,6 +80,7 @@ class TrtConvertConv2dTransposeTest(TrtLayerAutoScanTest):
                                         self.num_channels = num_channels
                                         dics = [
                                             {
+                                                "data_fromat": data_format,
                                                 "dilations": dilations,
                                                 "padding_algorithm": padding_algorithm,
                                                 "groups": groups,
@@ -271,7 +272,7 @@ class TrtConvertConv2dTransposeTest2(TrtLayerAutoScanTest):
         self.num_channels = num_channels
         dics = [
             {
-                "data_format": 'NCHW',
+                "data_fromat": 'NCHW',
                 "dilations": [1, 1],
                 "padding_algorithm": 'EXPLICIT',
                 "groups": 1,

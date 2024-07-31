@@ -15,7 +15,9 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 #include "paddle/fluid/inference/tensorrt/plugin/swish_op_plugin.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class SwishOpConverter : public OpConverter {
  public:
@@ -29,7 +31,7 @@ class SwishOpConverter : public OpConverter {
     int input_num = op_desc.Input("X").size();
     PADDLE_ENFORCE_EQ(input_num,
                       1,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The input X's size must equal to 1 in TRT swish op."
                           " But received X's size %d.",
                           input_num));
@@ -39,7 +41,7 @@ class SwishOpConverter : public OpConverter {
     PADDLE_ENFORCE_EQ(
         output_num,
         1UL,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The output Out's size must equal to 1 in TRT swish op. "
             "But received Out's size %u.",
             output_num));
@@ -72,10 +74,12 @@ class SwishOpConverter : public OpConverter {
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "swish", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "swish", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(swish, SwishOpConverter);

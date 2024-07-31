@@ -24,8 +24,6 @@
 #include "paddle/cinn/common/shared.h"
 #include "paddle/cinn/common/target.h"
 #include "paddle/cinn/common/type.h"
-#include "paddle/cinn/utils/error.h"
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 

@@ -106,8 +106,7 @@ float CalculateEstOccupancy(uint32_t DeviceId,
   float occupancy = 0.0;
   std::vector<int> device_ids = GetSelectedDevices();
   if (DeviceId < device_ids.size()) {
-    const gpuDeviceProp& device_property =
-        GetDeviceProperties(static_cast<int>(DeviceId));
+    const gpuDeviceProp& device_property = GetDeviceProperties(DeviceId);
     cudaOccFuncAttributes occFuncAttr;
     occFuncAttr.maxThreadsPerBlock = INT_MAX;
     occFuncAttr.numRegs = RegistersPerThread;
@@ -128,13 +127,11 @@ float CalculateEstOccupancy(uint32_t DeviceId,
                                                 blockSize,
                                                 dynamicSmemSize);
     if (status == CUDA_OCC_SUCCESS) {
-      if (static_cast<float>(occ_result.activeBlocksPerMultiprocessor) <
-          BlocksPerSm) {
-        BlocksPerSm =
-            static_cast<float>(occ_result.activeBlocksPerMultiprocessor);
+      if (occ_result.activeBlocksPerMultiprocessor < BlocksPerSm) {
+        BlocksPerSm = occ_result.activeBlocksPerMultiprocessor;
       }
       occupancy =
-          BlocksPerSm * static_cast<float>(blockSize) /
+          BlocksPerSm * blockSize /
           static_cast<float>(device_property.maxThreadsPerMultiProcessor);
     } else {
       LOG(WARNING) << "Failed to calculate estimated occupancy, status = "
@@ -148,16 +145,16 @@ float CalculateEstOccupancy(uint32_t DeviceId,
 #endif  // PADDLE_WITH_CUPTI
 
 const char* StringTracerMemEventType(TracerMemEventType type) {
-  static const char* category_name_[] = {// NOLINT
+  static const char* categary_name_[] = {// NOLINT
                                          "Allocate",
                                          "Free",
                                          "ReservedAllocate",
                                          "ReservedFree"};
-  return category_name_[static_cast<int>(type)];
+  return categary_name_[static_cast<int>(type)];
 }
 
 const char* StringTracerEventType(TracerEventType type) {
-  static const char* category_name_[] = {"Operator",  // NOLINT
+  static const char* categary_name_[] = {"Operator",  // NOLINT
                                          "Dataloader",
                                          "ProfileStep",
                                          "CudaRuntime",
@@ -172,7 +169,7 @@ const char* StringTracerEventType(TracerEventType type) {
                                          "Communication",
                                          "PythonOp",
                                          "PythonUserDefined"};
-  return category_name_[static_cast<int>(type)];
+  return categary_name_[static_cast<int>(type)];
 }
 
 }  // namespace platform

@@ -26,6 +26,7 @@
 #include "paddle/cinn/common/ir_util.h"
 #include "paddle/cinn/common/macros.h"
 #include "paddle/cinn/common/target.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
 #include "paddle/cinn/hlir/op/op_util.h"
@@ -37,6 +38,7 @@
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/op/ir_operators.h"
 #include "paddle/cinn/ir/tensor.h"
+#include "paddle/cinn/lang/builtin.h"
 #include "paddle/cinn/lang/compute.h"
 #include "paddle/cinn/lang/packed_func.h"
 #include "paddle/cinn/poly/stage.h"
@@ -63,7 +65,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForCholesky(
         ir::Tensor x = x_expr.as_tensor_ref();
         std::string tensor_name = "cholesky_out";
         auto out = pe::Identity(x, tensor_name).front();
-        std::vector<CINNValue> res{CINNValue(out)};
+        auto stages = CreateStages({out});
+        std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
         *ret = CINNValuePack{res};
       });
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -72,6 +75,29 @@ std::shared_ptr<framework::OpStrategy> StrategyForCholesky(
                     "strategy.cholesky.x86",
                     1);
   return strategy;
+}
+
+std::vector<framework::shape_t> InferShapeForCholesky(
+    const std::vector<framework::shape_t> &inputs_shape,
+    const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 1U)
+      << "The input's shape size should be 1! Please check again.";
+  framework::shape_t x_shape = inputs_shape[0];
+  int x_shape_size = x_shape.size();
+  CHECK_GE(x_shape_size, 2U)
+      << "The input x shape size should >= 2! Please check again.";
+  CHECK_EQ(x_shape[x_shape_size - 2], x_shape[x_shape_size - 1])
+      << "The last two dimensions of the input x must be the same!";
+  return inputs_shape;
+}
+
+std::vector<Type> InferDtypeForCholesky(const std::vector<Type> &inputs_type,
+                                        const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 1U)
+      << "The input's shape size should be 1! Please check again.";
+  CHECK(inputs_type[0].is_float(32) || inputs_type[0].is_float(64))
+      << "The input's dtype should be float32 or float64! Please check again.";
+  return inputs_type;
 }
 
 }  // namespace op
@@ -85,6 +111,10 @@ CINN_REGISTER_HELPER(cholesky_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>(
           "CINNStrategy", cinn::hlir::op::StrategyForCholesky)
+      .set_attr("infershape",
+                MakeOpFunction(cinn::hlir::op::InferShapeForCholesky))
+      .set_attr("inferdtype",
+                MakeOpFunction(cinn::hlir::op::InferDtypeForCholesky))
       .set_attr<cinn::hlir::framework::OpPatternKind>(
           "OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);

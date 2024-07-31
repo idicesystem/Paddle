@@ -18,7 +18,7 @@
 #include <unordered_map>
 
 #include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/core/os_info.h"
+#include "paddle/fluid/platform/os_info.h"
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
 #include "paddle/phi/backends/device_manager.h"
 #endif
@@ -26,8 +26,7 @@
 namespace paddle {
 namespace platform {
 
-CustomTracer::CustomTracer(const std::string& dev_type)
-    : dev_type_(dev_type), context_(nullptr) {
+CustomTracer::CustomTracer(const std::string& dev_type) : dev_type_(dev_type) {
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
   auto selected_devices = phi::DeviceManager::GetSelectedDeviceList(dev_type_);
   if (selected_devices.size()) {
@@ -62,7 +61,7 @@ void CustomTracer::PrepareTracing() {
   PADDLE_ENFORCE_EQ(
       state_ == TracerState::UNINITED || state_ == TracerState::STOPED,
       true,
-      common::errors::PreconditionNotMet("CustomTracer must be UNINITED"));
+      platform::errors::PreconditionNotMet("CustomTracer must be UNINITED"));
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
   phi::DeviceManager::ProfilerPrepareTracing(dev_type_, &collector_, context_);
 #endif
@@ -73,11 +72,11 @@ void CustomTracer::StartTracing() {
   PADDLE_ENFORCE_EQ(
       state_ == TracerState::READY,
       true,
-      common::errors::PreconditionNotMet("Tracer must be READY or STOPPED"));
+      platform::errors::PreconditionNotMet("Tracer must be READY or STOPPED"));
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
   phi::DeviceManager::ProfilerStartTracing(dev_type_, &collector_, context_);
 #endif
-  tracing_start_ns_ = phi::PosixInNsec();
+  tracing_start_ns_ = PosixInNsec();
   state_ = TracerState::STARTED;
 }
 
@@ -85,7 +84,7 @@ void CustomTracer::StopTracing() {
   PADDLE_ENFORCE_EQ(
       state_,
       TracerState::STARTED,
-      common::errors::PreconditionNotMet("Tracer must be STARTED"));
+      platform::errors::PreconditionNotMet("Tracer must be STARTED"));
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
   phi::DeviceManager::ProfilerStopTracing(dev_type_, &collector_, context_);
 #endif
@@ -96,7 +95,7 @@ void CustomTracer::CollectTraceData(TraceEventCollector* collector) {
   PADDLE_ENFORCE_EQ(
       state_,
       TracerState::STOPED,
-      common::errors::PreconditionNotMet("Tracer must be STOPED"));
+      platform::errors::PreconditionNotMet("Tracer must be STOPED"));
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
   phi::DeviceManager::ProfilerCollectTraceData(
       dev_type_, &collector_, tracing_start_ns_, context_);

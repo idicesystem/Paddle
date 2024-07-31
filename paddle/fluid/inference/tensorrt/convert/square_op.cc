@@ -36,7 +36,7 @@ class SquareOpConverter : public OpConverter {
                                        nvinfer1::ElementWiseOperation::kPROD);
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "square", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "square", {output_name}, test_mode);
   }
 };
 

@@ -17,7 +17,8 @@ limitations under the License. */
 #include "paddle/fluid/distributed/the_one_ps.pb.h"
 // #include "paddle/fluid/distributed/ps/table/sparse_geo_table.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 TEST(Table, Initialize) {
   TableParameter table_config;
@@ -28,4 +29,5 @@ TEST(Table, Initialize) {
   auto ret = table->Initialize(table_config, fs_config);
   ASSERT_EQ(ret, -1);
 }
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

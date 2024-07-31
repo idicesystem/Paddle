@@ -21,7 +21,7 @@
 #include "paddle/common/ddim.h"
 #include "paddle/fluid/framework/lod_tensor.h"
 #include "paddle/fluid/operators/reader/blocking_queue.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace operators {
@@ -92,14 +92,14 @@ class OrderedMultiDeviceLoDTensorBlockingQueue {
       std::lock_guard<std::mutex> lock(init_mutex_);
       PADDLE_ENFORCE_GE(dev_cnt,
                         1,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "Device count to init "
                             "OrderedMultiDeviceLoDTensorBlockingQueue"
                             " must be larger than 1"));
       if (!queues_.empty()) {
         PADDLE_ENFORCE_EQ(queues_.size(),
                           dev_cnt,
-                          common::errors::InvalidArgument(
+                          platform::errors::InvalidArgument(
                               "queues should be only inited once"));
         return;
       }
@@ -119,7 +119,7 @@ class OrderedMultiDeviceLoDTensorBlockingQueue {
     PADDLE_ENFORCE_LT(
         idx,
         queues_.size(),
-        common::errors::OutOfRange("The queue index is out of range"));
+        platform::errors::OutOfRange("The queue index is out of range"));
     return queues_[idx];
   }
 
@@ -184,7 +184,7 @@ class OrderedMultiDeviceLoDTensorBlockingQueue {
   void EnforceIsInited() const {
     PADDLE_ENFORCE_EQ(queues_.empty(),
                       false,
-                      common::errors::NotFound("queue has not been inited"));
+                      platform::errors::NotFound("queue has not been inited"));
   }
 
  private:
@@ -209,8 +209,8 @@ class LoDTensorBlockingQueueHolder {
     PADDLE_ENFORCE_EQ(
         queue_,
         nullptr,
-        common::errors::AlreadyExists("LoDTensorBlockingQueueHolder::"
-                                      "InitOnce() can only be called once"));
+        platform::errors::AlreadyExists("LoDTensorBlockingQueueHolder::"
+                                        "InitOnce() can only be called once"));
     queue_ =
         std::make_unique<LoDTensorBlockingQueue>(capacity, speed_test_mode);
   }
@@ -228,7 +228,7 @@ class OrderedMultiDeviceLoDTensorBlockingQueueHolder {
   void InitOnce(size_t capacity, bool speed_test_mode = false) {
     PADDLE_ENFORCE_EQ(queue_,
                       nullptr,
-                      common::errors::AlreadyExists(
+                      platform::errors::AlreadyExists(
                           "OrderedMultiDeviceLoDTensorBlockingQueueHolder::"
                           "InitOnce() can only be called once"));
     queue_ = std::make_unique<OrderedMultiDeviceLoDTensorBlockingQueue>(

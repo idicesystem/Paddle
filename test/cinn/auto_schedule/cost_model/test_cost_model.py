@@ -17,8 +17,7 @@ import shutil
 import unittest
 
 import numpy as np
-
-from paddle.cinn.auto_schedule.cost_model import CostModel
+from cinn.auto_schedule.cost_model import CostModel
 
 
 class TestCostModel(unittest.TestCase):

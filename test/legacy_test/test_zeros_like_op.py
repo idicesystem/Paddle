@@ -59,7 +59,7 @@ class TestZerosLikeAPI(unittest.TestCase):
             self.assertEqual((outs[i] == np.zeros(shape, dtype)).all(), True)
 
 
-class TestZerosLikeImperative(unittest.TestCase):
+class TestZerosLikeImpeartive(unittest.TestCase):
     def test_out(self):
         shape = [3, 4]
         place = (

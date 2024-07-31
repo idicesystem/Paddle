@@ -55,14 +55,11 @@ class TestBase(IPUOpTest):
         x = paddle.static.data(
             name=self.feed_list[0], shape=self.feed_shape[0], dtype='float32'
         )
-        x = paddle.nn.Conv2D(
-            in_channels=x.shape[1],
-            out_channels=3,
-            kernel_size=3,
-            bias_attr=False,
+        x = paddle.static.nn.conv2d(
+            x, num_filters=3, filter_size=3, bias_attr=False
         )
-        x = paddle.nn.BatchNorm(num_channels=x.shape[1], **self.attrs)(x)
-        self.fetch_list = [x]
+        x = paddle.static.nn.batch_norm(x, **self.attrs)
+        self.fetch_list = [x.name]
 
     def run_model(self, exec_mode):
         self.run_op_test(exec_mode)

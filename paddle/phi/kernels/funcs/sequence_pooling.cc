@@ -21,7 +21,8 @@ limitations under the License. */
 #include "paddle/phi/kernels/funcs/jit/kernels.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename T,
           int MajorType = Eigen::RowMajor,
@@ -416,7 +417,7 @@ class SequencePoolFunctor<phi::CPUContext, T> {
       int64_t h = static_cast<int64_t>(lod[i + 1] - lod[i]);
       auto in_e = EigenMatrix<T>::From(in_t, common::make_ddim({h, w}));
       auto out_e = EigenVector<T>::Flatten(out_t);
-      if (pooltype == "AVERAGE") {  // NOLINT
+      if (pooltype == "AVERAGE") {
         out_e.device(place) = in_e.mean(Eigen::array<int, 1>({{0}}));
       } else if (pooltype == "SQRT") {
         out_e.device(place) = in_e.sum(Eigen::array<int, 1>({{0}})) /
@@ -497,4 +498,5 @@ template class SequencePoolFunctor<phi::CPUContext, double>;
 template class SequencePoolGradFunctor<phi::CPUContext, float>;
 template class SequencePoolGradFunctor<phi::CPUContext, double>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

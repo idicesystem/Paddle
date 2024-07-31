@@ -17,7 +17,7 @@ import sys
 import unittest
 
 import numpy as np
-from auto_parallel_pass_test_base import AutoParallelPassTestBase
+from auto_parallel_pass_test_base import AutoPallelPassTestBase
 
 import paddle
 from paddle.distributed import fleet
@@ -32,7 +32,7 @@ from paddle.distributed.passes import PassContext, new_pass
 sys.path.append("..")
 
 
-class TestDataParallelPassWithScale1(AutoParallelPassTestBase):
+class TestDataParallelPassWithScale1(AutoPallelPassTestBase):
     def init(self):
         if paddle.is_compiled_with_cuda():
             paddle.set_flags({'FLAGS_cudnn_deterministic': 1})

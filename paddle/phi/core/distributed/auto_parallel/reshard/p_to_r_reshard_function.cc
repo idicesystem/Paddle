@@ -25,7 +25,8 @@
 #include "paddle/phi/kernels/elementwise_divide_kernel.h"
 #include "paddle/phi/kernels/full_kernel.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 
 bool PToRReshardFunction::IsSuitable(const DistTensor& in,
                                      const TensorDistAttr& out_dist_attr) {
@@ -46,7 +47,7 @@ void PToRReshardFunction::Eval(DeviceContext* dev_ctx,
                                const DistTensor& in,
                                const TensorDistAttr& out_dist_attr,
                                DistTensor* out) {
-  VLOG(3) << "Call " << Name();
+  VLOG(3) << "Call PToRReshardFunction Eval";
   const auto& in_dist_attr = in.dist_attr();
   const auto& in_process_mesh = in_dist_attr.process_mesh();
   const auto& in_process_ids = in_process_mesh.process_ids();
@@ -104,8 +105,6 @@ bool PToRReshardFunctionCrossMesh::IsSuitable(
 
   RESHARD_SHORTCUT_IF_FALSE(in_process_mesh.ndim() == 1);
   RESHARD_SHORTCUT_IF_FALSE(out_process_mesh.ndim() == 1);
-  RESHARD_SHORTCUT_IF_FALSE(in_process_mesh.shape() ==
-                            out_process_mesh.shape());
   RESHARD_SHORTCUT_IF_FALSE(in_process_mesh != out_process_mesh);
 
   return true;
@@ -115,7 +114,7 @@ void PToRReshardFunctionCrossMesh::Eval(phi::DeviceContext* dev_ctx,
                                         const DistTensor& in,
                                         const TensorDistAttr& out_dist_attr,
                                         DistTensor* out) {
-  VLOG(3) << "Call " << Name();
+  VLOG(3) << "Call PToRReshardFunctionCrossMesh Eval";
   const auto& out_process_mesh = out_dist_attr.process_mesh();
 
   DistTensor tmp_result;
@@ -141,4 +140,5 @@ void PToRReshardFunctionCrossMesh::Eval(phi::DeviceContext* dev_ctx,
   }
 }
 
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

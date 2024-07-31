@@ -14,11 +14,9 @@
 
 #pragma once
 
-#include "paddle/fluid/pir/dialect/operator/utils/utils.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/tensor_base.h"
 #include "paddle/phi/core/tensor_meta.h"
-#include "paddle/pir/include/core/builtin_type.h"
 
 namespace paddle {
 namespace dialect {
@@ -33,7 +31,7 @@ class IrTensor : public phi::TensorBase,
   IrTensor(phi::DataType dtype,
            const phi::DDim& dims,
            phi::DataLayout layout,
-           LoD lod,
+           const LoD& lod,
            size_t offset = 0);
 
   IrTensor(IrTensor&& other) = default;
@@ -83,19 +81,10 @@ class IrTensor : public phi::TensorBase,
  private:
   phi::DDim dims_;
   phi::DataType dtype_{phi::DataType::FLOAT32};
-  phi::DataLayout layout_{phi::DataLayout::NCHW};
+  phi::DataLayout layout_{phi::DataLayout::ANY};
   LoD lod_;
   size_t offset_{0};
 };
-
-inline pir::DenseTensorType CvtToDenseTensorType(const IrTensor& ir_tensor) {
-  return pir::DenseTensorType::get(pir::IrContext::Instance(),
-                                   TransToIrDataType(ir_tensor.dtype()),
-                                   ir_tensor.dims(),
-                                   ir_tensor.layout(),
-                                   ir_tensor.lod(),
-                                   ir_tensor.offset());
-}
 
 }  // namespace dialect
 }  // namespace paddle

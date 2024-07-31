@@ -19,7 +19,6 @@ from typing import List, Tuple, Union
 import numpy as np
 
 import paddle
-import paddle.distributed as dist
 from paddle.framework import core
 
 
@@ -35,20 +34,10 @@ def get_coordinator(mesh: Union[np.array, List[List[int]]], rank: int):
     )
 
 
-# NOTE(zhangbo): Refer to the BalancedSplit function in the reshard_utils.cc file.
-def balanced_split(total_nums, num_of_pieces):
-    has_remainder = total_nums % num_of_pieces != 0
-    result = [(total_nums + num_of_pieces - 1) // num_of_pieces] * num_of_pieces
-    if has_remainder:
-        last_value = result[-1]
-        result[-1] = last_value - (last_value * num_of_pieces - total_nums)
-    return result
-
-
 def compute_local_shape_and_global_offset(
     global_shape: List[int],
     process_mesh: core.ProcessMesh,
-    placements: List[core.Placement],
+    dims_mapping: List[int],
 ) -> Tuple[Tuple[int], Tuple[int]]:
     mesh = np.array(process_mesh.process_ids).reshape(process_mesh.shape)
     # deal with cross mesh case
@@ -57,61 +46,20 @@ def compute_local_shape_and_global_offset(
     rank_coordinator = get_coordinator(mesh, paddle.distributed.get_rank())
     local_shape = copy.copy(global_shape)
     global_offset = [0 for _ in global_shape]
-    for dim, placement in enumerate(placements):
-        if isinstance(placement, dist.Replicate):
+    for i, dim in enumerate(dims_mapping):
+        if dim == -1:
             continue
         else:
-            i = placement.get_dim()
+            assert (
+                global_shape[i] % process_mesh.shape[dim] == 0
+            ), f"i:{i}, global_shape[i]:{global_shape[i]}, process_mesh.shape[dim]:{process_mesh.shape[dim]}"
+            local_shape[i] = global_shape[i] // process_mesh.shape[dim]
             chunk_idx = rank_coordinator[dim]
-            chunks = balanced_split(global_shape[i], process_mesh.shape[dim])
-            local_shape[i] = chunks[chunk_idx]
-            global_offset[i] = sum(chunks[:chunk_idx])
+            global_offset[i] = chunk_idx * local_shape[i]
 
     return tuple(local_shape), tuple(global_offset)
 
 
 def flatten_state_dict(state_dict):
-    """
-    Flatten the nested dict to a flat dict.
-    {"model": {"w0": xxx}} -> {model.w0: xxx}
-    """
-    flatten_state_dict = {}
-    mapping = {}
-
-    def _flatten(key, value):
-        if isinstance(value, dict):
-            for k, v in value.items():
-                assert isinstance(k, str), f"The key should be str, but is {k}"
-                _flatten(key + (k,), v)
-        elif isinstance(value, paddle.Tensor):
-            flatten_key_str = ".".join(key)
-            flatten_state_dict[flatten_key_str] = value
-            mapping[flatten_key_str] = key
-        else:
-            raise ValueError(
-                f"The value should be dict or paddle.Tensor, but is {value}"
-            )
-
-    _flatten((), state_dict)
-
-    return flatten_state_dict, mapping
-
-
-def unflatten_state_dict(flat_state_dict, mapping):
-    """
-    Unflatten the flat dict to a nested dict.
-    {model.w0: xxx} -> {"model": {"w0": xxx}}
-    """
-    state_dict = {}
-    for key, value in flat_state_dict.items():
-        key_tuple = mapping[key]
-        assert isinstance(
-            key_tuple, tuple
-        ), f"The key should be tuple, but is {key_tuple}"
-        tmp = state_dict
-        for i in range(len(key_tuple) - 1):
-            key = key_tuple[i]
-            tmp = tmp.setdefault(key, {})
-        tmp[key_tuple[-1]] = value
-
+    # TODO, {"model": {"w0": xxx}} -> {model.w0: xxx}
     return state_dict

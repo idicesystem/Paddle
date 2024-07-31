@@ -16,7 +16,8 @@
 #include "paddle/common/errors.h"
 #include "paddle/phi/core/kernel_registry.h"
 
-namespace phi::fusion {
+namespace phi {
+namespace fusion {
 
 template <typename T, typename Context>
 void RandomRoutingKernel(const Context& dev_ctx,
@@ -28,7 +29,8 @@ void RandomRoutingKernel(const Context& dev_ctx,
       "Do not support expert count op for cpu kernel now."));
 }
 
-}  // namespace phi::fusion
+}  // namespace fusion
+}  // namespace phi
 
 PD_REGISTER_KERNEL(random_routing,
                    CPU,

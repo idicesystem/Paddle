@@ -366,9 +366,8 @@ void FusedMultiTransformerXpuKernel(
       attn_layout);
   PADDLE_ENFORCE_XDNN_SUCCESS(r, "xft::fused_multi_transformer_gpt");
 #else
-  PADDLE_THROW(
-      phi::errors::Fatal("fused_multi_transformer_xpu is not supported since "
-                         "it's not compiled with XPU_XFT"));
+  LOG(FATAL) << "fused_multi_transformer_xpu is not supported since it's not "
+                "compiled with XPU_XFT";
 #endif
 }
 

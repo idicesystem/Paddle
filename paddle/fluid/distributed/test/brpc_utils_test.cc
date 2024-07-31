@@ -19,16 +19,21 @@ limitations under the License. */
 #include "gtest/gtest.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Variable;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
 namespace framework = paddle::framework;
 namespace platform = paddle::platform;
+namespace operators = paddle::operators;
+namespace memory = paddle::memory;
+namespace distributed = paddle::distributed;
 
 void CreateVarsOnScope(framework::Scope* scope,
-                       phi::Place* place,
-                       const phi::DeviceContext& ctx) {
+                       platform::Place* place,
+                       const platform::DeviceContext& ctx) {
   // var 1
   framework::Variable* var1 = scope->Var("x1");
   auto* tensor1 = var1->GetMutable<phi::DenseTensor>();
@@ -61,9 +66,9 @@ void CreateVarsOnScope(framework::Scope* scope,
   for (int i = 0; i < 564; ++i) rows->push_back(i);
 }
 
-void RunMultiVarMsg(phi::Place place) {
+void RunMultiVarMsg(platform::Place place) {
   framework::Scope scope;
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+  platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
   auto& ctx = *pool.Get(place);
   CreateVarsOnScope(&scope, &place, ctx);
 
@@ -74,19 +79,19 @@ void RunMultiVarMsg(phi::Place place) {
   LOG(INFO) << "begin SerializeToMultiVarMsg";
 
   butil::IOBuf io_buf;
-  ::paddle::distributed::SerializeToMultiVarMsgAndIOBuf(message_name,
-                                                        send_var_name,
-                                                        recv_var_name,
-                                                        ctx,
-                                                        &scope,
-                                                        &multi_msg,
-                                                        &io_buf);
+  distributed::SerializeToMultiVarMsgAndIOBuf(message_name,
+                                              send_var_name,
+                                              recv_var_name,
+                                              ctx,
+                                              &scope,
+                                              &multi_msg,
+                                              &io_buf);
   EXPECT_GT(multi_msg.ByteSizeLong(), static_cast<size_t>(0));
 
   // deserialize
   framework::Scope scope_recv;
   LOG(INFO) << "begin DeserializeFromMultiVarMsg";
-  ::paddle::distributed::DeserializeFromMultiVarMsgAndIOBuf(
+  distributed::DeserializeFromMultiVarMsgAndIOBuf(
       multi_msg, &io_buf, ctx, &scope_recv);
 
   // check var1
@@ -125,13 +130,13 @@ void RunMultiVarMsg(phi::Place place) {
 }
 
 TEST(MultiVarMsgCPU, Run) {
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   RunMultiVarMsg(place);
 }
 
 // #ifdef PADDLE_WITH_CUDA
 // TEST(MultiVarMsgGPU, Run) {
-//   phi::GPUPlace place;
+//   platform::CUDAPlace place;
 //   RunMultiVarMsg(place);
 // }
 // #endif

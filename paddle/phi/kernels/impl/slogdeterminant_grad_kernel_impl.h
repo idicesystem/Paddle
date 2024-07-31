@@ -98,7 +98,7 @@ void SlogDeterminantGradKernel(const Context& dev_ctx,
   auto grad_vec = out_grad.Split(1, 0);
   auto det_grad = grad_vec[1];
 
-  // remove useless first dimension
+  // remmove useless first dimension
   int det_grad_size = det_grad.dims().size();
   std::vector<int> det_grad_vec;
   for (int i = 1; i < det_grad_size; ++i) {

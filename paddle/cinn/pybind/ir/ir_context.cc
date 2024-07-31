@@ -59,12 +59,10 @@ void LowerFuncContextNode::ExitWithContext() {
 void IfContextNode::ExitWithContext() {
   IRContextNode::ExitWithContext();
   if (!exprs.empty()) {
-    PADDLE_THROW(::common::errors::InvalidArgument(
-        "Expr not be either in ThenBlock or ElseBlock in if"));
+    LOG(FATAL) << "Expr not be either in ThenBlock or ElseBlock in if";
   }
   if (!true_case.defined()) {
-    PADDLE_THROW(
-        ::common::errors::InvalidArgument("Expr not be defined in ThenBlock"));
+    LOG(FATAL) << "Expr not be defined in ThenBlock";
   }
   LinkToParentContext(ir::IfThenElse::Make(condition, true_case, false_case));
 }
@@ -84,10 +82,7 @@ void ElseContextNode::ExitWithContext() {
 }
 
 Expr IRBuilderNode::GetResult() const {
-  PADDLE_ENFORCE_EQ(
-      result.defined(),
-      true,
-      phi::errors::InvalidArgument("No result generated in IRBuilder."));
+  CHECK(result.defined()) << "No result generated in IRBuilder";
   return result;
 }
 
@@ -103,13 +98,9 @@ IRBuilder::IRBuilder() {
 }
 
 void IRBuilder::EnterWithContext() {
-  PADDLE_ENFORCE_EQ(
-      data_->contexts.empty(),
-      true,
-      phi::errors::InvalidArgument(
-          "There are still contexts in IRBuilder that have not been fully "
-          "converted. Please build a new IR with the new IRBuilder."));
-
+  CHECK(data_->contexts.empty())
+      << "There are still Contexts in IRBuilder that has not been fully "
+         "converted. Please build a new IR with the new IRbuilder";
   data_->result.Reset();
   std::vector<IRBuilder>* st = IRBuilderStack();
   st->push_back(*this);
@@ -117,18 +108,12 @@ void IRBuilder::EnterWithContext() {
 
 void IRBuilder::ExitWithContext() {
   std::vector<IRBuilder>* st = IRBuilderStack();
-  PADDLE_ENFORCE_EQ(
-      !st->empty(),
-      true,
-      phi::errors::InvalidArgument("The IRBuilder stack must not be empty."));
+  CHECK(!st->empty());
   st->pop_back();
 }
 IRBuilder IRBuilder::CurrentIRBuilder() {
   std::vector<IRBuilder>* st = IRBuilderStack();
-  PADDLE_ENFORCE_EQ(
-      !st->empty(),
-      true,
-      phi::errors::InvalidArgument("No IRBuilder found in the stack."));
+  CHECK(!st->empty()) << "No IRBuilder Found";
   return st->back();
 }
 std::vector<IRBuilder>* IRBuilderStack() {

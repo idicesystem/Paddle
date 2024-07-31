@@ -27,22 +27,22 @@ nv_library(
 nv_test(
   test_tensorrt
   SRCS test_tensorrt.cc
-  DEPS device_context phi common)
+  DEPS dynload_cuda device_context dynamic_loader)
 if(WIN32)
   nv_test(
     test_tensorrt_engine
     SRCS test_engine.cc test_dynamic_engine.cc
-    DEPS phi common tensorrt_engine tensorrt_plugin)
+    DEPS dynload_cuda tensorrt_engine tensorrt_plugin)
 elseif(WITH_CINN)
   nv_test(
     test_tensorrt_engine
     SRCS test_engine.cc test_dynamic_engine.cc
-    DEPS fleet_executor phi common tensorrt_engine tensorrt_plugin python)
+    DEPS fleet_executor dynload_cuda tensorrt_engine tensorrt_plugin python)
 else()
   nv_test(
     test_tensorrt_engine
     SRCS test_engine.cc test_dynamic_engine.cc
-    DEPS fleet_executor phi common tensorrt_engine tensorrt_plugin python)
+    DEPS fleet_executor dynload_cuda tensorrt_engine tensorrt_plugin python)
 endif()
 nv_test(
   test_arg_mapping_context

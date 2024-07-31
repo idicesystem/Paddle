@@ -18,7 +18,7 @@ from paddle.base.incubate.checkpoint.checkpoint_saver import CheckpointSaver
 from paddle.distributed.fleet.utils.fs import HDFSClient
 
 
-class CheckpointSaverTest(unittest.TestCase):
+class CheckpointerSaverTest(unittest.TestCase):
     def test(self):
         fs = HDFSClient("/usr/local/hadoop-2.7.7", None)
         dir_path = "./checkpointsaver_test"

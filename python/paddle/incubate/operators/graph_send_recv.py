@@ -131,7 +131,8 @@ def graph_send_recv(
 
     if pool_type not in ["sum", "mean", "max", "min"]:
         raise ValueError(
-            f"pool_type should be `sum`, `mean`, `max` or `min`, but received {pool_type}"
+            "pool_type should be `sum`, `mean`, `max` or `min`, but received %s"
+            % pool_type
         )
 
     # TODO(daisiming): Should we add judgement for out_size: max(dst_index) + 1.

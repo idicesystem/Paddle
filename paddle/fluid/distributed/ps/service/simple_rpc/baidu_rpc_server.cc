@@ -11,8 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if defined(PADDLE_WITH_GLOO) && defined(PADDLE_WITH_HETERPS) && \
-    defined(PADDLE_WITH_PSCORE)
+#if defined(PADDLE_WITH_GLOO) && defined(PADDLE_WITH_GPU_GRAPH)
 #include "paddle/fluid/distributed/ps/service/simple_rpc/baidu_rpc_server.h"
 #include <brpc/channel.h>
 #include <brpc/server.h>
@@ -115,7 +114,7 @@ class BRpcServiceImpl : public SimpleRpcService {
           phi::errors::PreconditionNotMet("Service should not be nullptr."));
       head.service->decrease_request();
     } else {
-      PADDLE_THROW(phi::errors::InvalidArgument("Unknown message type"));
+      LOG(FATAL) << "Unknown message type";
     }
     baidu_rpc_response->set_archive_size(0);
     done->Run();
@@ -189,7 +188,7 @@ void BaiduRpcServer::initialize() {
     cep.ip = butil::int2ip(_ips[i]);
     cep.port = ports[i];
     if (channel_ptr->Init(cep, &option) != 0) {
-      PADDLE_THROW(phi::errors::Fatal("Failed to initialize channel"));
+      LOG(FATAL) << "Failed to initialize channel";
     }
     LOG(INFO) << "connected to " << butil::endpoint2str(cep).c_str();
     return channel_ptr;
@@ -243,7 +242,7 @@ static void handle_baidu_rpc_response(brpc::Controller *cntl,
           phi::errors::PreconditionNotMet("Service should not be nullptr."));
       head.service->decrease_request();
     } else {
-      PADDLE_THROW(phi::errors::InvalidArgument("Unknown message type"));
+      LOG(FATAL) << "Unknown message type";
     }
   }
   delete baidu_rpc_response;

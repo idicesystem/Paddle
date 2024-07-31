@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include "paddle/fluid/pir/dialect/operator/ir/op_type.h"
-#include "paddle/fluid/pir/dialect/operator/utils/utils.h"
 #include "paddle/phi/core/allocator.h"
 #include "paddle/phi/core/tensor_base.h"
 #include "paddle/phi/core/tensor_meta.h"
@@ -34,7 +32,7 @@ class IrSelectedRows
   IrSelectedRows(phi::DataType dtype,
                  const phi::DDim& dims,
                  phi::DataLayout layout,
-                 LoD lod,
+                 const LoD& lod,
                  size_t offset = 0);
 
   IrSelectedRows(IrSelectedRows&& other) = default;
@@ -88,15 +86,6 @@ class IrSelectedRows
   LoD lod_;
   size_t offset_{0};
 };
-
-inline SelectedRowsType CvtToSelectedRowsType(const IrSelectedRows& ir_tensor) {
-  return SelectedRowsType::get(pir::IrContext::Instance(),
-                               TransToIrDataType(ir_tensor.dtype()),
-                               ir_tensor.dims(),
-                               ir_tensor.layout(),
-                               ir_tensor.lod(),
-                               ir_tensor.offset());
-}
 
 }  // namespace dialect
 }  // namespace paddle

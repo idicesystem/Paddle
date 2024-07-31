@@ -12,8 +12,10 @@ limitations under the License. */
 #include "paddle/phi/infermeta/spmd_rules/cast.h"
 #include "paddle/phi/infermeta/spmd_rules/elementwise.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 SpmdInfo CastInferSpmd(const DistMetaTensor& x, phi::DataType dtype) {
-  return ElementwiseUnaryWithPartialInferSpmd(x);
+  return ElementwiseUnaryInferSpmd(x);
 }
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

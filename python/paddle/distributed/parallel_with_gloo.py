@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import time
 from multiprocessing import Manager, Process
@@ -39,14 +38,12 @@ def _start_kv_server(port, http_server_d, size):
     http_server.stop()
 
 
-def gloo_init_parallel_env(
-    rank_id: int, rank_num: int, server_endpoint: str
-) -> None:
+def gloo_init_parallel_env(rank_id, rank_num, server_endpoint):
     """
     Initialize parallel environment with gloo for cpu only.
 
     Args:
-        - rank_id (int, required) - the index of current rank;
+        - rank_id（int, required) - the index of current rank;
         - rank_num (int, required) - the number of ranks in this parallel env;
         - server_endpoint (str, required) - endpoint of server to init gloo context in ip:port format;
 
@@ -61,7 +58,7 @@ def gloo_init_parallel_env(
             >>> from contextlib import closing
             >>> import socket
 
-            >>> port_set = set() # type: ignore
+            >>> port_set = set()
 
             >>> def find_free_port():
             ...     def _free_port():
@@ -98,7 +95,7 @@ def gloo_init_parallel_env(
 
     assert (
         rank_num < 2
-    ) is False, "rank_num should greater than or equal to 2 for parallel environment initialization."
+    ) is False, "rank_num should greater than or equal to 2 for parallel environment initialzation."
 
     # init gloo context
     manager = Manager()
@@ -138,7 +135,7 @@ def gloo_init_parallel_env(
         http_server_proc.join()
 
 
-def gloo_barrier() -> None:
+def gloo_barrier():
     """
     Call barrier function with initialized gloo context.
 
@@ -156,7 +153,7 @@ def gloo_barrier() -> None:
             >>> from contextlib import closing
             >>> import socket
 
-            >>> port_set = set() # type: ignore
+            >>> port_set = set()
 
             >>> def find_free_port():
             ...     def _free_port():
@@ -192,11 +189,11 @@ def gloo_barrier() -> None:
             ...     test_gloo_barrier_with_multiprocess(2)
     """
 
-    assert _global_gloo_ctx is not None, "gloo context is not initialized."
+    assert _global_gloo_ctx is not None, "gloo context is not initialzed."
     _global_gloo_ctx.barrier()
 
 
-def gloo_release() -> None:
+def gloo_release():
     """
     Release the parallel environment initialized by gloo
 
@@ -214,7 +211,7 @@ def gloo_release() -> None:
             >>> from contextlib import closing
             >>> import socket
 
-            >>> port_set = set() # type: ignore
+            >>> port_set = set()
 
             >>> def find_free_port():
             ...     def _free_port():

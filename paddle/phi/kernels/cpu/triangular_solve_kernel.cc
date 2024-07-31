@@ -82,6 +82,4 @@ PD_REGISTER_KERNEL(triangular_solve,
                    ALL_LAYOUT,
                    phi::TriangularSolveKernel,
                    float,
-                   double,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   double) {}

@@ -16,7 +16,9 @@
 
 #include "paddle/fluid/memory/stats.h"
 #include "paddle/fluid/platform/profiler/mem_tracing.h"
-namespace paddle::memory::allocation {
+namespace paddle {
+namespace memory {
+namespace allocation {
 bool CPUPinnedAllocator::IsAllocThreadSafe() const { return true; }
 void CPUPinnedAllocator::FreeImpl(phi::Allocation *allocation) {
 #ifdef PADDLE_WITH_HIP
@@ -42,9 +44,11 @@ phi::Allocation *CPUPinnedAllocator::AllocateImpl(size_t size) {
   VLOG(10) << "cudaHostAlloc " << size << " " << ptr;
   HOST_MEMORY_STAT_UPDATE(Reserved, 0, size);
   platform::RecordMemEvent(ptr,
-                           phi::GPUPinnedPlace(),
+                           platform::CUDAPinnedPlace(),
                            size,
                            platform::TracerMemEventType::ReservedAllocate);
-  return new Allocation(ptr, size, phi::GPUPinnedPlace());
+  return new Allocation(ptr, size, platform::CUDAPinnedPlace());
 }
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle

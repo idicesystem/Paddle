@@ -17,10 +17,7 @@ import tempfile
 import unittest
 
 import numpy as np
-from dygraph_to_static_utils import (
-    Dy2StTestBase,
-    test_legacy_and_pt_and_pir,
-)
+from dygraph_to_static_utils import Dy2StTestBase, enable_to_static_guard
 
 import paddle
 
@@ -70,20 +67,24 @@ class NoGradLinearLayer(paddle.nn.Layer):
 
 class TestGrad(Dy2StTestBase):
     def setUp(self):
-        self.func = GradLayer()
+        self.func = paddle.jit.to_static(GradLayer())
         self.x = paddle.ones(shape=[10, 2, 5], dtype='float32')
         self.x.stop_gradient = False
 
-    @test_legacy_and_pt_and_pir
+    def _run(self, func, to_static):
+        with enable_to_static_guard(to_static):
+            ret = func(self.x).numpy()
+        return ret
+
     def test_forward(self):
-        dygraph_res = self.func(self.x).numpy()
-        static_res = paddle.jit.to_static(self.func)(self.x).numpy()
+        dygraph_res = self._run(self.func, to_static=False)
+        static_res = self._run(self.func, to_static=True)
         np.testing.assert_allclose(static_res, dygraph_res, rtol=1e-05)
 
 
 class TestGradLinear(TestGrad):
     def setUp(self):
-        self.func = GradLinearLayer()
+        self.func = paddle.jit.to_static(GradLinearLayer())
         self.x = paddle.ones(shape=[10, 2, 5], dtype='float32')
         self.x.stop_gradient = False
 
@@ -98,47 +99,45 @@ class TestGradLinear(TestGrad):
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    @test_legacy_and_pt_and_pir
     def test_save_infer_program(self):
-        static_fn = paddle.jit.to_static(self.func)
+        self.setUp()  # make self.func change to ast mode
         input_spec = [
             paddle.static.InputSpec(shape=[10, 2, 5], dtype='float32')
         ]
-        paddle.jit.save(static_fn, self.infer_model_path, input_spec=input_spec)
+        paddle.jit.save(self.func, self.infer_model_path, input_spec=input_spec)
         load_func = paddle.jit.load(self.infer_model_path)
 
-        origin_res = static_fn(self.x).numpy()
+        origin_res = self.func(self.x).numpy()
         load_res = load_func(self.x).numpy()
         np.testing.assert_allclose(origin_res, load_res, rtol=1e-05)
 
-    @test_legacy_and_pt_and_pir
     def test_save_train_program(self):
-        static_fn = paddle.jit.to_static(self.func)
+        self.setUp()  # make self.func change to ast mode
         grad_clip = paddle.nn.ClipGradByGlobalNorm(2.0)
         optimizer = paddle.optimizer.SGD(
             learning_rate=0.01,
             grad_clip=grad_clip,
-            parameters=static_fn.parameters(),
+            parameters=self.func.parameters(),
         )
         for i in range(10):
-            out = static_fn(self.x)
+            out = self.func(self.x)
             avg_loss = paddle.mean(paddle.abs(out - 1))
             avg_loss.backward()
             optimizer.minimize(avg_loss)
 
-            static_fn.clear_gradients()
+            self.func.clear_gradients()
 
-        paddle.jit.save(static_fn, self.train_model_path)
+        paddle.jit.save(self.func, self.train_model_path)
         load_func = paddle.jit.load(self.train_model_path)
 
-        origin_res = static_fn(self.x).numpy()
+        origin_res = self.func(self.x).numpy()
         load_res = load_func(self.x).numpy()
         np.testing.assert_allclose(origin_res, load_res, rtol=1e-05)
 
 
 class TestNoGradLinear(TestGradLinear):
     def setUp(self):
-        self.func = NoGradLinearLayer()
+        self.func = paddle.jit.to_static(NoGradLinearLayer())
         self.x = paddle.ones(shape=[10, 2, 5], dtype='float32')
         self.x.stop_gradient = False
 

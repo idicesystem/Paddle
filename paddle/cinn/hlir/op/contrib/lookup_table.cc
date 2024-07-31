@@ -24,6 +24,7 @@
 #include "paddle/cinn/common/context.h"
 #include "paddle/cinn/common/macros.h"
 #include "paddle/cinn/common/type.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
 #include "paddle/cinn/hlir/op/op_util.h"
@@ -34,8 +35,9 @@
 #include "paddle/cinn/ir/ir.h"
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/tensor.h"
+#include "paddle/cinn/lang/builtin.h"
 #include "paddle/cinn/lang/compute.h"
-#include "paddle/common/flags.h"
+#include "paddle/utils/flags.h"
 
 namespace cinn {
 namespace hlir {
@@ -48,14 +50,8 @@ ir::Tensor LookupTable(const ir::Tensor& table,
                        const ir::Tensor& ids,
                        const int64_t padding_idx,
                        const std::string& output_name) {
-  PADDLE_ENFORCE_EQ(
-      table->shape.size(),
-      2,
-      phi::errors::InvalidArgument("The shape of table should be 2."));
-  PADDLE_ENFORCE_GT(ids->shape.size(),
-                    1,
-                    phi::errors::InvalidArgument(
-                        "The shape of ids should be greater than 1."));
+  CHECK_EQ(table->shape.size(), 2);
+  CHECK_GT(ids->shape.size(), 1);
   auto output_shape = ids->shape;
   output_shape.back() = table->shape.back();
 
@@ -96,11 +92,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(
     CHECK(!args.empty()) << "The input arguments of " << op_name
                          << " compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
-    PADDLE_ENFORCE_GE(pack_args.size(),
-                      2U,
-                      phi::errors::InvalidArgument(
-                          "The input arguments' size should be greater "
-                          "than 2"));
+    CHECK_GE(pack_args.size(), 2U)
+        << "2 input tensors for " << op_name << " compute\n";
     Expr A = pack_args[0];
     Expr B = pack_args[1];
     CHECK(A.as_tensor());
@@ -108,20 +101,20 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(
     CHECK(!output_shapes.empty());
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
+    auto stages = CreateStages({tensor_A, tensor_B});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    PADDLE_ENFORCE_EQ(
-        pack_args.size(),
-        3U,
-        phi::errors::InvalidArgument("The input arguments' size should be 3"));
+    CHECK_EQ(pack_args.size(), 3U);
     std::string tensor_name = pack_args[2].operator std::string();
 
     ir::Tensor out = LookupTable(tensor_A, tensor_B, padding_idx, tensor_name);
     std::vector<CINNValue> res;
+    stages->InsertLazily(out);
     res.push_back(CINNValue(out));
     CHECK(!out_type.empty())
         << "Output type of " << op_name << " is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
@@ -131,6 +124,25 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(
                     "strategy.lookup_table",
                     1);
   return strategy;
+}
+
+std::vector<framework::shape_t> InferShapeForLookupTable(
+    const std::vector<framework::shape_t>& inputs_shape,
+    const framework::AttrMapType& attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty())
+      << "The input's shape size is 0! Please check again.";
+
+  auto res = inputs_shape[1];
+  res.back() = inputs_shape[0].back();
+  return {res};
+}
+
+std::vector<Type> InferDtypeForLookupTable(
+    const std::vector<Type>& inputs_type, const framework::AttrMapType& attrs) {
+  CHECK(!inputs_type.empty())
+      << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
 }
 
 }  // namespace op
@@ -144,6 +156,10 @@ CINN_REGISTER_HELPER(lookup_table_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>(
           "CINNStrategy", cinn::hlir::op::StrategyForLookupTable)
+      .set_attr("infershape",
+                MakeOpFunction(cinn::hlir::op::InferShapeForLookupTable))
+      .set_attr("inferdtype",
+                MakeOpFunction(cinn::hlir::op::InferDtypeForLookupTable))
       .set_attr<cinn::hlir::framework::OpPatternKind>(
           "OpPattern", cinn::hlir::framework::OpPatternKind::kInjective);
   return true;

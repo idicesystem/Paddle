@@ -32,7 +32,10 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
-      [fn](const std::vector<Expr> &axis) -> Expr { return fn(); },
+      [fn](const std::vector<Expr> &axis) -> Expr {
+        // CHECK_EQ(axis.size(), 0);
+        return fn();
+      },
       name,
       shape);
 }
@@ -44,12 +47,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          1,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 1, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 1);
         return fn(axis[0]);
       },
       name,
@@ -63,12 +61,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          2,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 2, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 2);
         return fn(axis[0], axis[1]);
       },
       name,
@@ -82,12 +75,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          3,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 3, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 3);
         return fn(axis[0], axis[1], axis[2]);
       },
       name,
@@ -101,12 +89,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          4,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 4, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 4);
         return fn(axis[0], axis[1], axis[2], axis[3]);
       },
       name,
@@ -120,12 +103,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          5,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 5, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 5);
         return fn(axis[0], axis[1], axis[2], axis[3], axis[4]);
       },
       name,
@@ -139,12 +117,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return Compute(
       domain,
       [fn](const std::vector<Expr> &axis) -> Expr {
-        PADDLE_ENFORCE_EQ(axis.size(),
-                          6,
-                          ::common::errors::InvalidArgument(
-                              "The size of axis vector is incorrect"
-                              "Expected value is 6, but receive %d. ",
-                              axis.size()));
+        CHECK_EQ(axis.size(), 6);
         return fn(axis[0], axis[1], axis[2], axis[3], axis[4], axis[5]);
       },
       name,
@@ -214,13 +187,6 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
                            domain_without_reduce_axis,
                            op,
                            reduce_axis);
-  const auto set_keep_dim_for_tensor = [&]() {
-    for (int i = 0; i < _axis.size(); ++i) {
-      const auto &axis_var = _axis.at(i);
-      tensor->axis_[i]->is_keepdim = axis_var.as_var_ref()->is_keepdim;
-    }
-  };
-  set_keep_dim_for_tensor();
   return tensor;
 }
 

@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 /*
  * HardSwish converter from fluid to tensorRT.
@@ -83,10 +85,12 @@ class HardSwishOpConverter : public OpConverter {
                                    nvinfer1::ElementWiseOperation::kDIV);
     }
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "hard_swish", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "hard_swish", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(hard_swish, HardSwishOpConverter);

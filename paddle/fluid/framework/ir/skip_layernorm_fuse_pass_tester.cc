@@ -18,7 +18,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/ir/skip_layernorm_fuse_pass.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 TEST(SkipLayerNormFusePass, basic) {
   // inputs                           operator            output
@@ -47,13 +49,13 @@ TEST(SkipLayerNormFusePass, basic) {
 
   PADDLE_ENFORCE_EQ(num_nodes_before,
                     num_nodes_after + 4,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The number of nodes before and after the fuse does "
                         "not meet expectations"));
   PADDLE_ENFORCE_EQ(
       num_fused_nodes_after,
       1,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "The number of fusion nodes does not meet expectations after fuse"));
 }
 
@@ -63,6 +65,8 @@ TEST(SkipLayerNormFusePass, pass_op_version_check) {
           .IsPassCompatible("skip_layernorm_fuse_pass"));
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 USE_PASS(skip_layernorm_fuse_pass);

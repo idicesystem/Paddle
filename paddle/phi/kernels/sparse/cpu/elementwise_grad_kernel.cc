@@ -30,7 +30,8 @@ limitations under the License. */
 #include "paddle/phi/kernels/funcs/sparse/flatten_indices.h"
 #include "paddle/phi/kernels/sparse/empty_kernel.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 template <typename T, typename IntT, typename Context>
 void AllocCsrPtr(const Context& dev_ctx,
@@ -431,7 +432,8 @@ DEFINE_ELEMENTWISE_GRAD_KERNEL(Add)
 DEFINE_ELEMENTWISE_GRAD_KERNEL(Subtract)
 DEFINE_ELEMENTWISE_GRAD_KERNEL(Multiply)
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(add_csr_csr_grad,
                    CPU,

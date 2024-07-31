@@ -18,29 +18,26 @@
 #include "paddle/fluid/distributed/fleet_executor/task_loop.h"
 #include "paddle/fluid/distributed/fleet_executor/task_node.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 Interceptor::Interceptor(int64_t interceptor_id, TaskNode* node)
-    : interceptor_id_(interceptor_id),
-      node_(node),
-      carrier_(nullptr),
-      loop_(nullptr),
-      messages_() {}
+    : interceptor_id_(interceptor_id), node_(node) {}
 
 Interceptor::~Interceptor() {  // NOLINT
   // FIXME(wangxi): throw in stop function
   // std::lock_guard<std::mutex> lock(mutex_);
   // PADDLE_ENFORCE_EQ(messages_.empty(), true,
-  //                  phi::errors::PreconditionNotMet(
+  //                  platform::errors::PreconditionNotMet(
   //                      "Interceptor must destruct with messages empty"));
 }
 
 void Interceptor::RegisterMsgHandle(MsgHandle handle) { handle_ = handle; }
 
 void Interceptor::Handle(const InterceptorMessage& msg) {
-  PADDLE_ENFORCE_NOT_NULL(
-      handle_,
-      phi::errors::PreconditionNotMet("Message handle is not registered."));
+  PADDLE_ENFORCE_NOT_NULL(handle_,
+                          platform::errors::PreconditionNotMet(
+                              "Message handle is not registered."));
   handle_(msg);
 }
 
@@ -52,7 +49,7 @@ void Interceptor::LoopOnce() {
   }
   PADDLE_ENFORCE_EQ(tmp_messages.empty(),
                     false,
-                    phi::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "tmp_messages must not empty in task loop"));
 
   for (auto& msg : tmp_messages) {
@@ -67,7 +64,8 @@ void Interceptor::LoopOnce() {
 
 void Interceptor::StopCarrier() {
   PADDLE_ENFORCE_NOT_NULL(
-      carrier_, phi::errors::PreconditionNotMet("Carrier is not registered."));
+      carrier_,
+      platform::errors::PreconditionNotMet("Carrier is not registered."));
   carrier_->WakeUp();
 }
 
@@ -90,7 +88,8 @@ void Interceptor::EnqueueRemoteInterceptorMessage(
 
 bool Interceptor::Send(int64_t dst_id, InterceptorMessage& msg) {
   PADDLE_ENFORCE_NOT_NULL(
-      carrier_, phi::errors::PreconditionNotMet("Carrier is not registered."));
+      carrier_,
+      platform::errors::PreconditionNotMet("Carrier is not registered."));
   msg.set_src_id(interceptor_id_);
   msg.set_dst_id(dst_id);
   return carrier_->Send(msg);
@@ -109,7 +108,7 @@ std::unique_ptr<Interceptor> InterceptorFactory::Create(const std::string& type,
   PADDLE_ENFORCE_NE(
       iter,
       interceptor_map.end(),
-      phi::errors::NotFound("interceptor %s is not register", type));
+      platform::errors::NotFound("interceptor %s is not register", type));
   return iter->second(id, node);
 }
 
@@ -119,4 +118,5 @@ void InterceptorFactory::Register(
   interceptor_map.emplace(type, func);
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

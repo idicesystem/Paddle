@@ -18,7 +18,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include "paddle/common/enforce.h"
+
 namespace cinn {
 namespace common {
 
@@ -137,10 +137,7 @@ Type Type::ElementOf() const {
 }
 
 void Type::CheckTypeValid() const {
-  PADDLE_ENFORCE_NE(
-      GetStorage().type_,
-      type_t::Unk,
-      ::common::errors::InvalidArgument("The type is not initialized."));
+  CHECK_NE(GetStorage().type_, type_t::Unk);
   if (GetStorage().type_ == type_t::Float && GetStorage().bits_ == 16) {
     CHECK(GetStorage().specific_type_ == specific_type_t::FP16 ||
           GetStorage().specific_type_ == specific_type_t::BF16)
@@ -333,11 +330,11 @@ Type &Type::operator=(const Type &other) {
 }
 
 Type::Storage &Type::GetStorage() {
-  CHECK(storage_) << "The type not initialized! Please check.";
+  CHECK(storage_) << "The type not initializated! Please check.";
   return *storage_;
 }
 const Type::Storage &Type::GetStorage() const {
-  CHECK(storage_) << "The type not initialized! Please check.";
+  CHECK(storage_) << "The type not initializated! Please check.";
   return *storage_;
 }
 
@@ -603,9 +600,7 @@ std::string Type2Str(const Type &type) {
       return "unk";
 
     default:
-      std::stringstream ss;
-      ss << "Not support type [" << type << "] ! Please Check.\n";
-      PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+      LOG(FATAL) << "Not support type [" << type << "] ! Please Check.\n";
   }
   return "unk";
 }

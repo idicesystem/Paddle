@@ -20,7 +20,7 @@
 
 #include "paddle/fluid/memory/allocation/allocator.h"
 #include "paddle/fluid/memory/allocation/spin_lock.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 #ifdef PADDLE_WITH_CUDA
 #include <cuda_runtime.h>
@@ -54,7 +54,7 @@ class StreamSafeCUDAAllocation : public Allocation {
   std::map<gpuStream_t, gpuEvent_t> outstanding_event_map_;
   gpuStream_t owning_stream_;
   SpinLock outstanding_event_map_lock_;
-  // To compatible with CUDA Graph, hold the allocator shared_ptr so that
+  // To compatiable with CUDA Graph, hold the allocator shared_ptr so that
   // Allocator will not deconstruct before Allocation
   std::shared_ptr<Allocator> allocator_;
 };
@@ -64,7 +64,7 @@ class StreamSafeCUDAAllocator
       public std::enable_shared_from_this<StreamSafeCUDAAllocator> {
  public:
   StreamSafeCUDAAllocator(std::shared_ptr<Allocator> underlying_allocator,
-                          phi::GPUPlace place,
+                          platform::CUDAPlace place,
                           gpuStream_t default_stream,
                           bool in_cuda_graph_capturing = false);
   ~StreamSafeCUDAAllocator();
@@ -76,18 +76,18 @@ class StreamSafeCUDAAllocator
  protected:
   phi::Allocation *AllocateImpl(size_t size) override;
   void FreeImpl(phi::Allocation *allocation) override;
-  uint64_t ReleaseImpl(const phi::Place &place) override;
+  uint64_t ReleaseImpl(const platform::Place &place) override;
 
  private:
   void ProcessUnfreedAllocations();
   uint64_t ProcessUnfreedAllocationsAndRelease();
 
-  static std::map<phi::Place, std::vector<StreamSafeCUDAAllocator *>>
+  static std::map<platform::Place, std::vector<StreamSafeCUDAAllocator *>>
       allocator_map_;
   static SpinLock allocator_map_lock_;
 
   std::shared_ptr<Allocator> underlying_allocator_;
-  phi::GPUPlace place_;
+  platform::CUDAPlace place_;
   gpuStream_t default_stream_;
   std::list<StreamSafeCUDAAllocation *> unfreed_allocations_;
   SpinLock unfreed_allocation_lock_;

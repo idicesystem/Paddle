@@ -20,9 +20,9 @@
 #include <mutex>  // NOLINT
 #include <utility>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/device_context.h"
 #include "paddle/fluid/platform/stream_callback_manager.h"
+#include "paddle/utils/flags.h"
 
 namespace paddle {
 namespace framework {
@@ -31,7 +31,7 @@ class GarbageCollector {
  public:
   using GarbageQueue = std::deque<std::shared_ptr<memory::Allocation>>;
 
-  GarbageCollector(const phi::Place &place, size_t max_memory_size);
+  GarbageCollector(const platform::Place &place, size_t max_memory_size);
 
   virtual ~GarbageCollector() PADDLE_MAY_THROW {}
 
@@ -50,7 +50,7 @@ class GarbageCollector {
  protected:
   virtual void ClearCallback(const std::function<void()> &callback) = 0;
 
-  phi::DeviceContext *dev_ctx_;
+  platform::DeviceContext *dev_ctx_;
   std::unique_ptr<GarbageQueue> garbages_;
   mutable std::unique_ptr<std::mutex> mutex_;
   const size_t max_memory_size_;
@@ -59,7 +59,7 @@ class GarbageCollector {
 
 class CPUGarbageCollector : public GarbageCollector {
  public:
-  CPUGarbageCollector(const phi::CPUPlace &place, size_t max_memory_size);
+  CPUGarbageCollector(const platform::CPUPlace &place, size_t max_memory_size);
 
  protected:
   void ClearCallback(const std::function<void()> &callback) override;
@@ -68,7 +68,7 @@ class CPUGarbageCollector : public GarbageCollector {
 #ifdef PADDLE_WITH_XPU
 class XPUGarbageCollector : public GarbageCollector {
  public:
-  XPUGarbageCollector(const phi::XPUPlace &place, size_t max_memory_size);
+  XPUGarbageCollector(const platform::XPUPlace &place, size_t max_memory_size);
 
  protected:
   void ClearCallback(const std::function<void()> &callback) override;
@@ -78,7 +78,7 @@ class XPUGarbageCollector : public GarbageCollector {
 #ifdef PADDLE_WITH_IPU
 class IPUGarbageCollector : public GarbageCollector {
  public:
-  IPUGarbageCollector(const phi::IPUPlace &place, size_t max_memory_size);
+  IPUGarbageCollector(const platform::IPUPlace &place, size_t max_memory_size);
 
  protected:
   void ClearCallback(const std::function<void()> &callback) override;
@@ -88,7 +88,7 @@ class IPUGarbageCollector : public GarbageCollector {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 class UnsafeFastGPUGarbageCollector : public GarbageCollector {
  public:
-  UnsafeFastGPUGarbageCollector(const phi::GPUPlace &place,
+  UnsafeFastGPUGarbageCollector(const platform::CUDAPlace &place,
                                 size_t max_memory_size);
 
  protected:
@@ -97,7 +97,7 @@ class UnsafeFastGPUGarbageCollector : public GarbageCollector {
 
 class DefaultStreamGarbageCollector : public GarbageCollector {
  public:
-  DefaultStreamGarbageCollector(const phi::GPUPlace &place,
+  DefaultStreamGarbageCollector(const platform::CUDAPlace &place,
                                 size_t max_memory_size);
 
   void Wait() const override;
@@ -108,7 +108,8 @@ class DefaultStreamGarbageCollector : public GarbageCollector {
 
 class StreamGarbageCollector : public GarbageCollector {
  public:
-  StreamGarbageCollector(const phi::GPUPlace &place, size_t max_memory_size);
+  StreamGarbageCollector(const platform::CUDAPlace &place,
+                         size_t max_memory_size);
 
   ~StreamGarbageCollector();
 
@@ -127,7 +128,7 @@ class StreamGarbageCollector : public GarbageCollector {
 
 class CUDAPinnedGarbageCollector : public GarbageCollector {
  public:
-  CUDAPinnedGarbageCollector(const phi::GPUPinnedPlace &place,
+  CUDAPinnedGarbageCollector(const platform::CUDAPinnedPlace &place,
                              size_t max_memory_size);
 
  protected:
@@ -138,7 +139,7 @@ class CUDAPinnedGarbageCollector : public GarbageCollector {
 #ifdef PADDLE_WITH_CUSTOM_DEVICE
 class CustomDefaultStreamGarbageCollector : public GarbageCollector {
  public:
-  CustomDefaultStreamGarbageCollector(const phi::CustomPlace &place,
+  CustomDefaultStreamGarbageCollector(const platform::CustomPlace &place,
                                       size_t max_memory_size);
 
   void Wait() const override;
@@ -149,7 +150,7 @@ class CustomDefaultStreamGarbageCollector : public GarbageCollector {
 
 class CustomDeviceUnsafeFastGarbageCollector : public GarbageCollector {
  public:
-  CustomDeviceUnsafeFastGarbageCollector(const phi::CustomPlace &place,
+  CustomDeviceUnsafeFastGarbageCollector(const platform::CustomPlace &place,
                                          size_t max_memory_size);
 
  protected:
@@ -158,7 +159,7 @@ class CustomDeviceUnsafeFastGarbageCollector : public GarbageCollector {
 
 class CustomStreamGarbageCollector : public GarbageCollector {
  public:
-  CustomStreamGarbageCollector(const phi::CustomPlace &place,
+  CustomStreamGarbageCollector(const platform::CustomPlace &place,
                                size_t max_memory_size);
 
   ~CustomStreamGarbageCollector();
@@ -221,7 +222,7 @@ void SetEagerDeletionMode(double threshold, double fraction, bool fast_mode);
 double GetEagerDeletionMemoryFraction();
 // create
 extern std::unique_ptr<GarbageCollector> CreateGarbageCollector(
-    const phi::Place &place, const size_t max_memory_size);
+    const platform::Place &place, const size_t max_memory_size);
 
 }  // namespace framework
 }  // namespace paddle

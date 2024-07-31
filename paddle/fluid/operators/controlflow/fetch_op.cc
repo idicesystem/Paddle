@@ -41,13 +41,14 @@ static void DataCopy(const phi::DenseTensor &src_item,
               : phi::OneDNNContext::tls().get_cur_paddle_data_layout(),
           src_item,
           &out,
-          phi::CPUPlace());
-      paddle::framework::TensorCopySync(out, phi::CPUPlace(), dst_item);
+          platform::CPUPlace());
+      paddle::framework::TensorCopySync(out, platform::CPUPlace(), dst_item);
     } else {
-      paddle::framework::TensorCopySync(src_item, phi::CPUPlace(), dst_item);
+      paddle::framework::TensorCopySync(
+          src_item, platform::CPUPlace(), dst_item);
     }
 #else
-    paddle::framework::TensorCopySync(src_item, phi::CPUPlace(), dst_item);
+    paddle::framework::TensorCopySync(src_item, platform::CPUPlace(), dst_item);
 #endif
   } else {
     // Not copy, if the src tensor is empty.
@@ -67,7 +68,7 @@ class FetchOp : public framework::OperatorBase {
 
  private:
   void RunImpl(const framework::Scope &scope,
-               const phi::Place &place) const override {
+               const platform::Place &place) const override {
     OP_INOUT_CHECK(HasInputs("X"), "Input", "X", "Fetch");
     OP_INOUT_CHECK(HasOutputs("Out"), "Output", "Out", "Fetch");
 
@@ -75,7 +76,7 @@ class FetchOp : public framework::OperatorBase {
     auto *fetch_var = scope.FindVar(fetch_var_name);
     PADDLE_ENFORCE_NOT_NULL(
         fetch_var,
-        common::errors::NotFound(
+        platform::errors::NotFound(
             "Input variable(%s) cannot be found in scope for operator 'Fetch'."
             "Confirm that you have used the fetch `Variable` format "
             "instead of the string literal('%s') in `fetch_list` "
@@ -90,15 +91,15 @@ class FetchOp : public framework::OperatorBase {
     auto *out_var = scope.FindVar(out_name);
     PADDLE_ENFORCE_NOT_NULL(
         out_var,
-        common::errors::NotFound("Output variable(%s) cannot be found "
-                                 "in scope for operator 'Fetch'.",
-                                 out_name));
+        platform::errors::NotFound("Output variable(%s) cannot be found "
+                                   "in scope for operator 'Fetch'.",
+                                   out_name));
 
     int col = Attr<int>("col");
     PADDLE_ENFORCE_GE(
         col,
         0,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Expected the column index (the attribute 'col' of "
             "operator 'Fetch') of current fetching variable to be "
             "no less than 0. But received column index = %d.",

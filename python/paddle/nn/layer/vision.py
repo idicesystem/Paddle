@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+# TODO: define specitial functions used in computer vision task
 
 from .. import functional
 from .layers import Layer
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import DataLayout2D
 
 __all__ = []
 
@@ -42,7 +36,7 @@ class PixelShuffle(Layer):
 
         upscale_factor(int): factor to increase spatial resolution.
         data_format (str, optional): The data format of the input and output data. An optional string from: `'NCHW'``, ``'NHWC'``. When it is ``'NCHW'``, the data is stored in the order of: [batch_size, input_channels, input_height, input_width]. Default: ``'NCHW'``.
-        name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
         - x: 4-D tensor with shape of :math:`(N, C, H, W)` or :math:`(N, H, W, C)`.
@@ -63,12 +57,7 @@ class PixelShuffle(Layer):
 
     """
 
-    def __init__(
-        self,
-        upscale_factor: int,
-        data_format: DataLayout2D = 'NCHW',
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, upscale_factor, data_format="NCHW", name=None):
         super().__init__()
 
         if not isinstance(upscale_factor, int):
@@ -77,19 +66,19 @@ class PixelShuffle(Layer):
         if data_format not in ["NCHW", "NHWC"]:
             raise ValueError(
                 "Data format should be 'NCHW' or 'NHWC'."
-                f"But receive data format: {data_format}"
+                f"But recevie data format: {data_format}"
             )
 
         self._upscale_factor = upscale_factor
         self._data_format = data_format
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return functional.pixel_shuffle(
             x, self._upscale_factor, self._data_format, self._name
         )
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         main_str = f'upscale_factor={self._upscale_factor}'
         if self._data_format != 'NCHW':
             main_str += f', data_format={self._data_format}'
@@ -111,7 +100,7 @@ class PixelUnshuffle(Layer):
     Parameters:
         downscale_factor (int): Factor to decrease spatial resolution.
         data_format (str, optional): The data format of the input and output data. An optional string of ``'NCHW'`` or ``'NHWC'``. When it is ``'NCHW'``, the data is stored in the order of [batch_size, input_channels, input_height, input_width]. Default: ``'NCHW'``.
-        name (str|None, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
         - **x**: 4-D tensor with shape of :math:`[N, C, H, W]` or :math:`[N, C, H, W]`.
@@ -131,12 +120,7 @@ class PixelUnshuffle(Layer):
 
     """
 
-    def __init__(
-        self,
-        downscale_factor: int,
-        data_format: DataLayout2D = 'NCHW',
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, downscale_factor, data_format="NCHW", name=None):
         super().__init__()
 
         if not isinstance(downscale_factor, int):
@@ -148,19 +132,19 @@ class PixelUnshuffle(Layer):
         if data_format not in ["NCHW", "NHWC"]:
             raise ValueError(
                 "Data format should be 'NCHW' or 'NHWC'."
-                f"But receive data format: {data_format}"
+                f"But recevie data format: {data_format}"
             )
 
         self._downscale_factor = downscale_factor
         self._data_format = data_format
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return functional.pixel_unshuffle(
             x, self._downscale_factor, self._data_format, self._name
         )
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         main_str = f'downscale_factor={self._downscale_factor}'
         if self._data_format != 'NCHW':
             main_str += f', data_format={self._data_format}'
@@ -182,7 +166,7 @@ class ChannelShuffle(Layer):
     Parameters:
         groups (int): Number of groups to divide channels in.
         data_format (str, optional): The data format of the input and output data. An optional string of NCHW or NHWC. The default is NCHW. When it is NCHW, the data is stored in the order of [batch_size, input_channels, input_height, input_width].
-        name (str|None, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). Normally there is no need for user to set this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
         - **x**: 4-D tensor with shape of [N, C, H, W] or [N, H, W, C].
@@ -215,12 +199,7 @@ class ChannelShuffle(Layer):
               [[0.50000000]]]])
     """
 
-    def __init__(
-        self,
-        groups: int,
-        data_format: DataLayout2D = 'NCHW',
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, groups, data_format="NCHW", name=None):
         super().__init__()
 
         if not isinstance(groups, int):
@@ -232,19 +211,19 @@ class ChannelShuffle(Layer):
         if data_format not in ["NCHW", "NHWC"]:
             raise ValueError(
                 "Data format should be 'NCHW' or 'NHWC'."
-                f"But receive data format: {data_format}"
+                f"But recevie data format: {data_format}"
             )
 
         self._groups = groups
         self._data_format = data_format
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return functional.channel_shuffle(
             x, self._groups, self._data_format, self._name
         )
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         main_str = f'groups={self._groups}'
         if self._data_format != 'NCHW':
             main_str += f', data_format={self._data_format}'

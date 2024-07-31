@@ -16,11 +16,14 @@
 
 #include <string>
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class ProgramDesc;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 static bool IsMatchedPyLayerOpAndPyLayerGradOp(const OpVariant &fwd_op,
                                                const OpVariant &bwd_op) {
@@ -35,7 +38,7 @@ static void FindAllPyLayerOpAndPyLayerGradOp(
   PADDLE_ENFORCE_GE(
       fwd_ops->size(),
       bwd_ops->size(),
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Size of forward ops must be greater or equal to backward ops. The "
           "number of forward ops is %d and the number of backward ops is %d",
           fwd_ops->size(),
@@ -56,7 +59,7 @@ static void FindAllPyLayerOpAndPyLayerGradOp(
   PADDLE_ENFORCE_GE(
       fwd_ops->size(),
       bwd_ops->size(),
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "There are more pylayer_grad ops than "
           "pylayer ops in the graph or program. The number of "
           "forward ops is %d and the number of backward ops is %d",
@@ -116,14 +119,14 @@ static void PrepareSafeEagerDeletionOnPyLayerOpAndPyLayerGradOp(
       if (IsMatchedPyLayerOpAndPyLayerGradOp(fwd_op, bwd_op)) {
         PADDLE_ENFORCE_EQ(matched_fwd_op,
                           nullptr,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "Found multiple matched pylayer ops."));
         matched_fwd_op = &fwd_op;
       }
     }
 
     PADDLE_ENFORCE_NOT_NULL(matched_fwd_op,
-                            common::errors::PreconditionNotMet(
+                            platform::errors::PreconditionNotMet(
                                 "Cannot find matched forward pylayer op."));
 
     SetSkipVarsForPyLayerOp(const_cast<OpVariant *>(matched_fwd_op), &bwd_op);
@@ -170,4 +173,5 @@ void PrepareSafeEagerDeletionOnPyLayerOpAndPyLayerGradOp(
       program, &fwd_ops, &bwd_ops);
 }
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle

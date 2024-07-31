@@ -35,42 +35,41 @@ using TupleOfSixTensors =
 using TupleOfTensorAndVector =
     std::tuple<Tensor, std::vector<Tensor>, std::vector<Tensor>>;
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const Tensor& tensor);
+void CheckTensorHasNanOrInf(const std::string& api_name, const Tensor& tensor);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const paddle::optional<Tensor>& tensor);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const paddle::optional<Tensor>& tensor);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfTwoTensors& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfTwoTensors& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfThreeTensors& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfThreeTensors& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfFourTensors& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfFourTensors& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfFiveTensors& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfFiveTensors& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfSixTensors& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfSixTensors& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const std::vector<Tensor>& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const std::vector<Tensor>& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(
+void CheckTensorHasNanOrInf(
     const std::string& api_name,
     const paddle::optional<std::vector<Tensor>>& tensors);
 
-TEST_API void CheckTensorHasNanOrInf(const std::string& api_name,
-                                     const TupleOfTensorAndVector& tensors);
+void CheckTensorHasNanOrInf(const std::string& api_name,
+                            const TupleOfTensorAndVector& tensors);
 
 void SetCheckOpList(const std::string& check_op_list);
 
 void SetSkipOpList(const std::string& skip_op_list);
 
-TEST_API void CheckTensorHasNanOrInf(
+void CheckTensorHasNanOrInf(
     const std::string& api_name,
     const paddle::small_vector<std::vector<paddle::Tensor>,
                                egr::kSlotSmallVectorSize>& tensors);

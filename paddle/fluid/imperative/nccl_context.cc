@@ -23,7 +23,7 @@
 #ifdef PADDLE_WITH_NCCL
 #include <nccl.h>
 
-#include "paddle/phi/backends/dynload/nccl.h"
+#include "paddle/fluid/platform/dynload/nccl.h"
 #endif
 
 #include "paddle/fluid/framework/convert_utils.h"
@@ -31,13 +31,16 @@
 #include "paddle/fluid/framework/variable.h"
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
 #include "paddle/fluid/platform/device_context.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Variable;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::imperative {
+namespace paddle {
+namespace imperative {
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
 
 void NCCLParallelContext::BcastNCCLId(
@@ -64,10 +67,10 @@ void NCCLParallelContext::Init() {
   std::vector<ncclUniqueId> nccl_ids;
   nccl_ids.resize(strategy_.nrings_);
 
-  if (strategy_.local_rank_ == 0) {  // NOLINT
+  if (strategy_.local_rank_ == 0) {
     // generate the unique ncclid on the root worker
     for (auto &nccl_id : nccl_ids) {
-      phi::dynload::ncclGetUniqueId(&nccl_id);
+      platform::dynload::ncclGetUniqueId(&nccl_id);
     }
   } else {
     // FIXME(wangxi): gloo will use rank0 endpoint, so not create socket server
@@ -103,7 +106,7 @@ void NCCLParallelContext::InitWithRingID(int ring_id) {
 
   if (strategy_.local_rank_ == 0) {
     // generate the unique ncclid on the root worker
-    phi::dynload::ncclGetUniqueId(&nccl_ids[0]);
+    platform::dynload::ncclGetUniqueId(&nccl_ids[0]);
   } else {
     // FIXME(wangxi): gloo will use rank0 endpoint, so not create socket server
     // on rank0.
@@ -131,9 +134,9 @@ void NCCLParallelContext::AllReduceByStream(const framework::Variable &src,
                                             int ring_id,
                                             bool use_calc_stream) {
   PADDLE_ENFORCE_EQ(
-      phi::is_gpu_place(place_),
+      platform::is_gpu_place(place_),
       true,
-      phi::errors::Unimplemented(
+      platform::errors::Unimplemented(
           "Dynamic graph mode does not support multi-CPU training yet."));
   AllReduce(src, dst, strategy_, ring_id, use_calc_stream);
 }
@@ -149,31 +152,33 @@ void NCCLParallelContext::Broadcast(framework::Variable *src, int ring_id) {
   void *src_ptr = src_tensor->data();
   auto nccl_dtype = platform::ToNCCLDataType(
       framework::TransToProtoVarType(src_tensor->dtype()));
-  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclBcast(
+  PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::ncclBcast(
       src_ptr, src_tensor->numel(), nccl_dtype, 0, comm->comm(), stream));
 }
 
-phi::DeviceContext *NCCLParallelContext::GetDeviceContext(int ring_id) {
-  return static_cast<phi::DeviceContext *>(platform::NCCLCommContext::Instance()
-                                               .Get(ring_id, place_)
-                                               ->dev_context());
+paddle::platform::DeviceContext *NCCLParallelContext::GetDeviceContext(
+    int ring_id) {
+  return static_cast<platform::DeviceContext *>(
+      platform::NCCLCommContext::Instance()
+          .Get(ring_id, place_)
+          ->dev_context());
 }
 
 void NCCLParallelContext::WaitCompute(int ring_id) {
   PADDLE_ENFORCE_GE(
       ring_id,
       0,
-      phi::errors::OutOfRange("ring id must >= 0, but got %d", ring_id));
-  PADDLE_ENFORCE_LT(
-      ring_id,
-      compute_events_.size(),
-      phi::errors::OutOfRange("ring id must < compute events size,"
-                              "but got ring id = %d, compute events size = %d",
-                              ring_id,
-                              compute_events_.size()));
+      platform::errors::OutOfRange("ring id must >= 0, but got %d", ring_id));
+  PADDLE_ENFORCE_LT(ring_id,
+                    compute_events_.size(),
+                    platform::errors::OutOfRange(
+                        "ring id must < compute events size,"
+                        "but got ring id = %d, compute events size = %d",
+                        ring_id,
+                        compute_events_.size()));
 
   auto compute_stream = static_cast<phi::GPUContext *>(
-                            phi::DeviceContextPool::Instance().Get(place_))
+                            platform::DeviceContextPool::Instance().Get(place_))
                             ->stream();
   auto comm_stream =
       platform::NCCLCommContext::Instance().Get(ring_id, place_)->stream();
@@ -193,17 +198,17 @@ void NCCLParallelContext::WaitComm(int ring_id) {
   PADDLE_ENFORCE_GE(
       ring_id,
       0,
-      phi::errors::OutOfRange("ring id must >= 0, but got %d", ring_id));
-  PADDLE_ENFORCE_LT(
-      ring_id,
-      comm_events_.size(),
-      phi::errors::OutOfRange("ring id must < comm events size,"
-                              "but got ring id = %d, comm events size = %d",
-                              ring_id,
-                              comm_events_.size()));
+      platform::errors::OutOfRange("ring id must >= 0, but got %d", ring_id));
+  PADDLE_ENFORCE_LT(ring_id,
+                    comm_events_.size(),
+                    platform::errors::OutOfRange(
+                        "ring id must < comm events size,"
+                        "but got ring id = %d, comm events size = %d",
+                        ring_id,
+                        comm_events_.size()));
 
   auto compute_stream = static_cast<phi::GPUContext *>(
-                            phi::DeviceContextPool::Instance().Get(place_))
+                            platform::DeviceContextPool::Instance().Get(place_))
                             ->stream();
   auto comm_stream =
       platform::NCCLCommContext::Instance().Get(ring_id, place_)->stream();
@@ -221,10 +226,11 @@ void NCCLParallelContext::WaitComm(int ring_id) {
 
 void NCCLParallelContext::SynchronizeCompute() {
   auto *compute_dev_ctx = static_cast<phi::GPUContext *>(
-      phi::DeviceContextPool::Instance().Get(place_));
+      platform::DeviceContextPool::Instance().Get(place_));
   compute_dev_ctx->Wait();
 }
 
 #endif
 
-}  // namespace paddle::imperative
+}  //  namespace imperative
+}  //  namespace paddle

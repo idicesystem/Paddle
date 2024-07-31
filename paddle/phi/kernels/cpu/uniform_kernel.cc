@@ -49,5 +49,4 @@ PD_REGISTER_KERNEL(uniform,
                    phi::UniformKernel,
                    float,
                    double,
-                   phi::dtype::float16,
                    phi::dtype::bfloat16) {}

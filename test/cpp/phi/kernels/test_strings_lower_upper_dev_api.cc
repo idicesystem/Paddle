@@ -31,6 +31,7 @@ limitations under the License. */
 namespace phi {
 namespace tests {
 
+namespace framework = paddle::framework;
 using DDim = phi::DDim;
 using pstring = ::phi::dtype::pstring;
 

@@ -75,7 +75,8 @@ class TestNoSync(TestParallelDyGraphRunnerBase):
             assert "Only support CUDAPlace for now."
 
         with base.dygraph.guard(place):
-            paddle.seed(seed)
+            base.default_startup_program().random_seed = seed
+            base.default_main_program().random_seed = seed
             np.random.seed(seed)
             random.seed(seed)
             model, train_reader, opt = self.get_model()
@@ -100,7 +101,8 @@ class TestNoSync(TestParallelDyGraphRunnerBase):
 
         # 2. init seed
         seed = 90
-        paddle.seed(seed)
+        paddle.static.default_startup_program().random_seed = seed
+        paddle.static.default_main_program().random_seed = seed
         np.random.seed(seed)
         random.seed(seed)
         # get trainer id

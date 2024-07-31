@@ -19,7 +19,6 @@
 #include <functional>
 #include <memory>
 #include <set>
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace utils {
@@ -56,10 +55,7 @@ class SizedMultiSet {
   }
 
   void Pop() {
-    PADDLE_ENFORCE_GE(multi_set_.size(),
-                      1UL,
-                      ::common::errors::PreconditionNotMet(
-                          "Call Pop on empty SizedMultiSet."));
+    CHECK_GE(multi_set_.size(), 1UL) << "Call Pop on empty SizedMultiSet";
     if (pop_max_when_full_) {
       multi_set_.erase(--multi_set_.end());
     } else {

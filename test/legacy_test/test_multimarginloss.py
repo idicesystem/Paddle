@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
 
 import paddle
-from paddle.pir_utils import test_with_pir_api
 
 
 def call_MultiMarginLoss_layer(
@@ -240,7 +238,6 @@ def calc_multi_margin_loss(
 
 
 class TestMultiMarginLoss(unittest.TestCase):
-    @test_with_pir_api
     def test_MultiMarginLoss(self):
         batch_size = 5
         num_classes = 2
@@ -250,13 +247,7 @@ class TestMultiMarginLoss(unittest.TestCase):
             np.int64
         )
 
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.device.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.device.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         reductions = ['sum', 'mean', 'none']
@@ -339,7 +330,6 @@ class TestMultiMarginLoss(unittest.TestCase):
         )
         paddle.enable_static()
 
-    @test_with_pir_api
     def test_MultiMarginLoss_p(self):
         p = 2
         batch_size = 5
@@ -393,7 +383,6 @@ class TestMultiMarginLoss(unittest.TestCase):
         np.testing.assert_allclose(static_functional, dy_functional)
         np.testing.assert_allclose(dy_functional, expected)
 
-    @test_with_pir_api
     def test_MultiMarginLoss_weight(self):
         batch_size = 5
         num_classes = 2
@@ -447,7 +436,6 @@ class TestMultiMarginLoss(unittest.TestCase):
         np.testing.assert_allclose(static_functional, dy_functional)
         np.testing.assert_allclose(dy_functional, expected)
 
-    @test_with_pir_api
     def test_MultiMarginLoss_static_data_shape(self):
         batch_size = 5
         num_classes = 2

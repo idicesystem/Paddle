@@ -48,7 +48,7 @@ class TrtConvertConv3dTransposeTest(TrtLayerAutoScanTest):
         self.num_channels = num_channels
         dics = [
             {
-                "data_format": 'NCHW',
+                "data_fromat": 'NCHW',
                 "dilations": [1, 1, 1],
                 "padding_algorithm": 'EXPLICIT',
                 "groups": 1,

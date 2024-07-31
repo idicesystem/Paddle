@@ -21,7 +21,8 @@ limitations under the License. */
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/shape_kernel.h"
 
-namespace phi::sr {
+namespace phi {
+namespace sr {
 
 template <typename T, typename Context>
 void ShapeKernel(const Context& ctx,
@@ -30,7 +31,8 @@ void ShapeKernel(const Context& ctx,
   phi::ShapeKernel<T, Context>(ctx, input.value(), out);
 }
 
-}  // namespace phi::sr
+}  // namespace sr
+}  // namespace phi
 
 PD_REGISTER_KERNEL(shape_sr,
                    CPU,
@@ -80,8 +82,7 @@ PD_REGISTER_KERNEL(shape_sr,
                    int64_t,
                    float,
                    double,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {
+                   phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
   kernel->OutputAt(0).SetBackend(phi::Backend::CPU);
   kernel->OutputAt(0).SetDataType(phi::DataType::INT32);

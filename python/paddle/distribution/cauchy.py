@@ -12,21 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import numbers
-from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
 
 import paddle
 from paddle.base import framework
 from paddle.distribution import distribution
-
-if TYPE_CHECKING:
-    from typing_extensions import Never
-
-    from paddle import Tensor, dtype
 
 
 class Cauchy(distribution.Distribution):
@@ -41,7 +33,7 @@ class Cauchy(distribution.Distribution):
     Args:
         loc (float|Tensor): Location of the peak of the distribution. The data type is float32 or float64.
         scale (float|Tensor): The half-width at half-maximum (HWHM). The data type is float32 or float64. Must be positive values.
-        name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+        name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
     Examples:
 
@@ -63,30 +55,16 @@ class Cauchy(distribution.Distribution):
                     [2.53102422, 3.22417140])
     """
 
-    loc: Tensor
-    scale: Tensor
-    dtype: dtype
-    name: str
-
-    def __init__(
-        self,
-        loc: float | Tensor,
-        scale: float | Tensor,
-        name: str | None = None,
-    ) -> None:
+    def __init__(self, loc, scale, name=None):
         self.name = name if name is not None else 'Cauchy'
 
-        if not isinstance(
-            loc, (numbers.Real, framework.Variable, paddle.pir.Value)
-        ):
+        if not isinstance(loc, (numbers.Real, framework.Variable)):
             raise TypeError(
-                f"Expected type of loc is Real|Variable|Value, but got {type(loc)}"
+                f"Expected type of loc is Real|Variable, but got {type(loc)}"
             )
-        if not isinstance(
-            scale, (numbers.Real, framework.Variable, paddle.pir.Value)
-        ):
+        if not isinstance(scale, (numbers.Real, framework.Variable)):
             raise TypeError(
-                f"Expected type of scale is Real|Variable|Value, but got {type(scale)}"
+                f"Expected type of scale is Real|Variable, but got {type(scale)}"
             )
 
         if isinstance(loc, numbers.Real):
@@ -105,21 +83,21 @@ class Cauchy(distribution.Distribution):
         super().__init__(batch_shape=self.loc.shape, event_shape=())
 
     @property
-    def mean(self) -> Never:
+    def mean(self):
         """Mean of Cauchy distribution."""
         raise ValueError("Cauchy distribution has no mean.")
 
     @property
-    def variance(self) -> Never:
+    def variance(self):
         """Variance of Cauchy distribution."""
         raise ValueError("Cauchy distribution has no variance.")
 
     @property
-    def stddev(self) -> Never:
+    def stddev(self):
         """Standard Deviation of Cauchy distribution."""
         raise ValueError("Cauchy distribution has no stddev.")
 
-    def sample(self, shape: Sequence[int], name: str | None = None) -> Tensor:
+    def sample(self, shape, name=None):
         """Sample from Cauchy distribution.
 
         Note:
@@ -127,7 +105,7 @@ class Cauchy(distribution.Distribution):
 
         Args:
             shape (Sequence[int]): Sample shape.
-            name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+            name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
         Returns:
             Tensor: Sampled data with shape `sample_shape` + `batch_shape` + `event_shape`.
@@ -167,12 +145,12 @@ class Cauchy(distribution.Distribution):
         with paddle.no_grad():
             return self.rsample(shape, name)
 
-    def rsample(self, shape: Sequence[int], name: str | None = None) -> Tensor:
+    def rsample(self, shape, name=None):
         """Sample from Cauchy distribution (reparameterized).
 
         Args:
             shape (Sequence[int]): Sample shape.
-            name (str|None, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
+            name (str, optional): Name for the operation (optional, default is None). For more information, please refer to :ref:`api_guide_Name`.
 
         Returns:
             Tensor: Sampled data with shape `sample_shape` + `batch_shape` + `event_shape`.
@@ -210,10 +188,7 @@ class Cauchy(distribution.Distribution):
         """
         name = name if name is not None else (self.name + '_rsample')
 
-        if not isinstance(
-            shape,
-            (np.ndarray, framework.Variable, paddle.pir.Value, list, tuple),
-        ):
+        if not isinstance(shape, (np.ndarray, framework.Variable, list, tuple)):
             raise TypeError(
                 f"Expected type of shape is Sequence[int], but got {type(shape)}"
             )
@@ -230,7 +205,7 @@ class Cauchy(distribution.Distribution):
             name=name,
         )
 
-    def prob(self, value: Tensor) -> Tensor:
+    def prob(self, value):
         r"""Probability density function(PDF) evaluated at value.
 
         .. math::
@@ -276,21 +251,21 @@ class Cauchy(distribution.Distribution):
         """
         name = self.name + '_prob'
 
-        if not isinstance(value, (framework.Variable, paddle.pir.Value)):
+        if not isinstance(value, framework.Variable):
             raise TypeError(
-                f"Expected type of value is Variable or Value, but got {type(value)}"
+                f"Expected type of value is Variable, but got {type(value)}"
             )
 
         return self.log_prob(value).exp(name=name)
 
-    def log_prob(self, value: Tensor) -> Tensor:
-        """Log of probability density function.
+    def log_prob(self, value):
+        """Log of probability densitiy function.
 
         Args:
             value (Tensor): Value to be evaluated.
 
         Returns:
-            Tensor: Log of probability density evaluated at value.
+            Tensor: Log of probability densitiy evaluated at value.
 
         Examples:
 
@@ -325,9 +300,9 @@ class Cauchy(distribution.Distribution):
         """
         name = self.name + '_log_prob'
 
-        if not isinstance(value, (framework.Variable, paddle.pir.Value)):
+        if not isinstance(value, framework.Variable):
             raise TypeError(
-                f"Expected type of value is Variable or Value, but got {type(value)}"
+                f"Expected type of value is Variable, but got {type(value)}"
             )
 
         value = self._check_values_dtype_in_probs(self.loc, value)
@@ -346,7 +321,7 @@ class Cauchy(distribution.Distribution):
             name=name,
         )
 
-    def cdf(self, value: Tensor) -> Tensor:
+    def cdf(self, value):
         r"""Cumulative distribution function(CDF) evaluated at value.
 
         .. math::
@@ -392,9 +367,9 @@ class Cauchy(distribution.Distribution):
         """
         name = self.name + '_cdf'
 
-        if not isinstance(value, (framework.Variable, paddle.pir.Value)):
+        if not isinstance(value, framework.Variable):
             raise TypeError(
-                f"Expected type of value is Variable or Value, but got {type(value)}"
+                f"Expected type of value is Variable, but got {type(value)}"
             )
 
         value = self._check_values_dtype_in_probs(self.loc, value)
@@ -410,7 +385,7 @@ class Cauchy(distribution.Distribution):
             + 0.5
         )
 
-    def entropy(self) -> Tensor:
+    def entropy(self):
         r"""Entropy of Cauchy distribution.
 
         .. math::
@@ -447,7 +422,7 @@ class Cauchy(distribution.Distribution):
             name=name,
         )
 
-    def kl_divergence(self, other: Cauchy) -> Tensor:
+    def kl_divergence(self, other):
         """The KL-divergence between two Cauchy distributions.
 
         Note:

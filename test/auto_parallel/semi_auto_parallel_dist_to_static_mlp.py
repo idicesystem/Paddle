@@ -38,20 +38,13 @@ def create_numpy_like_random(name):
 
 
 class RandomDataset(paddle.io.Dataset):
-    def __init__(self, images, labels, num_samples, return_dict=False):
+    def __init__(self, images, labels, num_samples):
         self.images = images
         self.labels = labels
         self.num_samples = num_samples
-        self.return_dict = return_dict
 
     def __getitem__(self, idx):
-        if self.return_dict:
-            return {
-                "image": self.images[idx],
-                "label": self.labels[idx],
-            }
-        else:
-            return self.images[idx], self.labels[idx]
+        return self.images[idx], self.labels[idx]
 
     def __len__(self):
         return self.num_samples
@@ -62,11 +55,13 @@ class DemoNet(nn.Layer):
         self,
         mesh,
         param_prefix="",
+        shard_input=False,
         shard_weight=False,
         is_recompute=False,
     ):
         super().__init__()
         self._mesh = mesh
+        self.shard_input = shard_input
         self.shard_weight = shard_weight
         self.is_recompute = is_recompute
         weight_attr_0 = create_numpy_like_random(param_prefix + "_0")
@@ -96,6 +91,8 @@ class DemoNet(nn.Layer):
         return out
 
     def forward(self, x):
+        if self.shard_input:
+            x = dist.shard_tensor(x, self._mesh, [Shard(0)])
         if self.is_recompute:
             return recompute(self._inner_forward_fn, x)
         else:
@@ -106,52 +103,42 @@ class TestSimpleNetForSemiAutoParallel:
     def __init__(self):
         self._seed = eval(os.getenv("seed"))
         self._ckpt_path = os.getenv("ckpt_path")
-        self.mesh = dist.ProcessMesh([0, 1], dim_names=["x"])
 
     def set_random_seed(self, seed):
         random.seed(seed)
         np.random.seed(seed)
         paddle.seed(seed)
 
-    def create_data_loader(self, return_dict=False):
+    def create_data_loader(self):
         images = np.random.rand(BATCH_SIZE, IMAGE_SIZE).astype('float32')
         labels = np.random.rand(BATCH_SIZE, CLASS_NUM).astype('float32')
-        dataset = RandomDataset(images, labels, BATCH_SIZE, return_dict)
+        dataset = RandomDataset(images, labels, BATCH_SIZE)
         loader = DataLoader(dataset, batch_size=BATCH_SIZE)
         return loader
 
-    def run_dy2static(self, layer, opt, dist_loader):
+    def run_dy2static(self, layer, opt, data_loader):
         # create loss
         loss_fn = nn.MSELoss()
+
         # static training
-        dist_model = dist.to_static(layer, dist_loader, loss_fn, opt)
+        dist_model, dist_loader = dist.to_static(
+            layer, data_loader, loss_fn, opt
+        )
         loss_list = []
         dist_model.train()
         for epoch in range(5):
-            for batch_id, data in enumerate(dist_loader()):
-                if isinstance(data, dict):
-                    image = data['image']
-                    label = data['label']
-                else:
-                    image, label = data
+            for batch_id, (image, label) in enumerate(dist_loader()):
                 loss = dist_model(image, label)
                 loss_list.append(loss)
-
         return np.array(loss_list), dist_model
 
-    def run_dynamic(self, layer, opt, dist_loader, is_recompute=False):
+    def run_dynamic(self, layer, opt, data_loader):
         # create loss
         loss_fn = nn.MSELoss()
+
         loss_list = []
         for _ in range(5):
-            for batch_id, data in enumerate(dist_loader()):
-                if isinstance(data, dict):
-                    image = data['image']
-                    label = data['label']
-                else:
-                    image, label = data
-                if is_recompute:
-                    image.stop_gradient = False
+            for batch_id, (image, label) in enumerate(data_loader()):
                 out = layer(image)
                 loss = loss_fn(out, label)
                 loss_list.append(loss.numpy())
@@ -161,34 +148,28 @@ class TestSimpleNetForSemiAutoParallel:
                 opt.clear_grad()
         return np.array(loss_list)
 
-    def test_dp_demo_net(self, is_dataloader_output_dict=False):
-        paddle.disable_static()
+    def test_dp_demo_net(self):
+        mesh = dist.ProcessMesh([0, 1], dim_names=["x"])
         self.set_random_seed(self._seed)
-        data_loader = self.create_data_loader(
-            return_dict=is_dataloader_output_dict
-        )
+        data_loader = self.create_data_loader()
 
         self.set_random_seed(self._seed)
-        dy_layer = DemoNet(self.mesh, "dy_dp_demonet")
+        dy_layer = DemoNet(mesh, "dy_dp_demonet", shard_input=True)
         dy_opt = paddle.optimizer.SGD(
             learning_rate=0.1, parameters=dy_layer.parameters()
         )
 
         self.set_random_seed(self._seed)
-        dy2static_layer = DemoNet(self.mesh, "dy2static_dp_demonet")
+        dy2static_layer = DemoNet(
+            mesh, "dy2static_dp_demonet", shard_input=True
+        )
         dy2static_opt = paddle.optimizer.SGD(
             learning_rate=0.1, parameters=dy2static_layer.parameters()
         )
-        dist_dataloader = dist.shard_dataloader(
-            dataloader=data_loader,
-            meshes=[self.mesh],
-            input_keys=["image", "label"],
-            shard_dims=['x'],
-        )
 
-        dy_losses = self.run_dynamic(dy_layer, dy_opt, dist_dataloader)
+        dy_losses = self.run_dynamic(dy_layer, dy_opt, data_loader)
         dy2static_losses, _ = self.run_dy2static(
-            dy2static_layer, dy2static_opt, dist_dataloader
+            dy2static_layer, dy2static_opt, data_loader
         )
 
         # Check the loss values. Different from dygraph mode, when
@@ -206,30 +187,26 @@ class TestSimpleNetForSemiAutoParallel:
         np.testing.assert_allclose(dy_losses, np_dy2static_loss, rtol=1e-6)
 
     def test_mp_demo_net(self):
-        paddle.disable_static()
+        mesh = dist.ProcessMesh([0, 1], dim_names=["x"])
         self.set_random_seed(self._seed)
         data_loader = self.create_data_loader()
 
         self.set_random_seed(self._seed)
-        dy_layer = DemoNet(self.mesh, "dy_mp_demonet", shard_weight=True)
+        dy_layer = DemoNet(mesh, "dy_mp_demonet", shard_weight=True)
         dy_opt = paddle.optimizer.SGD(
             learning_rate=0.1, parameters=dy_layer.parameters()
         )
 
         self.set_random_seed(self._seed)
         dy2static_layer = DemoNet(
-            self.mesh, "dy2static_mp_demonet", shard_weight=True
+            mesh, "dy2static_mp_demonet", shard_weight=True
         )
         dy2static_opt = paddle.optimizer.SGD(
             learning_rate=0.1, parameters=dy2static_layer.parameters()
         )
-        dist_dataloader = dist.shard_dataloader(
-            dataloader=data_loader,
-            meshes=[self.mesh],
-        )
-        dy_losses = self.run_dynamic(dy_layer, dy_opt, dist_dataloader)
+        dy_losses = self.run_dynamic(dy_layer, dy_opt, data_loader)
         dy2static_losses, dist_model = self.run_dy2static(
-            dy2static_layer, dy2static_opt, dist_dataloader
+            dy2static_layer, dy2static_opt, data_loader
         )
         np.testing.assert_allclose(dy_losses, dy2static_losses, rtol=1e-6)
 
@@ -265,57 +242,9 @@ class TestSimpleNetForSemiAutoParallel:
                 expected_local_state_dict[k].numpy(),
             )
 
-    def test_recompute(self):
-        paddle.disable_static()
-        self.set_random_seed(self._seed)
-        data_loader = self.create_data_loader()
-
-        self.set_random_seed(self._seed)
-        dy_layer = DemoNet(
-            self.mesh,
-            "dy_mp_demonet_recompute",
-            shard_weight=True,
-            is_recompute=True,
-        )
-        dy_opt = paddle.optimizer.SGD(
-            learning_rate=0.1, parameters=dy_layer.parameters()
-        )
-
-        self.set_random_seed(self._seed)
-        dy2static_layer = DemoNet(
-            self.mesh,
-            "dy2static_mp_demonet_recompute",
-            shard_weight=True,
-            is_recompute=True,
-        )
-        dy2static_opt = paddle.optimizer.SGD(
-            learning_rate=0.1, parameters=dy2static_layer.parameters()
-        )
-
-        dist_dataloader = dist.shard_dataloader(
-            dataloader=data_loader,
-            meshes=[self.mesh],
-        )
-        dy_losses = self.run_dynamic(
-            dy_layer, dy_opt, dist_dataloader, is_recompute=True
-        )
-        dy2static_losses, dist_model = self.run_dy2static(
-            dy2static_layer, dy2static_opt, dist_dataloader
-        )
-
-        # check recompute op num
-        ops = dist_model.dist_main_program().block(0).ops
-        ops_names = [op.type for op in ops]
-        assert ops_names.count('matmul_v2') == 4
-        assert ops_names.count('relu') == 2
-
-        np.testing.assert_allclose(dy_losses, dy2static_losses, rtol=1e-6)
-
     def run_test_case(self):
-        self.test_dp_demo_net(False)
-        self.test_dp_demo_net(True)
+        self.test_dp_demo_net()
         self.test_mp_demo_net()
-        self.test_recompute()
 
 
 if __name__ == '__main__':

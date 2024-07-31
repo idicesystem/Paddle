@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Sequence
+# TODO: define classes of convolutional neural network
 
 import numpy as np
 
@@ -30,24 +28,6 @@ from .. import functional as F
 from ..functional.conv import _update_padding_nd
 from ..initializer import Normal
 from .layers import Layer
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import (
-        DataLayout1D,
-        DataLayout2D,
-        DataLayout3D,
-        DataLayoutND,
-        ParamAttrLike,
-        Size1,
-        Size2,
-        Size3,
-        Size4,
-        Size6,
-    )
-
-    from ..functional.common import _PaddingSizeMode, _PaddingTensorMode
-
 
 __all__ = []
 
@@ -67,28 +47,23 @@ def _reverse_repeat_list(t, n):
 
 
 class _ConvNd(Layer):
-    weight: Tensor
-    bias: Tensor
-
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int | Sequence[int],
-        transposed: bool,
-        dims: int,
-        stride: int | Sequence[int] = 1,
-        padding: _PaddingSizeMode | int | Sequence[int] | Sequence[Size2] = 0,
-        padding_mode: _PaddingTensorMode = 'zeros',
-        output_padding: (
-            _PaddingSizeMode | int | Sequence[int] | Sequence[Size2]
-        ) = 0,
-        dilation: int | Sequence[int] = 1,
-        groups: int = 1,
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayoutND = "NCHW",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        transposed,
+        dims,
+        stride=1,
+        padding=0,
+        padding_mode='zeros',
+        output_padding=0,
+        dilation=1,
+        groups=1,
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCHW",
+    ):
         super().__init__()
         assert (
             weight_attr is not False
@@ -103,7 +78,9 @@ class _ConvNd(Layer):
         valid_padding_modes = {'zeros', 'reflect', 'replicate', 'circular'}
         if padding_mode not in valid_padding_modes:
             raise ValueError(
-                f"padding_mode must be one of {valid_padding_modes}, but got padding_mode='{padding_mode}'"
+                "padding_mode must be one of {}, but got padding_mode='{}'".format(
+                    valid_padding_modes, padding_mode
+                )
             )
 
         if padding_mode in {
@@ -118,7 +95,9 @@ class _ConvNd(Layer):
         valid_format = {'NHWC', 'NCHW', 'NDHWC', 'NCDHW', 'NLC', 'NCL'}
         if data_format not in valid_format:
             raise ValueError(
-                f"data_format must be one of {valid_format}, but got data_format='{data_format}'"
+                "data_format must be one of {}, but got data_format='{}'".format(
+                    valid_format, data_format
+                )
             )
 
         channel_last = (
@@ -180,9 +159,7 @@ class _ConvNd(Layer):
             default_initializer=_get_default_param_initializer(),
         )
         self.bias = self.create_parameter(
-            attr=self._bias_attr,
-            shape=[self._out_channels],
-            is_bias=True,
+            attr=self._bias_attr, shape=[self._out_channels], is_bias=True
         )
 
         cudnn_version = get_cudnn_version()
@@ -355,18 +332,18 @@ class Conv1D(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size1,
-        stride: Size1 = 1,
-        padding: _PaddingSizeMode | Size1 | Size2 | Sequence[Size2] = 0,
-        dilation: Size1 = 1,
-        groups: int = 1,
-        padding_mode: _PaddingTensorMode = 'zeros',
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout1D = "NCL",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        groups=1,
+        padding_mode='zeros',
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCL",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -383,7 +360,7 @@ class Conv1D(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         padding = 0
         if self._padding_mode != "zeros":
             x = F.pad(
@@ -457,12 +434,12 @@ class Conv1DTranspose(_ConvNd):
            L_{out} &\in [ L^\prime_{out}, L^\prime_{out} + stride ]
 
     Note:
-        The conv1d_transpose can be seen as the backward of the conv1d. For conv1d,
-        when stride > 1, conv1d maps multiple input shape to the same output shape,
-        so for conv1d_transpose, when stride > 1, input shape maps multiple output shape.
-        If output_size is None, :math:`L_{out} = L^\prime_{out}`;
-        else, the :math:`L_{out}` of the output size must between :math:`L^\prime_{out}`
-        and :math:`L^\prime_{out} + stride`.
+          The conv1d_transpose can be seen as the backward of the conv1d. For conv1d,
+          when stride > 1, conv1d maps multiple input shape to the same output shape,
+          so for conv1d_transpose, when stride > 1, input shape maps multiple output shape.
+          If output_size is None, :math:`L_{out} = L^\prime_{out}`;
+          else, the :math:`L_{out}` of the output size must between :math:`L^\prime_{out}`
+          and :math:`L^\prime_{out} + stride`.
 
     Args:
         in_channels(int): The number of channels in the input image.
@@ -476,12 +453,12 @@ class Conv1DTranspose(_ConvNd):
             If stride is a tuple/list, it must contain one integer, (stride_size).
             Default: stride = 1.
         padding(int|list|str|tuple, optional): The padding size. The padding argument effectively adds
-            `dilation * (kernel - 1)` amount of zero-padding on both sides of input. If `padding` is a
-            string, either 'VALID' or 'SAME' supported, which is the padding algorithm.
-            If `padding` is a tuple or list, it could be in two forms:
-            `[pad]` or `[pad_left, pad_right]`. Default: padding = 0.
+             `dilation * (kernel - 1)` amount of zero-padding on both sides of input. If `padding` is a
+             string, either 'VALID' or 'SAME' supported, which is the padding algorithm.
+             If `padding` is a tuple or list, it could be in two forms:
+             `[pad]` or `[pad_left, pad_right]`. Default: padding = 0.
         output_padding(int|list|tuple, optional): The count of zeros to be added to tail of each dimension.
-            If it is a tuple/list, it must contain one integer. Default: 0.
+             If it is a tuple/list, it must contain one integer. Default: 0.
         groups(int, optional): The groups number of the Conv2D transpose layer. Inspired by
             grouped convolution in Alex Krizhevsky's Deep CNN paper, in which
             when group=2, the first half of the filters is only connected to the
@@ -515,7 +492,7 @@ class Conv1DTranspose(_ConvNd):
         - output(Tensor): 3-D tensor with same shape as input x.
 
     Examples:
-        .. code-block:: python
+       .. code-block:: python
 
             >>> import paddle
             >>> from paddle.nn import Conv1DTranspose
@@ -542,18 +519,18 @@ class Conv1DTranspose(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size1,
-        stride: Size1 = 1,
-        padding: _PaddingSizeMode | Size1 | Size2 | Sequence[Size2] = 0,
-        output_padding: _PaddingSizeMode | Size1 | Size2 | Sequence[Size2] = 0,
-        groups: int = 1,
-        dilation: Size1 = 1,
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout1D = "NCL",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        output_padding=0,
+        groups=1,
+        dilation=1,
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCL",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -570,7 +547,7 @@ class Conv1DTranspose(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor, output_size: Size1 | None = None) -> Tensor:
+    def forward(self, x, output_size=None):
         out = F.conv1d_transpose(
             x,
             self.weight,
@@ -698,18 +675,18 @@ class Conv2D(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size2,
-        stride: Size2 = 1,
-        padding: _PaddingSizeMode | Size2 | Size4 | Sequence[Size2] = 0,
-        dilation: Size2 = 1,
-        groups: int = 1,
-        padding_mode: _PaddingTensorMode = 'zeros',
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout2D = "NCHW",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        groups=1,
+        padding_mode='zeros',
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCHW",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -726,7 +703,7 @@ class Conv2D(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         if self._padding_mode != 'zeros':
             x = F.pad(
                 x,
@@ -785,7 +762,7 @@ class Conv2DTranspose(_ConvNd):
     * :math:`Out`: Output value, a 4-D ``Tensor`` with NCHW or NHWC format, the shape of :math:`Out` and :math:`X` may be different.
 
     Note:
-        If output_size is None, :math:`H_{out}` = :math:`H^\prime_{out}` , :math:`W_{out}` = :math:`W^\prime_{out}`. Otherwise, the specified output_size_height (the height of the output feature layer) :math:`H_{out}` should be between :math:`H^\prime_{out}` and :math:`H^\prime_{out} + strides[0]` (excluding :math:`H^\prime_{out} + strides[0]` ).
+     If output_size is None, :math:`H_{out}` = :math:`H^\prime_{out}` , :math:`W_{out}` = :math:`W^\prime_{out}`. Otherwise, the specified output_size_height (the height of the output feature layer) :math:`H_{out}` should be between :math:`H^\prime_{out}` and :math:`H^\prime_{out} + strides[0]` (excluding :math:`H^\prime_{out} + strides[0]` ).
 
     Parameters:
         in_channels(int): The number of channels in the input image.
@@ -856,7 +833,7 @@ class Conv2DTranspose(_ConvNd):
 
     Examples:
 
-        .. code-block:: python
+       .. code-block:: python
 
             >>> import paddle
             >>> import paddle.nn as nn
@@ -873,18 +850,18 @@ class Conv2DTranspose(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size2,
-        stride: Size2 = 1,
-        padding: _PaddingSizeMode | Size2 | Size4 | Sequence[Size2] = 0,
-        output_padding: _PaddingSizeMode | Size2 | Size4 | Sequence[Size2] = 0,
-        dilation: Size2 = 1,
-        groups: int = 1,
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout2D = "NCHW",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        output_padding=0,
+        dilation=1,
+        groups=1,
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCHW",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -901,7 +878,7 @@ class Conv2DTranspose(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor, output_size: Size2 | None = None) -> Tensor:
+    def forward(self, x, output_size=None):
         if output_size is None:
             output_padding = self.output_padding
         else:
@@ -1030,18 +1007,18 @@ class Conv3D(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size3,
-        stride: Size3 = 1,
-        padding: _PaddingSizeMode | Size3 | Size6 | Sequence[Size2] = 0,
-        dilation: Size3 = 1,
-        groups: int = 1,
-        padding_mode: _PaddingTensorMode = 'zeros',
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout3D = "NCDHW",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        groups=1,
+        padding_mode='zeros',
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCDHW",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -1058,7 +1035,7 @@ class Conv3D(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         if self._padding_mode != 'zeros':
             x = F.pad(
                 x,
@@ -1192,7 +1169,7 @@ class Conv3DTranspose(_ConvNd):
 
     Examples:
 
-        .. code-block:: python
+       .. code-block:: python
 
             >>> import paddle
             >>> import paddle.nn as nn
@@ -1209,18 +1186,18 @@ class Conv3DTranspose(_ConvNd):
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size3,
-        stride: Size3 = 1,
-        padding: _PaddingSizeMode | Size3 | Size6 | Sequence[Size2] = 0,
-        output_padding: _PaddingSizeMode | Size3 | Size6 | Sequence[Size2] = 0,
-        dilation: Size3 = 1,
-        groups: int = 1,
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-        data_format: DataLayout3D = "NCDHW",
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        output_padding=0,
+        dilation=1,
+        groups=1,
+        weight_attr=None,
+        bias_attr=None,
+        data_format="NCDHW",
+    ):
         super().__init__(
             in_channels,
             out_channels,
@@ -1237,7 +1214,7 @@ class Conv3DTranspose(_ConvNd):
             data_format=data_format,
         )
 
-    def forward(self, x: Tensor, output_size: Size3 | None = None) -> Tensor:
+    def forward(self, x, output_size=None):
         if output_size is None:
             output_padding = self.output_padding
         else:

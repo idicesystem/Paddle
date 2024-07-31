@@ -17,7 +17,8 @@
 #include "paddle/phi/backends/dynload/lapack.h"
 #include "paddle/phi/common/complex.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 // LU (for example)
 template <>
@@ -536,4 +537,5 @@ void lapackSvd<float>(char jobz,
       &jobz, &m, &n, a, &lda, s, u, &ldu, vt, &ldvt, work, &lwork, iwork, info);
 }
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

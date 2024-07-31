@@ -16,7 +16,6 @@
 #include <glog/logging.h>
 
 #include <string>
-#include "paddle/common/enforce.h"
 /**
  * runtime::Buffer is an encapsulation of memory operations.
  */
@@ -69,13 +68,9 @@ class Buffer {
 
   //! Allocate the memory in host device.
   void AllocHost() {
-    PADDLE_ENFORCE_EQ(
-        shape_.defined(),
-        true,
-        ::common::errors::InvalidArgument("shape haven't been defined."));
+    CHECK(shape_.defined());
     data_ = new T[shape_.num_elements()];
-    PADDLE_ENFORCE_NOT_NULL(data_,
-                            ::common::errors::NotFound("alloc buffer failed."));
+    CHECK(data_) << "alloc buffer failed";
   }
   //! Deallocate the memory in host device.
   void DeallocHost() {
@@ -84,27 +79,15 @@ class Buffer {
   }
 
   T& operator()(int i0) {
-    PADDLE_ENFORCE_EQ(shape_.ndims(),
-                      1,
-                      ::common::errors::InvalidArgument(
-                          "Expected shape has 1 dimension, but recevied %d.",
-                          shape_.ndims()));
+    CHECK_EQ(shape_.ndims(), 1);
     return static_cast<T*>(data_)[i0];
   }
   T& operator()(int i0, int i1) {
-    PADDLE_ENFORCE_EQ(shape_.ndims(),
-                      2,
-                      ::common::errors::InvalidArgument(
-                          "Expected shape has 2 dimensions, but recevied %d.",
-                          shape_.ndims()));
+    CHECK_EQ(shape_.ndims(), 2);
     return static_cast<T*>(data_)[i0 * shape_[0] + i1];
   }
   T& operator()(int i0, int i1, int i2) {
-    PADDLE_ENFORCE_EQ(shape_.ndims(),
-                      3,
-                      ::common::errors::InvalidArgument(
-                          "Expected shape has 3 dimensions, but recevied %d.",
-                          shape_.ndims()));
+    CHECK_EQ(shape_.ndims(), 3);
     return static_cast<T*>(
         data_)[i0 * shape_[1] * shape_[2] + i1 * shape_[2] + i2];
   }

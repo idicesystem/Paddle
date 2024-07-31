@@ -35,13 +35,7 @@ struct ScheduleBlockRemover : public ir::IRMutator<Expr*> {
     CHECK(schedule_block);
     auto& iter_vars = schedule_block->iter_vars;
     Expr body = schedule_block->body;
-    PADDLE_ENFORCE_EQ(iter_vars.size(),
-                      iter_values.size(),
-                      ::common::errors::InvalidArgument(
-                          "The size of iter vars and iter values is not equal,"
-                          "where iter vars:%d but iter values:%d.",
-                          iter_vars.size(),
-                          iter_values.size()));
+    CHECK_EQ(iter_vars.size(), iter_values.size());
     for (int i = 0; i < iter_vars.size(); i++) {
       optim::ReplaceVarWithExpr(&body, iter_vars[i], iter_values[i]);
     }

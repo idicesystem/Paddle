@@ -65,14 +65,14 @@ class FusionGroupPassTest(PassTest):
                 raise TypeError("Feed data of non LoDTensor is not supported.")
 
             shape = var.shape
-            if var.dtype == paddle.float32:
+            if var.dtype == base.core.VarDesc.VarType.FP32:
                 dtype = "float32"
-            elif var.dtype == paddle.float64:
+            elif var.dtype == base.core.VarDesc.VarType.FP64:
                 dtype = "float64"
-            elif var.dtype == paddle.float16:
+            elif var.dtype == base.core.VarDesc.VarType.FP16:
                 dtype = "float16"
             else:
-                raise ValueError(f"Unsupported dtype {var.dtype}")
+                raise ValueError("Unsupported dtype %s" % var.dtype)
             feeds[var.name] = np.random.random(shape).astype(dtype)
         return feeds
 

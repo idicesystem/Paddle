@@ -16,11 +16,11 @@ limitations under the License. */
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 
 #ifdef PADDLE_WITH_XPU_BKCL
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/fluid/platform/device/xpu/bkcl_helper.h"
 #include "paddle/phi/core/distributed/bkcl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 #include "paddle/fluid/distributed/collective/process_group.h"
 
@@ -50,7 +50,7 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(ring_id)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -61,7 +61,7 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
           comm_context_manager.Get(std::to_string(ring_id)));
       PADDLE_ENFORCE_NE(comm_ctx,
                         nullptr,
-                        common::errors::Unavailable(
+                        platform::errors::Unavailable(
                             "BKCLCommContext is nullptr, collective op should "
                             "has ring_id attr."));
       stream = comm_ctx->GetStream();
@@ -72,8 +72,10 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
       VLOG(3) << "old BKCLCommContext has rid " << ring_id;
     }
     if (ctx.Attr<bool>("use_calc_stream")) {
-      auto dev_ctx = phi::DeviceContextPool::Instance().Get(place);
-      stream = static_cast<phi::XPUContext*>(dev_ctx)->x_context()->xpu_stream;
+      auto dev_ctx = platform::DeviceContextPool::Instance().Get(place);
+      stream = static_cast<platform::XPUDeviceContext*>(dev_ctx)
+                   ->x_context()
+                   ->xpu_stream;
     }
     if (comm_ctx) {
       comm_ctx->Broadcast(out, *x, root, stream);
@@ -92,13 +94,15 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
         VLOG(3) << "rank " << comm->rank() << " invoke Bcast. sent "
                 << x->numel();
         if (out != x) {
-          framework::TensorCopy(*static_cast<const phi::DenseTensor*>(x),
-                                place,
-                                *phi::DeviceContextPool::Instance().Get(place),
-                                static_cast<phi::DenseTensor*>(out));
+          framework::TensorCopy(
+              *static_cast<const phi::DenseTensor*>(x),
+              place,
+              *platform::DeviceContextPool::Instance().Get(place),
+              static_cast<phi::DenseTensor*>(out));
         }
       } else {
-        auto& dev_ctx = ctx.template device_context<phi::XPUContext>();
+        auto& dev_ctx =
+            ctx.template device_context<platform::XPUDeviceContext>();
         dev_ctx.template Alloc<T>(out);
         send_recv_buffer = out->data<T>();
         PADDLE_ENFORCE_XPU_SUCCESS(bkcl_broadcast(comm->comm(),
@@ -115,7 +119,7 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
     out->Resize(x->dims());
     out->set_lod(x->lod());
 #else
-    PADDLE_THROW(common::errors::PreconditionNotMet(
+    PADDLE_THROW(platform::errors::PreconditionNotMet(
         "PaddlePaddle should be compiled with XPU and BKCL."));
 #endif
   }
@@ -125,6 +129,7 @@ class CBroadcastOpXPUKernel : public framework::OpKernel<T> {
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 PD_REGISTER_STRUCT_KERNEL(c_broadcast,
                           XPU,
@@ -132,6 +137,6 @@ PD_REGISTER_STRUCT_KERNEL(c_broadcast,
                           ops::CBroadcastOpXPUKernel,
                           float,
                           double,
-                          phi::dtype::float16,
+                          plat::float16,
                           int,
                           int64_t) {}

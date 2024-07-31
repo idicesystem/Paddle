@@ -34,6 +34,10 @@ PD_DECLARE_KERNEL(relu, CPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(relu, GPU, ALL_LAYOUT);
 #endif
 
+namespace imperative = paddle::imperative;
+namespace platform = paddle::platform;
+namespace framework = paddle::framework;
+
 namespace paddle {
 namespace imperative {
 
@@ -58,9 +62,9 @@ static framework::VariableNameMap CreateVarNameMap(
       PADDLE_ENFORCE_EQ(
           var.dispensable(),
           true,
-          common::errors::NotFound("Variable %s is not dispensable and "
-                                   "there are no such var in inputs",
-                                   var.name()));
+          platform::errors::NotFound("Variable %s is not dispensable and "
+                                     "there are no such var in inputs",
+                                     var.name()));
       result[var.name()] = {};
     } else {
       auto& var_vector = it->second;
@@ -85,7 +89,7 @@ TEST(test_prepare_op, test_prepare_op) {
   std::shared_ptr<imperative::VarBase> vout(
       new imperative::VarBase(false, "vout"));
   framework::OpDesc desc;
-  phi::CPUPlace place;
+  platform::CPUPlace place;
   vin->MutableVar()->GetMutable<phi::DenseTensor>()->mutable_data<float>(place);
   var_pair x_pair = var_pair("X", vb_vector(1, vin));
   var_pair out_pair = var_pair("Out", vb_vector(1, vout));
@@ -127,8 +131,8 @@ TEST(test_prepare_op, test_prepare_data) {
       new imperative::VarBase(false, "vout"));
 
   framework::OpDesc desc;
-  phi::CPUPlace cpu_place;
-  phi::GPUPlace gpu_place(0);
+  platform::CPUPlace cpu_place;
+  platform::CUDAPlace gpu_place(0);
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims = {2, 5};
 
@@ -172,8 +176,8 @@ TEST(test_prepare_op, test_prepare_data) {
       gpu_place);
   for (const auto& name_pair : ins) {
     for (const auto& vb : name_pair.second) {
-      ASSERT_TRUE(phi::is_same_place(vb->Var().Get<phi::DenseTensor>().place(),
-                                     gpu_place));
+      ASSERT_TRUE(platform::is_same_place(
+          vb->Var().Get<phi::DenseTensor>().place(), gpu_place));
     }
   }
 }
@@ -186,7 +190,7 @@ void TestPrepareDataSamePlace(framework::AttributeMap attr_map) {
       new imperative::VarBase(false, "vout"));
 
   framework::OpDesc desc;
-  phi::CPUPlace cpu_place;
+  platform::CPUPlace cpu_place;
   std::vector<float> src_data(10, 2.0);
   std::vector<int64_t> dims = {2, 5};
 
@@ -230,8 +234,8 @@ void TestPrepareDataSamePlace(framework::AttributeMap attr_map) {
       cpu_place);
   for (const auto& name_pair : ins) {
     for (const auto& vb : name_pair.second) {
-      ASSERT_TRUE(phi::is_same_place(vb->Var().Get<phi::DenseTensor>().place(),
-                                     cpu_place));
+      ASSERT_TRUE(platform::is_same_place(
+          vb->Var().Get<phi::DenseTensor>().place(), cpu_place));
     }
   }
 }
@@ -246,7 +250,7 @@ TEST(test_prepare_op, test_complex_eager) {
 }
 
 #ifdef PADDLE_WITH_DNNL
-TEST(test_prepare_op, test_prepare_data_cpu_onednn) {
+TEST(test_prepare_op, test_prepare_data_cpu_mkldnn) {
   TestPrepareDataSamePlace({{"use_mkldnn", true}});
 }
 #endif

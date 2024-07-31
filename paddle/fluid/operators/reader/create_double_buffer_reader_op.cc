@@ -15,14 +15,16 @@
 #include "paddle/fluid/operators/reader/buffered_reader.h"
 #include "paddle/fluid/operators/reader/reader_op_registry.h"
 
-namespace paddle::operators::reader {
+namespace paddle {
+namespace operators {
+namespace reader {
 class CreateDoubleBufferReaderOp : public framework::OperatorBase {
  public:
   using framework::OperatorBase::OperatorBase;
 
  private:
   void RunImpl(const framework::Scope& scope,
-               const phi::Place& dev_place) const override {
+               const platform::Place& dev_place) const override {
     auto* out = scope.FindVar(Output("Out"))
                     ->template GetMutable<framework::ReaderHolder>();
     const auto& underlying_reader = scope.FindVar(Input("UnderlyingReader"))
@@ -33,27 +35,27 @@ class CreateDoubleBufferReaderOp : public framework::OperatorBase {
           dynamic_cast<framework::DecoratedReader*>(out->Get().get());
       PADDLE_ENFORCE_NOT_NULL(
           decorated_reader,
-          common::errors::NotFound("The inited reader should be a "
-                                   "DecoratedReader when running "
-                                   "create_double_buffer_reader op."));
+          platform::errors::NotFound("The inited reader should be a "
+                                     "DecoratedReader when running "
+                                     "create_double_buffer_reader op."));
       if (decorated_reader->UnderlyingReader() == underlying_reader.Get()) {
         return;
       }
     }
 
     auto place_str = Attr<std::string>("place");
-    phi::Place place;
+    platform::Place place;
     if (place_str == "AUTO") {
       place = dev_place;
     } else if (place_str == "PLACE(CPU)") {
-      place = phi::CPUPlace();
+      place = platform::CPUPlace();
     } else {
       place_str = place_str.substr(0, place_str.length() - 1);
       std::istringstream sin(place_str);
       sin.seekg(std::string("PLACE(GPU:").size(), std::ios::beg);  // NOLINT
       size_t num = 0;
       sin >> num;
-      place = phi::GPUPlace(static_cast<int>(num));
+      place = platform::CUDAPlace(static_cast<int>(num));
     }
 
     VLOG(10) << "Create new double buffer reader on " << place;
@@ -87,7 +89,9 @@ class CreateDoubleBufferReaderOpMaker : public DecoratedReaderMakerBase {
   }
 };
 
-}  // namespace paddle::operators::reader
+}  // namespace reader
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators::reader;
 REGISTER_DECORATED_READER_OPERATOR(create_double_buffer_reader,

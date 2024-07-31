@@ -14,7 +14,9 @@
 
 #include "paddle/fluid/inference/analysis/helper.h"
 
-namespace paddle::inference::analysis {
+namespace paddle {
+namespace inference {
+namespace analysis {
 
 template <>
 void SetAttr<std::string>(framework::proto::OpDesc *op,
@@ -88,4 +90,6 @@ void SetAttr<std::vector<int64_t>>(framework::proto::OpDesc *op,
   }
 }
 
-}  // namespace paddle::inference::analysis
+}  // namespace analysis
+}  // namespace inference
+}  // namespace paddle

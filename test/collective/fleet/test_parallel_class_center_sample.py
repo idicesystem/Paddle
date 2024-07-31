@@ -14,17 +14,12 @@
 
 import unittest
 
-from legacy_test.test_parallel_dygraph_dataparallel import (
-    TestMultipleAccelerators,
-)
+from legacy_test.test_parallel_dygraph_dataparallel import TestMultipleGpus
 
 
-class TestParallelClassCenterSample(TestMultipleAccelerators):
+class TestParallelClassCenterSample(TestMultipleGpus):
     def test_parallel_class_center_sample(self):
-        self.run_mnist_2accelerators(
-            'parallel_class_center_sample.py',
-            need_envs={"FLAGS_dynamic_static_unified_comm": "true"},
-        )
+        self.run_mnist_2gpu('parallel_class_center_sample.py')
 
 
 if __name__ == "__main__":

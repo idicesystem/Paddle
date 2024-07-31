@@ -16,10 +16,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
+from .mutable_data import MutableData
+from .variables import VariableBase
+
 if TYPE_CHECKING:
-    from .mutable_data import DataGetter, MutableData
+    from .mutable_data import DataGetter
     from .pycode_generator import PyCodeGen
-    from .variables import VariableBase
 
     MutableDataT = TypeVar("MutableDataT", bound=MutableData)
 
@@ -156,7 +158,7 @@ class ListSideEffectRestorer(SideEffectRestorer):
         codegen.gen_build_slice(2)
 
     def post_gen(self, codegen: PyCodeGen):
-        # Call STORE_SUBSCR to apply side effects.
+        # Call STROE_SUBSCR to apply side effects.
         codegen.gen_store_subscr()
 
 

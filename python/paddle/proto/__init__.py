@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from paddle.proto.ModelConfig_pb2 import ModelConfig  # noqa: F401
-from paddle.proto.TrainerConfig_pb2 import (  # noqa: F401
-    OptimizationConfig,
-    TrainerConfig,
-)
+from paddle.proto.TrainerConfig_pb2 import OptimizationConfig, TrainerConfig
+from paddle.proto.ModelConfig_pb2 import ModelConfig
 
 __all__ = []

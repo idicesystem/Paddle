@@ -148,11 +148,12 @@ static int BuildFusion(Graph* graph,
                           const PDPattern& pat) -> Node* {
     PADDLE_ENFORCE_GT(subgraph.count(pat.RetrieveNode(name)),
                       0,
-                      common::errors::NotFound("Pattern has no node called %s.",
-                                               name.c_str()));
+                      platform::errors::NotFound(
+                          "Pattern has no node called %s.", name.c_str()));
     Node* p = subgraph.at(pat.RetrieveNode(name));
     PADDLE_ENFORCE_NOT_NULL(
-        p, common::errors::NotFound("Subgraph has no node %s.", name.c_str()));
+        p,
+        platform::errors::NotFound("Subgraph has no node %s.", name.c_str()));
     return p;
   };
 

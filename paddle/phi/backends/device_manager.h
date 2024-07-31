@@ -23,9 +23,9 @@
 #include "paddle/phi/backends/c_comm_lib.h"
 #include "paddle/phi/backends/device_base.h"
 #include "paddle/phi/backends/device_ext.h"
+#include "paddle/phi/backends/dynload/port.h"
 #include "paddle/phi/backends/event.h"
 #include "paddle/phi/backends/stream.h"
-#include "paddle/phi/common/port.h"
 
 namespace phi {
 class Device final {
@@ -178,9 +178,6 @@ class DeviceManager {
       const std::string& device_type);
 
   // CCL
-  static void CCLCommName(const std::string& device_type,
-                          const ccl::CCLComm& ccl_comm,
-                          char* comm_name);
   static void CCLDestroyComm(const std::string& device_type,
                              ccl::CCLComm ccl_comm);
   static void CCLCommInitRank(const std::string& device_type,
@@ -193,7 +190,7 @@ class DeviceManager {
   static void CCLBroadcast(const std::string& device_type,
                            void* data,
                            size_t num,
-                           phi::DataType data_type,
+                           ccl::CCLDataType data_type,
                            size_t root,
                            const ccl::CCLComm& ccl_comm,
                            const stream::Stream& stream);
@@ -201,7 +198,7 @@ class DeviceManager {
                            void* in_data,
                            void* out_data,
                            size_t num,
-                           phi::DataType data_type,
+                           ccl::CCLDataType data_type,
                            ccl::CCLReduceOp reduce_op,
                            const ccl::CCLComm& ccl_comm,
                            const stream::Stream& stream);
@@ -209,7 +206,7 @@ class DeviceManager {
                         void* in_data,
                         void* out_data,
                         size_t num,
-                        phi::DataType data_type,
+                        ccl::CCLDataType data_type,
                         ccl::CCLReduceOp reduce_op,
                         size_t root_id,
                         const ccl::CCLComm& ccl_comm,
@@ -218,14 +215,14 @@ class DeviceManager {
                            void* in_data,
                            void* out_data,
                            size_t num,
-                           phi::DataType data_type,
+                           ccl::CCLDataType data_type,
                            const ccl::CCLComm& ccl_comm,
                            const stream::Stream& stream);
   static void CCLReduceScatter(const std::string& device_type,
                                void* in_data,
                                void* out_data,
                                size_t num,
-                               phi::DataType data_type,
+                               ccl::CCLDataType data_type,
                                ccl::CCLReduceOp op,
                                const ccl::CCLComm& ccl_comm,
                                const stream::Stream& stream);
@@ -234,14 +231,14 @@ class DeviceManager {
   static void CCLSend(const std::string& device_type,
                       void* sendbuf,
                       size_t num,
-                      phi::DataType data_type,
+                      ccl::CCLDataType data_type,
                       size_t dst_rank,
                       const ccl::CCLComm& ccl_comm,
                       const stream::Stream& stream);
   static void CCLRecv(const std::string& device_type,
                       void* recvbuf,
                       size_t num,
-                      phi::DataType data_type,
+                      ccl::CCLDataType data_type,
                       size_t src_rank,
                       const ccl::CCLComm& ccl_comm,
                       const stream::Stream& stream);
@@ -249,10 +246,10 @@ class DeviceManager {
   static void CCLAllToAll(const std::string& device_type,
                           const void** send_buf,
                           const size_t* send_count,
-                          const phi::DataType* send_dtype,
+                          const ccl::CCLDataType* send_dtype,
                           void** recv_buf,
                           const size_t* recv_count,
-                          const phi::DataType* recv_dtype,
+                          const ccl::CCLDataType* recv_dtype,
                           size_t rank,
                           size_t nranks,
                           const ccl::CCLComm& comm,

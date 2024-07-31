@@ -13,14 +13,15 @@
 // limitations under the License.
 
 #include "glog/logging.h"
-#include "paddle/common/flags.h"
+#include "paddle/phi/core/flags.h"
 #include "paddle/phi/kernels/fusion/gpu/fused_bias_act_utils.h"
 
-COMMON_DECLARE_bool(use_fast_math);
+PHI_DECLARE_bool(use_fast_math);
 
 namespace phi {
 namespace fusion {
 
+#ifndef PADDLE_WITH_HIP
 template <typename T,
           typename Functor,
           int VecSize,
@@ -431,6 +432,7 @@ void DispatchWithDtype(const Context &dev_ctx,
                        float quant_min_bound,
                        DenseTensor *out,
                        UnusedVersion) {}
+#endif
 
 template <typename T, typename Context>
 void FusedBiasActKernel(const Context &dev_ctx,
@@ -446,8 +448,9 @@ void FusedBiasActKernel(const Context &dev_ctx,
                         float quant_max_bound,
                         float quant_min_bound,
                         DenseTensor *out) {
-  int cols = x.dims()[x.dims().size() - 1];
-  int rows = x.numel() / cols;
+#ifndef PADDLE_WITH_HIP
+  int rows = x.dims()[0];
+  int cols = x.dims()[1];
   if (x.dtype() == phi::DataType::INT32) {
     if (compute_dtype == "bf16") {
       DispatchWithDtype<phi::dtype::bfloat16, Context>(
@@ -526,6 +529,7 @@ void FusedBiasActKernel(const Context &dev_ctx,
         out,
         typename DispatchDtypeTrait<T>::FuncVersion{});
   }
+#endif
 }
 
 }  // namespace fusion

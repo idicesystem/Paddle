@@ -35,7 +35,7 @@ struct VarMetaInfo {
 
   VarMetaInfo(const std::string& name,
               const phi::DataType& dtype,
-              const phi::Place& place)
+              const platform::Place& place)
       : name_(name), dtype_(dtype), place_(place) {}
 
   bool operator==(const VarMetaInfo& other) const {
@@ -62,7 +62,7 @@ void FakeInitializeOutputsForFunctionKernel(
     const phi::Kernel& phi_kernel,
     const phi::KernelSignature& kernel_sig,
     const RuntimeContext& ctx,
-    const phi::DeviceContext& dev_ctx);
+    const platform::DeviceContext& dev_ctx);
 
 void FakeInitializeOutputsForStructureKernel(
     const framework::OpKernelType& op_kernel_type,

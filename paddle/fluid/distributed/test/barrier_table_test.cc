@@ -22,7 +22,8 @@ limitations under the License. */
 #include "paddle/fluid/distributed/ps/table/table.h"
 #include "paddle/fluid/distributed/the_one_ps.pb.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 TEST(BarrierTable, Barrier) {
   int trainers = 2;
@@ -62,4 +63,5 @@ TEST(BarrierTable, Barrier) {
   ASSERT_EQ(ret, 0);
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

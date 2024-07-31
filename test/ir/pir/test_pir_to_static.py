@@ -54,7 +54,7 @@ class TestDy2staticPir(unittest.TestCase):
         x_grad_ans = x.grad.numpy()
         x.clear_gradient()
 
-        # ==== to static computation ====
+        # ==== to static compuatation ====
         out = static_func(x)
         out = out * 2
         out.backward()
@@ -200,7 +200,7 @@ class TestDy2staticPir5(unittest.TestCase):
 
 
 class TestDy2staticPir6(unittest.TestCase):
-    # test basic-indexing __getitem__ for Value
+    # test basic-indexing __getitem__ for OpResult
     def test_basic_network(self):
         def func(x):
             shape = paddle.shape(x)
@@ -217,7 +217,7 @@ class TestDy2staticPir6(unittest.TestCase):
 
 
 class TestDy2staticPir7(unittest.TestCase):
-    # test basic-indexing __getitem__ for Value
+    # test basic-indexing __getitem__ for OpResult
     def test_basic_network(self):
         def func(x):
             x = x * 2

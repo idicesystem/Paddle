@@ -16,9 +16,9 @@
 #include <memory>
 #include "paddle/fluid/framework/new_executor/instruction/instruction_base.h"
 #include "paddle/fluid/framework/new_executor/interpreter_base_impl.h"
-#include "paddle/pir/include/core/value.h"
+#include "paddle/pir/core/value.h"
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA)
 #include "paddle/phi/kernels/autotune/gpu_timer.h"
 #endif
 
@@ -38,13 +38,13 @@ class PirInterpreter : public InterpreterBaseImpl {
                           InstructionSchedulingPriorityLess>;
 
  public:
-  PirInterpreter(const phi::Place& place,
+  PirInterpreter(const platform::Place& place,
                  const std::vector<std::string>& fetch_var_names,
                  const ::pir::Block* ir_block,
                  Scope* scope,
                  const ExecutionConfig& execution_config = ExecutionConfig());
 
-  PirInterpreter(const phi::Place& place,
+  PirInterpreter(const platform::Place& place,
                  const std::vector<std::string>& fetch_var_names,
                  const ::pir::Block* ir_block,
                  Scope* scope,
@@ -57,14 +57,12 @@ class PirInterpreter : public InterpreterBaseImpl {
       const std::vector<std::string>& feed_names,
       const std::vector<phi::DenseTensor>& feed_tensors,
       bool need_fetch = true,
-      bool enable_job_schedule_profiler = false,
-      bool switch_stream = false) override;
+      bool enable_job_schedule_profiler = false) override;
 
   paddle::framework::FetchList Run(const std::vector<std::string>& feed_names,
                                    bool need_fetch = true,
                                    bool enable_job_schedule_profiler = false,
-                                   bool enable_op_profiling = false,
-                                   bool switch_stream = false) override;
+                                   bool enable_op_profiling = false) override;
 
   void ShareWorkQueueFrom(InterpreterBaseImpl* src) override;
 
@@ -94,18 +92,14 @@ class PirInterpreter : public InterpreterBaseImpl {
 
   Scope* InnerScope() const;
 
-  const phi::Place& GetPlace() const override { return place_; }
+  const platform::Place& GetPlace() const override { return place_; }
 
-  void SetOutputHooks(const std::vector<HookFunc>& hookfuncs) override {}
-
-  void SetInputHooks(const std::vector<HookFunc>& hookfuncs) override {}
-
-  void SetOutputHooks(const std::vector<PirHookFunc>& hookfuncs) override {
-    pir_output_hookfuncs_ = hookfuncs;
+  void SetOutputHooks(const std::vector<HookFunc>& hookfuncs) override {
+    output_hookfuncs_ = hookfuncs;
   }
 
-  void SetInputHooks(const std::vector<PirHookFunc>& hookfuncs) override {
-    pir_input_hookfuncs_ = hookfuncs;
+  void SetInputHooks(const std::vector<HookFunc>& hookfuncs) override {
+    input_hookfuncs_ = hookfuncs;
   }
 
   std::string GetNameByValue(::pir::Value value) const;
@@ -113,22 +107,10 @@ class PirInterpreter : public InterpreterBaseImpl {
   // Only for debug
   Variable* DebugVar(const std::string& name) const override;
 
-  std::unordered_map<std::string, std::shared_ptr<EventInter>>*
-  GetForceEventsToWaitInfo() {
-    return force_events_to_wait_;
-  }
-
-  void SetForceEventsToWaitInfo(
-      std::unordered_map<std::string, std::shared_ptr<EventInter>>*
-          force_events_to_wait) {
-    force_events_to_wait_ = force_events_to_wait;
-  }
-
  private:
   // build graph
   void UpdateSyncOpNum();
   void UpdateNcclOpNum();
-  void UpdateOneDNNOpNum();
   void AnalyseExecuteOrderForTrace(
       std::map<size_t, std::set<size_t>> op_downstream_map,
       InstructionSchedulingPriorityLess compare);
@@ -142,9 +124,9 @@ class PirInterpreter : public InterpreterBaseImpl {
   void CheckCUDAGraphBeforeRun(const std::vector<std::string>& feed_names);
   void PrepareForCUDAGraphCapture();
 
-  void Build(const std::vector<std::string>& feed_names,
-             std::vector<paddle::framework::OpFuncNode>* op_func_nodes,
-             bool switch_stream = false) override;
+  void Build(
+      const std::vector<std::string>& feed_names,
+      std::vector<paddle::framework::OpFuncNode>* op_func_nodes) override;
 
   bool IsStaticBuild() const override { return static_build_; }
 
@@ -163,16 +145,13 @@ class PirInterpreter : public InterpreterBaseImpl {
   // Note(sonder): share the op dependency and event analysis procedure.
   bool is_shared_results_build_{false};
 
-  const phi::Place place_;
+  const platform::Place place_;
 
   // from variable scope
 
   std::atomic<size_t> unfinished_op_number_{0};
 
   ExecutionConfig execution_config_;
-
-  std::unordered_map<std::string, std::shared_ptr<EventInter>>*
-      force_events_to_wait_;
 
   VariableScope var_scope_;
   Scope* scope_{nullptr};
@@ -191,9 +170,9 @@ class PirInterpreter : public InterpreterBaseImpl {
   // var
   std::map<size_t, std::set<size_t>> last_live_ops_;
 
-  // (*dependency_count_)[i] contains the number of dependencies that the i-th
-  // op need to wait
-  std::shared_ptr<std::vector<size_t>> dependency_count_;
+  // (*dependecy_count_)[i] contains the number of dependencies that the i-th op
+  // need to wait
+  std::shared_ptr<std::vector<size_t>> dependecy_count_;
 
   std::vector<std::shared_ptr<interpreter::OpDepInfo>> deps_;
   std::vector<std::shared_ptr<interpreter::VarRefInfo>> refs_;
@@ -201,11 +180,10 @@ class PirInterpreter : public InterpreterBaseImpl {
   // used for Trace
   int64_t sync_op_num_{-1};
   int64_t nccl_op_num_{-1};
-  int64_t onednn_op_num_{-1};
   std::vector<size_t> trace_execute_order_;
 
-  std::vector<PirHookFunc> pir_output_hookfuncs_;
-  std::vector<PirHookFunc> pir_input_hookfuncs_;
+  std::vector<HookFunc> output_hookfuncs_;
+  std::vector<HookFunc> input_hookfuncs_;
 
   /// ======================== ///
   ///        For new ir        ///
@@ -213,10 +191,6 @@ class PirInterpreter : public InterpreterBaseImpl {
   std::string DebugValueInfo();
 
   std::string DebugInstructions();
-
-  std::string DebugDependency();
-
-  std::vector<std::string> DebugInfo();
 
   void PreAnalysis();
 
@@ -249,7 +223,7 @@ class PirInterpreter : public InterpreterBaseImpl {
 
   void RecordStreamForGC(InstructionBase* instr);
 
-  void SolvePersistableVarNames();
+  void SolvePersisableVarNames();
 
   const interpreter::PirDependencyBuilder& GetPirDependencyBuilder() const;
 
@@ -278,7 +252,7 @@ class PirInterpreter : public InterpreterBaseImpl {
   // belongs to a parameter and cannot GC.
   std::unordered_set<std::string> parameter_var_names_;
 
-#if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
+#if defined(PADDLE_WITH_CUDA)
   std::unique_ptr<phi::CalculateStreamTimer> calculate_stream_timer_;
 #endif
   size_t last_calculate_instr_id_;

@@ -23,7 +23,8 @@ from bert_utils import get_bert_config, get_feed_data_reader
 from dygraph_to_static_utils import (
     Dy2StTestBase,
     enable_to_static_guard,
-    test_legacy_and_pt_and_pir,
+    test_ast_only,
+    test_pt_only,
     test_sot_only,
 )
 from predictor_utils import PredictorTools
@@ -31,14 +32,9 @@ from predictor_utils import PredictorTools
 import paddle
 from paddle import base
 from paddle.base import core
-from paddle.base.framework import unique_name
-from paddle.framework import use_pir_api
-from paddle.jit.pir_translated_layer import PIR_INFER_MODEL_SUFFIX
 from paddle.jit.translated_layer import INFER_MODEL_SUFFIX, INFER_PARAMS_SUFFIX
 
-place = (
-    paddle.CUDAPlace(0) if paddle.is_compiled_with_cuda() else paddle.CPUPlace()
-)
+place = base.CUDAPlace(0) if base.is_compiled_with_cuda() else base.CPUPlace()
 SEED = 2020
 STEP_NUM = 10
 PRINT_STEP = 2
@@ -92,7 +88,6 @@ class TestBert(Dy2StTestBase):
         self.model_save_dir = os.path.join(self.temp_dir.name, 'inference')
         self.model_save_prefix = os.path.join(self.model_save_dir, 'bert')
         self.model_filename = 'bert' + INFER_MODEL_SUFFIX
-        self.pir_model_filename = 'bert' + PIR_INFER_MODEL_SUFFIX
         self.params_filename = 'bert' + INFER_PARAMS_SUFFIX
         self.dy_state_dict_save_path = os.path.join(
             self.temp_dir.name, 'bert.dygraph'
@@ -102,8 +97,9 @@ class TestBert(Dy2StTestBase):
         self.temp_dir.cleanup()
 
     def train(self, bert_config, data_reader, to_static):
-        with unique_name.guard():
-            paddle.seed(SEED)
+        with base.dygraph.guard(place):
+            base.default_main_program().random_seed = SEED
+            base.default_startup_program().random_seed = SEED
 
             fake_dataset = FakeBertDataset(data_reader, STEP_NUM)
             data_loader = paddle.io.DataLoader(
@@ -178,16 +174,12 @@ class TestBert(Dy2StTestBase):
             return self.train(bert_config, data_reader, False)
 
     def train_static(self, bert_config, data_reader):
-        return self.train(bert_config, data_reader, True)
+        with enable_to_static_guard(True):
+            return self.train(bert_config, data_reader, True)
 
     def predict_static(self, data):
         paddle.enable_static()
         exe = base.Executor(place)
-        if use_pir_api():
-            model_filename = self.pir_model_filename
-        else:
-            model_filename = self.model_filename
-
         # load inference model
         [
             inference_program,
@@ -196,7 +188,7 @@ class TestBert(Dy2StTestBase):
         ] = paddle.static.io.load_inference_model(
             self.model_save_dir,
             executor=exe,
-            model_filename=model_filename,
+            model_filename=self.model_filename,
             params_filename=self.params_filename,
         )
         pred_res = exe.run(
@@ -205,12 +197,11 @@ class TestBert(Dy2StTestBase):
             fetch_list=fetch_targets,
         )
 
-        paddle.disable_static()
         return pred_res
 
     def predict_dygraph(self, bert_config, data):
         with enable_to_static_guard(False):
-            with unique_name.guard():
+            with base.dygraph.guard(place):
                 bert = PretrainModelLayer(
                     config=bert_config, weight_sharing=False, use_fp16=False
                 )
@@ -221,7 +212,7 @@ class TestBert(Dy2StTestBase):
                 bert.set_dict(model_dict)
                 bert.eval()
 
-                input_vars = [paddle.to_tensor(x) for x in data]
+                input_vars = [base.dygraph.to_variable(x) for x in data]
                 (
                     src_ids,
                     pos_ids,
@@ -245,44 +236,51 @@ class TestBert(Dy2StTestBase):
                 return pred_res
 
     def predict_dygraph_jit(self, data):
-        bert = paddle.jit.load(self.model_save_prefix)
-        bert.eval()
+        with base.dygraph.guard(place):
+            bert = paddle.jit.load(self.model_save_prefix)
+            bert.eval()
 
-        (
-            src_ids,
-            pos_ids,
-            sent_ids,
-            input_mask,
-            mask_label,
-            mask_pos,
-            labels,
-        ) = data
-        pred_res = bert(
-            src_ids,
-            pos_ids,
-            sent_ids,
-            input_mask,
-            mask_label,
-            mask_pos,
-            labels,
-        )
-        pred_res = [var.numpy() for var in pred_res]
+            (
+                src_ids,
+                pos_ids,
+                sent_ids,
+                input_mask,
+                mask_label,
+                mask_pos,
+                labels,
+            ) = data
+            pred_res = bert(
+                src_ids,
+                pos_ids,
+                sent_ids,
+                input_mask,
+                mask_label,
+                mask_pos,
+                labels,
+            )
+            pred_res = [var.numpy() for var in pred_res]
 
-        return pred_res
+            return pred_res
 
     def predict_analysis_inference(self, data):
-        if use_pir_api():
-            model_filename = self.pir_model_filename
-        else:
-            model_filename = self.model_filename
-
         output = PredictorTools(
-            self.model_save_dir, model_filename, self.params_filename, data
+            self.model_save_dir, self.model_filename, self.params_filename, data
         )
         out = output()
         return out
 
-    @test_legacy_and_pt_and_pir
+    @test_pt_only
+    def test_train_pir(self):
+        static_loss, static_ppl = self.train_static(
+            self.bert_config, self.data_reader
+        )
+        dygraph_loss, dygraph_ppl = self.train_dygraph(
+            self.bert_config, self.data_reader
+        )
+        np.testing.assert_allclose(static_loss, dygraph_loss, rtol=1e-05)
+        np.testing.assert_allclose(static_ppl, dygraph_ppl, rtol=1e-05)
+
+    @test_ast_only
     def test_train(self):
         static_loss, static_ppl = self.train_static(
             self.bert_config, self.data_reader
@@ -296,7 +294,6 @@ class TestBert(Dy2StTestBase):
         self.verify_predict()
 
     @test_sot_only
-    @test_legacy_and_pt_and_pir
     def test_train_composite(self):
         core._set_prim_backward_enabled(True)
         # core._add_skip_comp_ops("layer_norm")
@@ -328,19 +325,28 @@ class TestBert(Dy2StTestBase):
                     st_res,
                     dy_res,
                     rtol=1e-05,
-                    err_msg=f'dygraph_res: {dy_res[~np.isclose(st_res, dy_res)]},\n static_res: {st_res[~np.isclose(st_res, dy_res)]}',
+                    err_msg='dygraph_res: {},\n static_res: {}'.format(
+                        dy_res[~np.isclose(st_res, dy_res)],
+                        st_res[~np.isclose(st_res, dy_res)],
+                    ),
                 )
                 np.testing.assert_allclose(
                     st_res,
                     dy_jit_res,
                     rtol=1e-05,
-                    err_msg=f'dygraph_jit_res: {dy_jit_res[~np.isclose(st_res, dy_jit_res)]},\n static_res: {st_res[~np.isclose(st_res, dy_jit_res)]}',
+                    err_msg='dygraph_jit_res: {},\n static_res: {}'.format(
+                        dy_jit_res[~np.isclose(st_res, dy_jit_res)],
+                        st_res[~np.isclose(st_res, dy_jit_res)],
+                    ),
                 )
                 np.testing.assert_allclose(
                     st_res,
                     predictor_res,
                     rtol=1e-05,
-                    err_msg=f'dygraph_jit_res_predictor: {predictor_res[~np.isclose(st_res, predictor_res)]},\n static_res: {st_res[~np.isclose(st_res, predictor_res)]}',
+                    err_msg='dygraph_jit_res: {},\n static_res: {}'.format(
+                        predictor_res[~np.isclose(st_res, predictor_res)],
+                        st_res[~np.isclose(st_res, predictor_res)],
+                    ),
                 )
             break
 

@@ -20,11 +20,13 @@ limitations under the License. */
 #include "paddle/fluid/framework/op_version_registry.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 /*
- * This pass is to simplify the Graph, it may contains:
- * - replace complicated op with basic op
+ * This pass is to simplify the Grpah, it may contains:
+ * - replace comlicated op with basic op
  * - remove some unnecessary op
  *
  * In the current implementation, it supports:
@@ -54,15 +56,7 @@ SimplifyWithBasicOpsPass::SimplifyWithBasicOpsPass() {
 }
 
 void SimplifyWithBasicOpsPass::ApplyImpl(Graph* graph) const {
-  VLOG(3) << "Running simplify_with_basic_ops_pass.";
-  if (graph->IsMainGraph()) {
-    VLOG(3) << "The ID of block running simplify_with_basic_ops_pass is: "
-               "0(main_graph)";
-  } else {
-    VLOG(3) << "The ID of block running simplify_with_basic_ops_pass is: "
-            << graph->GetBlockId();
-  }
-
+  VLOG(3) << "Simplify the Graph with basic ops.";
   std::unordered_set<const Node*> del_node_set;
   for (Node* n : graph->Nodes()) {
     if (n->IsOp() && n->Op()) {
@@ -235,7 +229,9 @@ void SimplifyWithBasicOpsPass::ReplaceOutputVar(Node* op,
   }
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(simplify_with_basic_ops_pass,
               paddle::framework::ir::SimplifyWithBasicOpsPass);

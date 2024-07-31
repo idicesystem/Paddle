@@ -26,8 +26,8 @@ namespace framework {
 
 class TrainerBase;
 
-typedef std::shared_ptr<TrainerBase> (*CreateTrainerFunction)();
-typedef std::unordered_map<std::string, CreateTrainerFunction> trainerMap;
+typedef std::shared_ptr<TrainerBase> (*CreatetrainerFunction)();
+typedef std::unordered_map<std::string, CreatetrainerFunction> trainerMap;
 trainerMap g_trainer_map;
 
 #define REGISTER_TRAINER_CLASS(trainer_class)                   \

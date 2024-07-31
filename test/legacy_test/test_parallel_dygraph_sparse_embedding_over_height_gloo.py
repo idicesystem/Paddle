@@ -20,7 +20,7 @@ from legacy_test.test_dist_base import TestDistBase
 flag_name = os.path.splitext(__file__)[0]
 
 
-class TestParallelDygraphSparseEmbeddingOverHeight_GLOO(TestDistBase):
+class TestParallelDygraphSparseEmdeddingOverHeight_GLOO(TestDistBase):
     def _setup_config(self):
         self._sync_mode = False
         self._gloo_mode = True

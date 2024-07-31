@@ -108,7 +108,7 @@ class FileReader:
 
     def _checkArgsKey(self, key, type):
         if key not in self._args:
-            raise KeyError(f"args should has key [{key}]!")
+            raise KeyError("args should has key [%s]!" % key)
 
         if not isinstance(self._args[key], type):
             raise TypeError(
@@ -130,14 +130,17 @@ class FileReader:
             or self._organizeForm == FILEORGANIZEFORM_BYOTHER
         ):
             raise NotImplementedError(
-                f"we have not known how to process this form of file [{self._organizeForm}]!"
+                "we have not known how to process this form of file [%s]!"
+                % self._organizeForm
             )
 
         self._checkArgsKey("gpuPerTrainer", int)
 
         self._checkArgsKey("dataPath", str)
         if not os.path.exists(self._dataPath):
-            raise OSError(f"input data path [{self._dataPath}] not existed!")
+            raise OSError(
+                "input data path [%s] not existed!" % (self._dataPath)
+            )
 
         self._checkArgsKey("groupSize", int)
         self._checkArgsKey("displaySize", int)
@@ -180,7 +183,8 @@ class FileReader:
                 newFileList.append(file)
             else:
                 raise NotImplementedError(
-                    f"[{file}] is repeated by id, we don not how to process it!"
+                    "[%s] is repeated by id, we don not how to process it!"
+                    % file
                 )
 
         if not self._fileList:
@@ -197,7 +201,7 @@ class FileReader:
 
         if not self._fileList:
             self._logger.warning(
-                f"we can not find any file in dir [{self._dataPath}]!"
+                "we can not find any file in dir [%s]!" % self._dataPath
             )
         else:
             self._logger.info(
@@ -211,11 +215,12 @@ class FileReader:
     def _getId(self, fileName, organizeForm, sed="."):
         if self._organizeForm != organizeForm:
             raise TypeError(
-                f"Can not get rank id when organizer form is not {organizeForm}!"
+                "Can not get rank id when organizer form is not %s!"
+                % organizeForm
             )
 
         if not os.path.isfile(fileName):
-            raise OSError(f"[{fileName}] is not a valid file!")
+            raise OSError("[%s] is not a valid file!" % (fileName))
 
         try:
             prefix_str = fileName.split(sed)[-1]
@@ -223,12 +228,13 @@ class FileReader:
                 return int(prefix_str)
             except ValueError as e:
                 print(e)
-                raise TypeError(f"invalid fileName [{fileName}]")
+                raise TypeError("invalid fileName [%s]" % fileName)
 
         except IndexError as e:
             print(e)
             raise TypeError(
-                f"invalid fileName [{fileName}], the prefix should be a number!"
+                "invalid fileName [%s], the prefix should be a number!"
+                % fileName
             )
 
     def getRankId(self, fileName, sed="."):
@@ -292,15 +298,19 @@ class FileReader:
     def getDict(self, name, groupId, gpuId, tmpPath="./tmp"):
         fileName = self.getFileName(name, groupId, gpuId, tmpPath)
         if not os.path.isfile(fileName):
-            raise OSError(f"[{fileName}] is not existed!")
+            raise OSError("[%s] is not existed!" % fileName)
 
         data = {}
         with open(fileName, "r") as rf:
             try:
                 data = json.load(rf)
             except Exception:
-                self._logger.error(f"read [{fileName}] error. not a json file!")
-                raise TypeError(f"read [{fileName}] error. not a json file!")
+                self._logger.error(
+                    "read [%s] error. not a json file!" % (fileName)
+                )
+                raise TypeError(
+                    "read [%s] error. not a json file!" % (fileName)
+                )
         return data
 
     def dumpOpInfoDict(
@@ -334,7 +344,7 @@ class FileReader:
         fileObject = open(fileName, 'w')
         fileObject.write(jsObj)
         fileObject.close()
-        self._logger.info(f"dump [{fileName}] successfully!")
+        self._logger.info("dump [%s] successfully!" % fileName)
 
 
 def getLogger():

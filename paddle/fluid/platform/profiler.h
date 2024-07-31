@@ -26,11 +26,11 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/type_defs.h"
 #include "paddle/fluid/platform/enforce.h"
+#include "paddle/fluid/platform/event.h"
+#include "paddle/fluid/platform/place.h"
 #include "paddle/fluid/platform/profiler/event_tracing.h"
 #include "paddle/fluid/platform/profiler/mem_tracing.h"
 #include "paddle/fluid/platform/profiler/supplement_tracing.h"
-#include "paddle/phi/api/profiler/event.h"
-#include "paddle/phi/common/place.h"
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
 #endif
@@ -39,7 +39,6 @@ limitations under the License. */
 #include "paddle/utils/test_macros.h"
 
 namespace phi {
-
 namespace proto {
 class Profile;
 }
@@ -47,11 +46,6 @@ class Profile;
 
 namespace paddle {
 namespace platform {
-
-using phi::Event;
-using phi::EventRole;
-using phi::EventType;
-using phi::MemEvent;
 
 namespace proto {
 class Profile;
@@ -75,7 +69,7 @@ enum class EventSortingKey {
   kGPUTime
 };
 
-struct MemoryProfilerReport {
+struct MemoryProfierReport {
   size_t alloc_times{0};
   size_t alloc_size{0};
   size_t free_times{0};
@@ -107,7 +101,7 @@ struct OverHead {
   std::vector<EventItem> sub_memcpy_items;
 };
 
-struct MemEventRecorder {
+struct MemEvenRecorder {
  public:
   void PushMemRecord(const void* ptr, const Place& place, size_t size);
   void PopMemRecord(const void* ptr, const Place& place);
@@ -128,7 +122,7 @@ struct MemEventRecorder {
                     uint64_t peak_allocated,
                     uint64_t peak_reserved);
   void Flush();
-  static MemEventRecorder& Instance() { return recorder; }
+  static MemEvenRecorder& Instance() { return recorder; }
 
  private:
   struct RecordMemEvent {
@@ -143,13 +137,13 @@ struct MemEventRecorder {
     std::string free_in_;
   };
 
-  static MemEventRecorder recorder;
+  static MemEvenRecorder recorder;
   std::map<Place,
            std::unordered_map<const void*, std::unique_ptr<RecordMemEvent>>>
       address_memevent_;
   std::mutex mtx_;
-  MemEventRecorder() {}
-  DISABLE_COPY_AND_ASSIGN(MemEventRecorder);
+  MemEvenRecorder() {}
+  DISABLE_COPY_AND_ASSIGN(MemEvenRecorder);
 };
 
 struct RecordBlock {

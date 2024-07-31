@@ -109,7 +109,6 @@ class InstanceNorm(paddle.nn.Layer):
     def __init__(self, num_channels, epsilon=1e-5):
         super().__init__()
         self.epsilon = epsilon
-        self.num_channels = num_channels
 
         self.scale = self.create_parameter(shape=[num_channels], is_bias=False)
         self.bias = self.create_parameter(shape=[num_channels], is_bias=True)
@@ -121,12 +120,12 @@ class InstanceNorm(paddle.nn.Layer):
             )
             return out
         else:
-            return paddle.nn.InstanceNorm2D(
-                num_features=self.num_channels,
+            return paddle.static.nn.instance_norm(
+                input,
                 epsilon=self.epsilon,
-                weight_attr=base.ParamAttr(self.scale.name),
+                param_attr=base.ParamAttr(self.scale.name),
                 bias_attr=base.ParamAttr(self.bias.name),
-            )(input)
+            )
 
 
 class Conv2DLayer(paddle.nn.Layer):
@@ -521,9 +520,9 @@ class DyGraphTrainModel:
             self.d_optimizer.clear_gradients()
 
     def run(self, image_real, label_org, label_trg):
-        image_real = paddle.to_tensor(image_real)
-        label_org = paddle.to_tensor(label_org)
-        label_trg = paddle.to_tensor(label_trg)
+        image_real = base.dygraph.to_variable(image_real)
+        label_org = base.dygraph.to_variable(label_org)
+        label_trg = base.dygraph.to_variable(label_trg)
 
         g_loss = get_generator_loss(
             image_real,

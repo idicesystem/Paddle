@@ -13,7 +13,7 @@ cc_test(
 cc_test(
   beam_search_test
   SRCS beam_search_test.cc
-  DEPS phi common)
+  DEPS beam_search)
 if(WITH_GPU)
   nv_test(
     selected_rows_functor_gpu_test
@@ -29,7 +29,7 @@ endif()
 cc_test(
   concat_test
   SRCS concat_test.cc
-  DEPS phi common)
+  DEPS concat_and_split)
 
 if(WITH_TESTING AND TEST im2col_test)
   set_tests_properties(im2col_test PROPERTIES TIMEOUT 120)

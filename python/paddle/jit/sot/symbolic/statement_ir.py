@@ -19,15 +19,12 @@ use interface in symbolic_context.py first.
 """
 from __future__ import annotations
 
-import functools
 import weakref
 from typing import Any, Callable
 
-import paddle
-from paddle.jit.utils import OrderedSet
-from paddle.utils import flatten, map_structure
+from paddle.utils import is_sequence, map_structure
 
-from ..utils import NameGenerator, Singleton, flatten_extend, get_api_fullname
+from ..utils import NameGenerator, OrderedSet, Singleton, flatten_extend
 
 
 class Reference:  # to unify weak_ref and strong_ref
@@ -88,7 +85,7 @@ class Statement:
         outputs: list[Symbol],
         stacks: list[str],
     ):
-        assert type in ["call", "api", "method", "layer", "AST"]
+        assert type in ["call", "api", "method", "layer"]
         self.name = name
         self.inputs = inputs  # (list of Symbols, dict of Symbols)
         self.outputs = outputs  # list of Symbol | PythonObj
@@ -99,9 +96,9 @@ class Statement:
 
     def __str__(self):
         def to_string(inps):
-            inps = [x.__str__() for x in flatten(inps) if isinstance(x, Symbol)]
-            if len(inps) == 0:
-                return "(Empty)"
+            if isinstance(inps, str) or not is_sequence(inps):
+                return inps.__str__()
+            inps = (x.__str__() for x in inps)
             return ", ".join(inps)
 
         return "{} || {} = {} ({}) ".format(
@@ -135,10 +132,9 @@ class ApiStatement(Statement):
         outputs: list[Symbol],
         stacks: list[str],
     ):
-        fullname = get_api_fullname(api)
-        if fullname is None:
-            fullname = "paddle." + api.__name__
-        super().__init__("api", fullname, inputs, outputs, stacks)
+        super().__init__(
+            "api", "paddle." + api.__name__, inputs, outputs, stacks
+        )
         self.api = api
 
 
@@ -162,42 +158,10 @@ class LayerStatement(Statement):
         outputs: list[Symbol],
         stacks: list[str],
     ):
-        if isinstance(layer, Reference):
-            name = layer().__class__.__name__
-        else:
-            name = layer.__class__.__name__
         super().__init__(
-            "layer",
-            name,
-            inputs,
-            outputs,
-            stacks,
+            "layer", layer.__class__.__name__, inputs, outputs, stacks
         )
         self.layer = layer
-
-
-class ASTStatement(Statement):
-    def __init__(
-        self,
-        static_function,
-        inputs: list[Symbol],
-        outputs: list[Symbol],
-        stacks: list[str],
-    ):
-        # this dygraph_function always has attr __code__, which is checked before
-        dygraph_func = static_function.dygraph_function
-        super().__init__(
-            "AST",
-            dygraph_func.__code__.co_name,
-            inputs,
-            outputs,
-            stacks,
-        )
-        converted_func = paddle.jit.dy2static.convert_to_static(dygraph_func)
-        func_self = getattr(dygraph_func, '__self__', None)
-        if func_self is not None:
-            converted_func = functools.partial(converted_func, func_self)
-        self.converted_func = converted_func
 
 
 class StatementIR:
@@ -215,11 +179,7 @@ class StatementIR:
         self.name = name
         self.inputs = []  # list of Symbol | PythonObj
         self.outputs = []  # list of Symbol | PythonObj
-        self.statements: list[Statement] = []  # list of Statement
-
-        self.symbol_meta_map = {}
-        self.param_symbol = set()
-        self.non_param_symbol = set()
+        self.statements = []  # list of Statement
 
     def __len__(self):
         return len(self.statements)
@@ -229,19 +189,7 @@ class StatementIR:
         new_sir.inputs = list(self.inputs)
         new_sir.outputs = list(self.outputs)
         new_sir.statements = list(self.statements)
-        new_sir.symbol_meta_map = dict(self.symbol_meta_map.items())
-        new_sir.param_symbol = set(self.param_symbol)
-        new_sir.non_param_symbol = set(self.non_param_symbol)
         return new_sir
-
-    def set_parameter_info(self, params, non_params):
-        self.param_symbol.update(params)
-        self.non_param_symbol.update(non_params)
-
-    def set_symbol_meta_map(self, meta_map):
-        # if the meta of a input symbol inplace changed, we should get the origin meta as input of SIR
-        meta_map.update(self.symbol_meta_map)
-        self.symbol_meta_map = meta_map
 
     def add_input(self, input):
         self.inputs.append(input)
@@ -269,7 +217,7 @@ class StatementIR:
 
     def __str__(self):
         strs = []
-        strs.append(f"StatementIR: {self.name}")
+        strs.append("StatmentIR: %s" % self.name)
         strs.append(f"  inputs: {map_structure(lambda x: x.name, self.inputs)}")
         strs.append(
             f"  outputs: {map_structure(lambda x: x.name, self.outputs)}"
@@ -282,8 +230,13 @@ class StatementIR:
     def __repr__(self):
         return self.__str__()
 
+    def graph_size(self):
+        call_layers = [x for x in self.statements if x.type == "layer"]
+        return len(self.statements) + len(call_layers)
 
-class StatementIRFactory(metaclass=Singleton):
+
+@Singleton
+class StatementIRFactory:
     """
     It is used to create a StatementIR.
     """
@@ -319,7 +272,8 @@ class StatementIRFactory(metaclass=Singleton):
             del self.cache[key]
 
 
-class SIRRuntimeCache(metaclass=Singleton):
+@Singleton
+class SIRRuntimeCache:
     """
     It is used to cache the runtime information of the StatementIR.
     """

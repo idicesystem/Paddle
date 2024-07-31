@@ -83,12 +83,10 @@ class TestMatMulV2VectorXVectorOneDNNOp(OpTest):
         self.outputs = {'Out': result}
 
     def test_check_output(self):
-        self.check_output(check_pir_onednn=True, check_dygraph=False)
+        self.check_output()
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X', 'Y'], 'Out', check_pir_onednn=True, check_dygraph=False
-        )
+        self.check_grad(['X', 'Y'], 'Out')
 
 
 class TestMatMulV2VectorXMatrixTransposeYOneDNNOp(
@@ -161,7 +159,7 @@ class TestMatMulV2MatrixXMatrix3OneDNNOp(TestMatMulV2VectorXVectorOneDNNOp):
         self.trans_y = False
 
 
-class TestMatMulV2MatrixXMatrixTransposeXOneDNNOp2(
+class TestMatMulV2MatrixXMatrixTranposeXOneDNNOp2(
     TestMatMulV2VectorXVectorOneDNNOp
 ):
     def config(self):
@@ -171,7 +169,7 @@ class TestMatMulV2MatrixXMatrixTransposeXOneDNNOp2(
         self.trans_y = False
 
 
-class TestMatMulV2MatrixXMatrixTransposeX2OneDNNOp3(
+class TestMatMulV2MatrixXMatrixTranposeX2OneDNNOp3(
     TestMatMulV2VectorXVectorOneDNNOp
 ):
     def config(self):
@@ -235,7 +233,7 @@ class TestMatMulV2MatrixXMatrixTransposeY2OneDNNOp(
         self.trans_y = True
 
 
-class TestMatMulV2MatrixXMatrix5DTransposeYOneDNNOp(
+class TestMatMulV2MatrixXMatrix5DTranposeYOneDNNOp(
     TestMatMulV2VectorXVectorOneDNNOp
 ):
     def config(self):
@@ -315,9 +313,7 @@ def create_bf16_test_class(parent):
             self.attrs['mkldnn_data_type'] = "bfloat16"
 
         def test_check_output(self):
-            self.check_output_with_place(
-                core.CPUPlace(), check_pir_onednn=True, check_dygraph=False
-            )
+            self.check_output_with_place(core.CPUPlace())
 
         def test_check_grad(self):
             self.calculate_grads()
@@ -327,8 +323,6 @@ def create_bf16_test_class(parent):
                 "Out",
                 user_defined_grads=[self.dx, self.dy],
                 user_defined_grad_outputs=[convert_float_to_uint16(self.dout)],
-                check_pir_onednn=True,
-                check_dygraph=False,
             )
 
         def matmul_grad(self, x, transpose_x, y, transpose_y):
@@ -448,15 +442,15 @@ create_bf16_test_class(TestMatMulV2MatrixXMatrixOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeYOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrix2OneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrix3OneDNNOp)
-create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeXOneDNNOp2)
-create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeX2OneDNNOp3)
+create_bf16_test_class(TestMatMulV2MatrixXMatrixTranposeXOneDNNOp2)
+create_bf16_test_class(TestMatMulV2MatrixXMatrixTranposeX2OneDNNOp3)
 create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeX3OneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrix4OneDNNOp)
 create_bf16_test_class(TestMatMulV2VectorXMatrix5DOneDNNOp)
 create_bf16_test_class(TestMatMulV2Matrix3DXVectorOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeXTransposeYOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrixTransposeY2OneDNNOp)
-create_bf16_test_class(TestMatMulV2MatrixXMatrix5DTransposeYOneDNNOp)
+create_bf16_test_class(TestMatMulV2MatrixXMatrix5DTranposeYOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrix6Dx2DOneDNNOp)
 create_bf16_test_class(TestMatMulV2MatrixXMatrix2Dx5DOneDNNOp)
 

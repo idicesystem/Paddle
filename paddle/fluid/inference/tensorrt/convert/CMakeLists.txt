@@ -112,7 +112,6 @@ list(
   einsum_op.cc
   unbind_op.cc
   assign_op.cc
-  p_norm_op.cc
   flip_op.cc
   quantize_linear_op.cc
   dequantize_linear_op.cc
@@ -127,9 +126,8 @@ if(CUSPARSELT_FOUND AND ${TENSORRT_MAJOR_VERSION} GREATER_EQUAL 8)
   list(APPEND CONVERT_FILES sparse_fc_op.cc sparse_multihead_matmul_op.cc)
 endif()
 
-set(TENSORRT_VERSION_NUMBER
-    "${TENSORRT_MAJOR_VERSION}${TENSORRT_MINOR_VERSION}")
-if(${TENSORRT_VERSION_NUMBER} GREATER_EQUAL 82)
+if(${TENSORRT_MAJOR_VERSION} GREATER_EQUAL 8 AND ${TENSORRT_MINOR_VERSION}
+                                                 GREATER_EQUAL 2)
   list(APPEND CONVERT_FILES set_value_op.cc)
 endif()
 

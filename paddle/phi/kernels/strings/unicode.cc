@@ -23,7 +23,7 @@ namespace phi {
 namespace strings {
 
 static const void* utils_map[4] = {nullptr};  // NOLINT
-static uint16_t CHAR_CASES_MAP[65536] = {0};  // NOLINT
+static uint16_t CHARCASES_MAP[65536] = {0};   // NOLINT
 
 const uint8_t* GetUniFlagMap() {
   if (utils_map[1] == nullptr) {
@@ -32,16 +32,16 @@ const uint8_t* GetUniFlagMap() {
   return reinterpret_cast<const uint8_t*>(utils_map[1]);
 }
 
-const uint16_t* GetCharCasesMap() {
+const uint16_t* GetCharcasesMap() {
   if (utils_map[0] == nullptr) {
     for (uint32_t i = 0; i < 65536; ++i) {
       if (utf8proc_islower(static_cast<int32_t>(i))) {
-        CHAR_CASES_MAP[i] = utf8proc_toupper(static_cast<int32_t>(i));
+        CHARCASES_MAP[i] = utf8proc_toupper(static_cast<int32_t>(i));
       } else if (utf8proc_isupper(static_cast<int32_t>(i))) {
-        CHAR_CASES_MAP[i] = utf8proc_tolower(static_cast<int32_t>(i));
+        CHARCASES_MAP[i] = utf8proc_tolower(static_cast<int32_t>(i));
       }
     }
-    utils_map[0] = CHAR_CASES_MAP;
+    utils_map[0] = CHARCASES_MAP;
   }
   return reinterpret_cast<const uint16_t*>(utils_map[0]);
 }
@@ -67,21 +67,21 @@ const uint8_t* GetGPUUniflagMap() {
   return reinterpret_cast<const uint8_t*>(utils_map[3]);
 }
 
-const uint16_t* GetGPUCharCasesMap() {
+const uint16_t* GetGPUCharcasesMap() {
   if (utils_map[2] == nullptr) {
-    const uint16_t* cpu_char_cases = GetCharCasesMap();
-    auto size = sizeof(CHAR_CASES_MAP);
-    uint16_t* gpu_char_cases;
+    const uint16_t* cpu_charcases = GetCharcasesMap();
+    auto size = sizeof(CHARCASES_MAP);
+    uint16_t* gpu_charcases;
 #ifdef PADDLE_WITH_HIP
-    hipMalloc(reinterpret_cast<void**>(&gpu_char_cases), size);
+    hipMalloc(reinterpret_cast<void**>(&gpu_charcases), size);
     phi::backends::gpu::GpuMemcpySync(
-        gpu_char_cases, cpu_char_cases, size, hipMemcpyHostToDevice);
+        gpu_charcases, cpu_charcases, size, hipMemcpyHostToDevice);
 #else
-    cudaMalloc(reinterpret_cast<void**>(&gpu_char_cases), size);
+    cudaMalloc(reinterpret_cast<void**>(&gpu_charcases), size);
     phi::backends::gpu::GpuMemcpySync(
-        gpu_char_cases, cpu_char_cases, size, cudaMemcpyHostToDevice);
+        gpu_charcases, cpu_charcases, size, cudaMemcpyHostToDevice);
 #endif
-    utils_map[2] = gpu_char_cases;
+    utils_map[2] = gpu_charcases;
   }
   return reinterpret_cast<const uint16_t*>(utils_map[2]);
 }

@@ -19,7 +19,8 @@ limitations under the License. */
 #include "paddle/phi/kernels/funcs/math_function.h"
 #include "paddle/phi/kernels/sparse/cpu/conv.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 // rulebook:
 //[
@@ -214,7 +215,8 @@ void Conv3dCooGradKernel(const Context& dev_ctx,
                                           kernel_grad);
       }));
 }
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(conv3d_coo_grad,
                    CPU,

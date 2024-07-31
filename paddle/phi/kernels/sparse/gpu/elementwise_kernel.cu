@@ -59,7 +59,6 @@ void ElementWiseAddCooGPUKernel(const GPUContext& dev_ctx,
   phi::AddKernel<T, GPUContext>(
       dev_ctx, x.values(), y.values(), out->mutable_values());
   out->SetIndicesDict(x.GetIndicesDict());
-  out->SetKmaps(x.GetKmaps());
 }
 
 template <typename T, typename Context>

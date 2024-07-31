@@ -52,8 +52,6 @@ PD_REGISTER_KERNEL(empty,
                    bool,
                    phi::dtype::float16,
                    phi::dtype::bfloat16,
-                   phi::dtype::float8_e4m3fn,
-                   phi::dtype::float8_e5m2,
                    phi::dtype::complex<float>,
                    phi::dtype::complex<double>) {}
 
@@ -91,8 +89,6 @@ PD_REGISTER_KERNEL(empty,
                    bool,
                    phi::dtype::float16,
                    phi::dtype::bfloat16,
-                   phi::dtype::float8_e4m3fn,
-                   phi::dtype::float8_e5m2,
                    phi::dtype::complex<float>,
                    phi::dtype::complex<double>) {}
 
@@ -129,8 +125,7 @@ PD_REGISTER_KERNEL(empty,
                    int,
                    int64_t,
                    bool,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {}
+                   phi::dtype::float16) {}
 PD_REGISTER_KERNEL(empty_like,
                    XPU,
                    ALL_LAYOUT,
@@ -143,8 +138,7 @@ PD_REGISTER_KERNEL(empty_like,
                    int,
                    int64_t,
                    bool,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {
+                   phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 #endif
@@ -162,8 +156,7 @@ PD_REGISTER_KERNEL(empty,
                    int,
                    int64_t,
                    bool,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {}
+                   phi::dtype::float16) {}
 PD_REGISTER_KERNEL(empty_like,
                    Custom,
                    ALL_LAYOUT,
@@ -176,8 +169,7 @@ PD_REGISTER_KERNEL(empty_like,
                    int,
                    int64_t,
                    bool,
-                   phi::dtype::float16,
-                   phi::dtype::bfloat16) {
+                   phi::dtype::float16) {
   kernel->InputAt(0).SetBackend(phi::Backend::ALL_BACKEND);
 }
 #endif

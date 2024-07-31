@@ -17,7 +17,9 @@
 #include "paddle/phi/backends/cpu/cpu_info.h"
 #include "paddle/phi/kernels/funcs/jit/registry.h"
 
-namespace phi::jit::gen {
+namespace phi {
+namespace jit {
+namespace gen {
 
 void VBroadcastJitCode::genCode() {
   preCode();
@@ -83,7 +85,9 @@ class VBroadcastCreator : public JitCodeCreator<int64_t> {
   }
 };
 
-}  // namespace phi::jit::gen
+}  // namespace gen
+}  // namespace jit
+}  // namespace phi
 
 namespace gen = phi::jit::gen;
 

@@ -12,7 +12,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class QuantizeLinearOpConverter : public OpConverter {
  public:
@@ -31,8 +33,8 @@ class QuantizeLinearOpConverter : public OpConverter {
     // Create constant layer for scale
     PADDLE_ENFORCE_NOT_NULL(
         scale_var,
-        common::errors::NotFound("Can not find %s presistable var in scope.",
-                                 op_desc.Input("Scale")[0]));
+        platform::errors::NotFound("Can not find %s presistale var in scope.",
+                                   op_desc.Input("Scale")[0]));
     auto* scale_t = scale_var->GetMutable<phi::DenseTensor>();
     int n_scale = scale_t->numel();
     std::vector<float> scale_data(n_scale, 0.0f);
@@ -48,16 +50,18 @@ class QuantizeLinearOpConverter : public OpConverter {
       layer->setAxis(axis);
     }
     auto output_name = op_desc.Output("Y")[0];
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "quantize_linear", {output_name}, test_model);
 #else
     PADDLE_THROW(
-        common::errors::Fatal("Paddle-TRT explicit quantization does not "
-                              "support Paddle compiled with TRT < 8.5"));
+        platform::errors::Fatal("Paddle-TRT explicit quantization does not "
+                                "support Paddle compiled with TRT < 8.5"));
 #endif
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(quantize_linear, QuantizeLinearOpConverter);

@@ -15,7 +15,8 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/op_registry.h"
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class NopOp : public framework::OperatorWithKernel {
  public:
@@ -44,7 +45,8 @@ establish the dependency between input and output tensors.
   }
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 

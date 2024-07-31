@@ -25,6 +25,7 @@ from dygraph_to_static_utils import (
 from test_fetch_feed import Linear
 
 import paddle
+from paddle import base
 
 SEED = 2020
 
@@ -54,7 +55,7 @@ def nested_output(x, y):
 
 def fake_data(shape):
     x_data = np.random.random(shape).astype('float32')
-    return paddle.to_tensor(x_data)
+    return base.dygraph.to_variable(x_data)
 
 
 class TestWithNestedInput(Dy2StTestBase):
@@ -141,7 +142,7 @@ class TestWithTrainAndEval(Dy2StTestBase):
         linear_net = Linear()
         linear_net = paddle.jit.to_static(linear_net, full_graph=True)
         x_data = np.random.random((4, 10)).astype('float32')
-        x = paddle.to_tensor(x_data)
+        x = base.dygraph.to_variable(x_data)
         linear_net(x)
 
         _, train_partial_layer = linear_net.forward.program_cache.last()[-1]

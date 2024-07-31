@@ -43,7 +43,7 @@ std::unordered_map<GradNodeBase*, int> getInDegreeMap(
 
     PADDLE_ENFORCE_NOT_NULL(
         node,
-        phi::errors::Fatal(
+        paddle::platform::errors::Fatal(
             "We got null node when we traverse the backward graph, and this "
             "should not happened please check your code and contact us."));
     // Find and append next nodes
@@ -75,7 +75,7 @@ void EnforceGradNodeHasInput(GradNodeBase* node) {
   PADDLE_ENFORCE_NE(
       node->IsTensorWrappersCleared(),
       true,
-      phi::errors::Fatal(
+      paddle::platform::errors::Fatal(
           "The TensorWrappers of %s do not exist. This may be because:\n"
           "You calculate backward twice for the same subgraph without "
           "setting retain_graph=True. Please set retain_graph=True in the "
@@ -84,19 +84,19 @@ void EnforceGradNodeHasInput(GradNodeBase* node) {
 }
 
 void DuplicateCheck(const std::vector<paddle::Tensor>& inputs, bool is_input) {
-  std::unordered_set<AutogradMeta*> visited_ins;
+  std::unordered_set<AutogradMeta*> visisted_ins;
   std::string msg = is_input ? "inputs" : "outputs";
   for (auto const& in : inputs) {
     AutogradMeta* auto_grad_meta = EagerUtils::unsafe_autograd_meta(in);
     PADDLE_ENFORCE_EQ(
-        visited_ins.count(auto_grad_meta),
+        visisted_ins.count(auto_grad_meta),
         0,
-        phi::errors::AlreadyExists(
+        paddle::platform::errors::AlreadyExists(
             "%s contain duplicate tensor %s, please check %s carefully.",
             msg,
             in.name(),
             msg));
-    visited_ins.insert(auto_grad_meta);
+    visisted_ins.insert(auto_grad_meta);
   }
 }
 
@@ -112,7 +112,6 @@ std::vector<paddle::Tensor> RunBackward(
     const std::vector<paddle::Tensor>& no_grad_vars = {}) {
   VLOG(3) << "Start Backward";
 
-  egr::EagerBackwardStateGuard guard;
   auto place = egr::Controller::Instance().GetExpectedPlace();
 
   // *Gradient Hook should happen at node-level
@@ -183,7 +182,7 @@ std::vector<paddle::Tensor> RunBackward(
     if (!grad_tensors.empty() && grad_tensors[i].initialized()) {
       PADDLE_ENFORCE(
           grad_tensors.size() == tensors.size(),
-          phi::errors::Fatal(
+          paddle::platform::errors::Fatal(
               "Detected size mismatch between tensors and grad_tensors"
               "grad_tensors should either have "
               "size = 0 or same size as tensors."));
@@ -253,6 +252,10 @@ std::vector<paddle::Tensor> RunBackward(
   while (!queue.empty()) {
     GradNodeBase* node = queue.front();
     VLOG(3) << "Preparing GradNode:" << node->name() << " addr:" << node;
+    paddle::platform::RecordEvent node_record_event(
+        std::string((*node).name()),
+        paddle::platform::TracerEventType::Operator,
+        1);
 
     if (queue.size() > 1 && node_in_degree_map[node] != 0) {
       queue.pop_front();
@@ -265,7 +268,7 @@ std::vector<paddle::Tensor> RunBackward(
     PADDLE_ENFORCE_NE(
         node_input_buffer_iter,
         node_input_buffers_dict.end(),
-        phi::errors::Fatal(
+        paddle::platform::errors::Fatal(
             "Unable to find next node in the GradTensorHolder \n"
             "Trying to run Node without configuring its GradTensorHolder."));
 
@@ -276,29 +279,14 @@ std::vector<paddle::Tensor> RunBackward(
     EnforceGradNodeHasInput(node);
 
     VLOG(7) << "Run Backward Kernel with GradTensorHolder.";
-
-    // This 'Global_XXXGradNode' record event is different with
-    // 'Local_XXXGradNode' event.
-    // * 'Global_XXXGradNode' will not only cover execution time of this
-    // function, but also include gradient
-    //    accumulation when the output(s) of corresponding forward OP are shared
-    //    by other OP(s), which may have extra overhead of accumulation than
-    //    'Local_XXXGradNode'.
-    // * 'Local_XXXGradNode' will only cover execution time of GradNode
-    // function.
-    paddle::platform::RecordEvent grad_node_record_event(
-        "Global_" + std::string((*node).name()),
-        paddle::platform::TracerEventType::Operator,
-        1);
-
     // Run Pre Backward Node and get outputs
     paddle::small_vector<std::vector<paddle::Tensor>, kSlotSmallVectorSize>
         grad_output_tensors = (*node)(
             node_input_buffer->Buffers(), create_graph, is_general_grad);
 
     if (!inputs.empty() && is_general_grad) {
-      GeneralGrad::Instance().SetResultForEndingNodes(grad_output_tensors,
-                                                      node);
+      GeneralGrad::Instance().SetResultForEnddingNodes(grad_output_tensors,
+                                                       node);
     }
 
     // retain_grad or not
@@ -315,7 +303,7 @@ std::vector<paddle::Tensor> RunBackward(
     const paddle::small_vector<std::vector<GradSlotMeta>, kSlotSmallVectorSize>&
         metas = node->OutputMeta();
     PADDLE_ENFORCE(metas.size() == grad_output_tensors.size() || metas.empty(),
-                   phi::errors::Fatal(
+                   paddle::platform::errors::Fatal(
                        "Number of edges should be either empty ( for leaf node "
                        ") or the same as number of output grad tensors, but we "
                        "got edges size is: %d, grad_output size is: %d",
@@ -346,7 +334,7 @@ std::vector<paddle::Tensor> RunBackward(
         PADDLE_ENFORCE_LT(
             j,
             grad_output_tensors[i].size(),
-            phi::errors::Fatal(
+            paddle::platform::errors::Fatal(
                 "Rank of grad_output_tensors should be less than "
                 "grad_output_tensors[i].size(), which is: %d. This error may "
                 "indicate autoprune or autograd api error. ",
@@ -388,12 +376,13 @@ std::vector<paddle::Tensor> RunBackward(
 
         PADDLE_ENFORCE(
             node_in_degree_map[next_node] >= 0,
-            phi::errors::Fatal(
+            paddle::platform::errors::Fatal(
                 "Detected in-degree value smaller than zero. For Node: %s"
                 "Node's in-degree cannot be negative.",
                 next_node->name()));
 
-        auto add_next_node_func = [&queue](GradNodeBase* next_node) {
+        auto add_next_node_func = [&node_in_degree_map,
+                                   &queue](GradNodeBase* next_node) {
           if (dynamic_cast<egr::GradNodeAccumulation*>(next_node)) {
             queue.push_front(next_node);
           } else {

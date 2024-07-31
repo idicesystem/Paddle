@@ -24,9 +24,7 @@ from paddle.base import core, framework
 def apply_to_static(net, use_cinn):
     build_strategy = paddle.static.BuildStrategy()
     build_strategy.build_cinn_pass = use_cinn
-    return paddle.jit.to_static(
-        net, build_strategy=build_strategy, full_graph=True
-    )
+    return paddle.jit.to_static(net, build_strategy=build_strategy)
 
 
 class PrimeNet(paddle.nn.Layer):
@@ -182,7 +180,7 @@ class TestTransposeGradComp(unittest.TestCase):
             return exe.run(
                 program=mp,
                 feed={'primal': primal, 'cotangent': cotangent},
-                fetch_list=[x_cotangent[0]],
+                fetch_list=[x_cotangent[0].name],
             )[0]
 
         def desired(primal, axis, cotangent):
@@ -207,7 +205,7 @@ class TestTransposeGradComp(unittest.TestCase):
             return exe.run(
                 program=mp,
                 feed={'primal': primal, 'cotangent': cotangent},
-                fetch_list=[x_cotangent[0]],
+                fetch_list=[x_cotangent[0].name],
             )[0]
 
         if (self.dtype == np.float16) and isinstance(

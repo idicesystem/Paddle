@@ -18,6 +18,7 @@
 #include "paddle/cinn/common/bfloat16.h"
 #include "paddle/cinn/common/cas.h"
 #include "paddle/cinn/runtime/cuda/cuda_util.h"
+#include "paddle/cinn/runtime/custom_function.h"
 
 using cinn::common::bfloat16;
 

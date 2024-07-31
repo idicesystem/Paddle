@@ -42,9 +42,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/trainer_desc.pb.h"
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/operators/reader/blocking_queue.h"
+#include "paddle/fluid/platform/place.h"
 #include "paddle/fluid/platform/timer.h"
-#include "paddle/phi/common/place.h"
-#include "paddle/phi/common/port.h"
+#include "paddle/phi/backends/dynload/port.h"
 
 namespace paddle {
 namespace framework {
@@ -60,21 +60,20 @@ class Scope;
 namespace paddle {
 namespace framework {
 
-TEST_API std::string PrintLodTensor(phi::DenseTensor* tensor,
-                                    int64_t start,
-                                    int64_t end,
-                                    char separator = ',',
-                                    bool need_leading_separator = false);
-TEST_API void PrintLodTensor(phi::DenseTensor* tensor,
-                             int64_t start,
-                             int64_t end,
-                             std::string& output_str,  // NOLINT
-                             char separator = ',',
-                             bool need_leading_separator = false,
-                             int num_decimals = 9);
-TEST_API std::pair<int64_t, int64_t> GetTensorBound(phi::DenseTensor* tensor,
-                                                    int index);
-TEST_API bool CheckValidOutput(phi::DenseTensor* tensor, size_t batch_size);
+std::string PrintLodTensor(phi::DenseTensor* tensor,
+                           int64_t start,
+                           int64_t end,
+                           char separator = ',',
+                           bool need_leading_separator = false);
+void PrintLodTensor(phi::DenseTensor* tensor,
+                    int64_t start,
+                    int64_t end,
+                    std::string& output_str,  // NOLINT
+                    char separator = ',',
+                    bool need_leading_separator = false,
+                    int num_decimals = 9);
+std::pair<int64_t, int64_t> GetTensorBound(phi::DenseTensor* tensor, int index);
+bool CheckValidOutput(phi::DenseTensor* tensor, size_t batch_size);
 
 class FleetWrapper;
 
@@ -92,7 +91,9 @@ class PullDenseWorker {
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP) || \
     defined(PADDLE_WITH_XPU)
-  void AddPlace(const phi::Place place) { places_.push_back(place); }
+  void AddPlace(const paddle::platform::Place place) {
+    places_.push_back(place);
+  }
 
   void AddThreadScope(Scope* scope) { thread_scopes_.push_back(scope); }
 #endif
@@ -157,7 +158,7 @@ class PullDenseWorker {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
   std::vector<gpuStream_t> copy_streams_;
 #endif
-  std::vector<phi::Place> places_;
+  std::vector<paddle::platform::Place> places_;
   std::vector<Scope*> thread_scopes_;
 };
 
@@ -204,15 +205,15 @@ class DeviceWorker {
   virtual void SetChannelWriter(ChannelObject<std::string>* queue) {
     writer_.Reset(queue);
   }
-  virtual void SetPlace(const phi::Place& place) { place_ = place; }
-  virtual void SetReaderPlace(const phi::Place& place) {
+  virtual void SetPlace(const paddle::platform::Place& place) {
+    place_ = place;
+  }
+  virtual void SetReaderPlace(const paddle::platform::Place& place) {
     device_reader_->SetPlace(place);
   }
-  virtual void SetDeviceContext(phi::DeviceContext* dev_ctx) {
+  virtual void SetDeviceContext(platform::DeviceContext* dev_ctx) {
     dev_ctx_ = dev_ctx;
   }
-
-  virtual phi::DeviceContext* GetDeviceContext() { return dev_ctx_; }
 
   virtual void SetThreadNum(int thread_num) { thread_num_ = thread_num; }
 
@@ -227,7 +228,7 @@ class DeviceWorker {
                          int dump_interval = 10000);
   Scope* root_scope_ = nullptr;
   Scope* thread_scope_;
-  phi::Place place_;
+  paddle::platform::Place place_;
   int64_t batch_num_ = 0;
   FetchConfig fetch_config_;
   bool use_cvm_;
@@ -247,7 +248,7 @@ class DeviceWorker {
   int dump_num_decimals_ = 9;
   ChannelWriter<std::string> writer_;
   const size_t tensor_iterator_thread_num = 16;
-  phi::DeviceContext* dev_ctx_ = nullptr;
+  platform::DeviceContext* dev_ctx_ = nullptr;
   int thread_num_;
 };
 
@@ -271,7 +272,7 @@ class HogwildWorker : public CPUWorkerBase {
     std::vector<std::pair<std::string, std::string>> cast_vars;
     template <typename TCopyer>
     void CopyInputs(const Scope* root,
-                    const phi::Place& place,
+                    const platform::Place& place,
                     Scope* scope,
                     TCopyer* copyer);
     template <typename TCopyer>
@@ -340,8 +341,6 @@ class HogwildWorker : public CPUWorkerBase {
   std::unordered_map<std::string, std::string> cast_fp16_vars_;
   std::unordered_map<std::string, std::string> param_cast_vars_;
   std::unordered_map<std::string, std::string> need_cast_vars_;
-  bool use_ps_gpu_ = false;
-  bool use_gpu_graph_ = false;
 };
 
 class DownpourWorker : public HogwildWorker {
@@ -565,7 +564,7 @@ class HeterCpuWorker : public HogwildWorker {
   std::map<uint64_t, std::vector<std::string>> sparse_grad_names_;
   std::map<uint64_t, std::vector<std::string>> dense_value_names_;
   std::map<uint64_t, std::vector<std::string>> dense_grad_names_;
-  phi::Place root_place_;
+  platform::Place root_place_;
   // actually pushed feasign of each table
   std::map<uint64_t, std::vector<uint64_t>> sparse_push_keys_;
 
@@ -630,7 +629,7 @@ class PSGPUWorker : public HogwildWorker {
 
   int OpRunAndShapeCheck(OperatorBase& op,  // NOLINT
                          const Scope& scope,
-                         const phi::Place& place);
+                         const platform::Place& place);
 
  private:
   int mpi_rank_;
@@ -650,7 +649,7 @@ class PSGPUWorker : public HogwildWorker {
   std::map<uint64_t, std::vector<std::string>> sparse_grad_names_;
   std::map<uint64_t, std::vector<std::string>> dense_value_names_;
   std::map<uint64_t, std::vector<std::string>> dense_grad_names_;
-  phi::Place root_place_;
+  platform::Place root_place_;
   // actually pushed feasign of each table
   std::map<uint64_t, std::vector<uint64_t>> sparse_push_keys_;
 
@@ -736,7 +735,7 @@ class SectionWorker : public DeviceWorker {
 
   void PrintFetchVars() override {}
 
-  const phi::Place& place() const { return place_; }
+  const platform::Place& place() const { return place_; }
 
   void SetDeviceIndex(int tid UNUSED) override {}
   void SetThreadIndex(int thread_id) { thread_id_ = thread_id; }
@@ -789,7 +788,7 @@ class SectionWorker : public DeviceWorker {
       unused_vars_;
   static uint64_t batch_id_;
 
-  phi::DeviceContext* dev_ctx_ = nullptr;
+  platform::DeviceContext* dev_ctx_ = nullptr;
 };
 #endif
 
@@ -808,7 +807,7 @@ class HeterSectionWorker : public DeviceWorker {
   void BindingDataFeedMemory() override {}
   void BindingDataFeedMemory(int micro_id);
   void PrintFetchVars() override;
-  const phi::Place& place() const { return place_; }
+  const platform::Place& place() const { return place_; }
 
   void SetDeviceIndex(int tid) override { thread_id_ = tid; }
   // void SetThreadNum(int thread_num) { thread_num_ = thread_num; }
@@ -831,7 +830,7 @@ class HeterSectionWorker : public DeviceWorker {
   }
   void CopyParameters(int microbatch_id,
                       const ProgramDesc& program,
-                      const phi::Place& place);
+                      const platform::Place& place);
   void SetMinibatchScope(Scope* scope) { minibatch_scope_ = scope; }
   void SetTrainerId(int trainer_id) { this->trainer_id_ = trainer_id; }
   void SetTrainers(int trainers) { this->trainers_ = trainers; }
@@ -873,7 +872,7 @@ class HeterSectionWorker : public DeviceWorker {
       thread_queue_;
   static uint64_t batch_id_;
   uint64_t total_ins_num_ = 0;
-  phi::DeviceContext* dev_ctx_ = nullptr;
+  platform::DeviceContext* dev_ctx_ = nullptr;
   bool debug_ = false;
   std::vector<double> op_total_time_;
   std::vector<std::string> op_name_;

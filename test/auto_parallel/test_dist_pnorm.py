@@ -138,7 +138,7 @@ class TestDistPNormDP(TestDistPNorm):
                         assert set(input_attr.dims_mapping) == {-1}
                 for output_attr in op_dist_attr.outputs_dist_attrs.values():
                     assert set(output_attr.dims_mapping) == {-1}
-            if op.type == 'all_gather':
+            if op.type == 'c_allgather':
                 for input_attr in op_dist_attr.inputs_dist_attrs.values():
                     assert input_attr.dims_mapping[0] == 0
                     assert set(input_attr.dims_mapping[1:]) == {-1}
@@ -151,7 +151,7 @@ class TestDistPNormDP(TestDistPNorm):
                     assert output_attr.dims_mapping[0] == 0
                     assert set(output_attr.dims_mapping[1:]) == {-1}
         assert op_types == [
-            "all_gather",
+            "c_allgather",
             "p_norm",
             "fill_constant",
             "p_norm_grad",

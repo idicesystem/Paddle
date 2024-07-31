@@ -109,7 +109,7 @@ class TestOneDNNFCLstmFusePass(PassAutoScanTest):
         config = self.create_inference_config(
             use_mkldnn=True,
             passes=[
-                'onednn_placement_pass',
+                'mkldnn_placement_pass',
                 'fc_lstm_fuse_pass',
             ],
         )
@@ -119,7 +119,7 @@ class TestOneDNNFCLstmFusePass(PassAutoScanTest):
         self.run_and_statis(
             quant=False,
             passes=[
-                'onednn_placement_pass',
+                'mkldnn_placement_pass',
                 'fc_lstm_fuse_pass',
             ],
             max_examples=50,

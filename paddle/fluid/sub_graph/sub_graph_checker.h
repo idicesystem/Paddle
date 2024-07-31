@@ -15,23 +15,19 @@
 #pragma once
 
 #include "paddle/fluid/framework/scope.h"
-#include "paddle/pir/include/core/program.h"
+#include "paddle/pir/core/program.h"
 
 namespace paddle {
 namespace test {
-
-constexpr char kInputPrefix[] = "pt_input_";
-constexpr char kOutputPrefix[] = "pt_output_";
-constexpr char kFetchSuffix[] = "@fetch";
 
 class SubGraphChecker {
  public:
   SubGraphChecker(std::shared_ptr<pir::Program> orig_program,
                   std::shared_ptr<pir::Program> prim_program);
 
-  bool CheckResult();
+  void CheckResult();
 
-  std::vector<double> CheckSpeed();
+  void CheckSpeed();
 
  private:
   void InitInputs(const std::vector<pir::Value>& input_values,

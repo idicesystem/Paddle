@@ -20,8 +20,8 @@ import numpy as np
 import paddle
 from paddle import base
 from paddle.base import core
+from paddle.base.dygraph import base as imperative_base
 from paddle.base.framework import Program, program_guard
-from paddle.pir_utils import test_with_pir_api
 
 paddle.enable_static()
 
@@ -58,16 +58,17 @@ class LayerTest(unittest.TestCase):
     @contextlib.contextmanager
     def static_graph(self):
         with new_program_scope():
-            paddle.seed(self.seed)
+            base.default_startup_program().random_seed = self.seed
+            base.default_main_program().random_seed = self.seed
             yield
 
     def get_static_graph_result(
         self, feed, fetch_list, with_lod=False, force_to_use_cpu=False
     ):
         exe = base.Executor(self._get_place(force_to_use_cpu))
-        exe.run(paddle.static.default_startup_program())
+        exe.run(base.default_startup_program())
         return exe.run(
-            paddle.static.default_main_program(),
+            base.default_main_program(),
             feed=feed,
             fetch_list=fetch_list,
             return_numpy=(not with_lod),
@@ -78,7 +79,8 @@ class LayerTest(unittest.TestCase):
         with base.dygraph.guard(
             self._get_place(force_to_use_cpu=force_to_use_cpu)
         ):
-            paddle.seed(self.seed)
+            base.default_startup_program().random_seed = self.seed
+            base.default_main_program().random_seed = self.seed
             yield
 
 
@@ -135,11 +137,11 @@ class TestGenerateProposals(LayerTest):
             )
 
         with self.dynamic_graph():
-            scores_dy = paddle.to_tensor(scores_np)
-            bbox_deltas_dy = paddle.to_tensor(bbox_deltas_np)
-            im_info_dy = paddle.to_tensor(im_info_np)
-            anchors_dy = paddle.to_tensor(anchors_np)
-            variances_dy = paddle.to_tensor(variances_np)
+            scores_dy = imperative_base.to_variable(scores_np)
+            bbox_deltas_dy = imperative_base.to_variable(bbox_deltas_np)
+            im_info_dy = imperative_base.to_variable(im_info_np)
+            anchors_dy = imperative_base.to_variable(anchors_np)
+            variances_dy = imperative_base.to_variable(variances_np)
             rois, roi_probs, rois_num = paddle.vision.ops.generate_proposals(
                 scores_dy,
                 bbox_deltas_dy,
@@ -159,8 +161,31 @@ class TestGenerateProposals(LayerTest):
         np.testing.assert_array_equal(np.array(rois_num_stat), rois_num_dy)
 
 
+class TestMulticlassNMS2(unittest.TestCase):
+    def test_multiclass_nms2(self):
+        program = Program()
+        with program_guard(program):
+            bboxes = paddle.static.data(
+                name='bboxes', shape=[-1, 10, 4], dtype='float32'
+            )
+            scores = paddle.static.data(
+                name='scores', shape=[-1, 10], dtype='float32'
+            )
+            output = paddle.incubate.layers.multiclass_nms2(
+                bboxes, scores, 0.3, 400, 200, 0.7
+            )
+            output2, index = paddle.incubate.layers.multiclass_nms2(
+                bboxes, scores, 0.3, 400, 200, 0.7, return_index=True
+            )
+            self.assertIsNotNone(output)
+            self.assertIsNotNone(output2)
+            self.assertIsNotNone(index)
+
+
 class TestDistributeFpnProposals(LayerTest):
-    def static_distribute_fpn_proposals(self, rois_np, rois_num_np):
+    def test_distribute_fpn_proposals(self):
+        rois_np = np.random.rand(10, 4).astype('float32')
+        rois_num_np = np.array([4, 6]).astype('int32')
         with self.static_graph():
             rois = paddle.static.data(
                 name='rois', shape=[10, 4], dtype='float32'
@@ -191,12 +216,10 @@ class TestDistributeFpnProposals(LayerTest):
                 output_np = np.array(output)
                 if len(output_np) > 0:
                     output_stat_np.append(output_np)
-        return output_stat_np
 
-    def dynamic_distribute_fpn_proposals(self, rois_np, rois_num_np):
         with self.dynamic_graph():
-            rois_dy = paddle.to_tensor(rois_np)
-            rois_num_dy = paddle.to_tensor(rois_num_np)
+            rois_dy = imperative_base.to_variable(rois_np)
+            rois_num_dy = imperative_base.to_variable(rois_num_np)
             (
                 multi_rois_dy,
                 restore_ind_dy,
@@ -216,19 +239,6 @@ class TestDistributeFpnProposals(LayerTest):
                 output_np = output.numpy()
                 if len(output_np) > 0:
                     output_dy_np.append(output_np)
-        return output_dy_np
-
-    @test_with_pir_api
-    def test_distribute_fpn_proposals(self):
-        rois_np = np.random.rand(10, 4).astype('float32')
-        rois_num_np = np.array([4, 6]).astype('int32')
-
-        output_stat_np = self.static_distribute_fpn_proposals(
-            rois_np, rois_num_np
-        )
-        output_dy_np = self.dynamic_distribute_fpn_proposals(
-            rois_np, rois_num_np
-        )
 
         for res_stat, res_dy in zip(output_stat_np, output_dy_np):
             np.testing.assert_array_equal(res_stat, res_dy)
@@ -239,9 +249,6 @@ class TestDistributeFpnProposals(LayerTest):
             fpn_rois = paddle.static.data(
                 name='data_error', shape=[10, 4], dtype='int32', lod_level=1
             )
-            rois_num = paddle.static.data(
-                name='rois_num', shape=[None], dtype='int32'
-            )
             self.assertRaises(
                 TypeError,
                 paddle.vision.ops.distribute_fpn_proposals,
@@ -250,7 +257,6 @@ class TestDistributeFpnProposals(LayerTest):
                 max_level=5,
                 refer_level=4,
                 refer_scale=224,
-                rois_num=rois_num,
             )
 
     def test_distribute_fpn_proposals_error2(self):

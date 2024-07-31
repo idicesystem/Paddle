@@ -16,11 +16,12 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
+#include "paddle/utils/flags.h"
 
 PD_DEFINE_bool(enable_show_scale_gradient, true, "enable show scale gradient");
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 void SparseNaiveSGDRule::LoadConfig(const SparseCommonSGDRuleParameter &param,
                                     size_t emb_dim) {
@@ -394,4 +395,5 @@ void SparseAdaGradV2SGDRule::InitValueWork(float *value,
   sgd[G2SumIndex()] = 0;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

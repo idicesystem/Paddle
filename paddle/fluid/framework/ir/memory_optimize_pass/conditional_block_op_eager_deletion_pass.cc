@@ -17,7 +17,9 @@
 #include "paddle/fluid/framework/ir/pass.h"
 #include "paddle/fluid/operators/controlflow/conditional_block_op_helper.h"
 #include "paddle/fluid/operators/controlflow/op_variant.h"
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 using OpVariant = operators::OpVariant;
 class ConditionalOpEagerDeletionPass : public Pass {
  protected:
@@ -43,12 +45,12 @@ class ConditionalOpEagerDeletionPass : public Pass {
     }
 
     // NOTE(Aurelius84): In case of @to_static, after we finish executing
-    // forward graph, some necessary variable in step_scope of controlflow_op
+    // forward graph, some necessaray variable in step_scope of controlflow_op
     // should be kept for backward graph.
     if (graph->IsConstructedByPartialProgram()) {
       PADDLE_ENFORCE_LE(target_ops.size(),
                         1,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "Unsupported multi devices if graph is constructed "
                             "with partial program."));
       size_t scope_idx = 0;
@@ -92,7 +94,9 @@ class ConditionalOpEagerDeletionPass : public Pass {
   }
 };
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(conditional_block_op_eager_deletion_pass,
               paddle::framework::ir::ConditionalOpEagerDeletionPass);

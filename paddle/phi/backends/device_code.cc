@@ -21,9 +21,9 @@ limitations under the License. */
 #include <set>
 #include <utility>
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
+#include "paddle/phi/core/flags.h"
 
 PHI_DECLARE_string(cuda_dir);
 
@@ -135,7 +135,7 @@ void GPUDeviceCode::CheckAvailableStatus() {
 #endif
 
   int driver_version = 0;
-  int driver_major = 0;
+  int dirver_major = 0;
   int driver_minor = 0;
 #ifdef PADDLE_WITH_HIP
   hipError_t driver_result = dynload::hipDriverGetVersion(&driver_version);
@@ -144,11 +144,11 @@ void GPUDeviceCode::CheckAvailableStatus() {
   CUresult driver_result = dynload::cuDriverGetVersion(&driver_version);
   if (driver_result == CUDA_SUCCESS) {
 #endif
-    driver_major = driver_version / 1000;
+    dirver_major = driver_version / 1000;
     driver_minor = (driver_version % 1000) / 10;
   }
 
-  LOG_FIRST_N(INFO, 1) << "CUDA Driver Version: " << driver_major << "."
+  LOG_FIRST_N(INFO, 1) << "CUDA Driver Version: " << dirver_major << "."
                        << driver_minor << "; NVRTC Version: " << nvrtc_major
                        << "." << nvrtc_minor;
 #ifdef PADDLE_WITH_HIP
@@ -177,7 +177,7 @@ static std::string FindCUDAIncludePath() {
     return pos != std::string::npos && pos == (str.length() - substr.length());
   };
 
-  struct stat st = {};
+  struct stat st;
   std::string cuda_include_path;
   if (!FLAGS_cuda_dir.empty()) {
     cuda_include_path = FLAGS_cuda_dir;
@@ -186,8 +186,7 @@ static std::string FindCUDAIncludePath() {
     }
     for (std::string suffix : {"/lib", "/lib64"}) {
       if (EndWith(FLAGS_cuda_dir, suffix)) {
-        cuda_include_path.erase(cuda_include_path.end() -
-                                suffix.length());  // NOLINT
+        cuda_include_path.erase(cuda_include_path.end() - suffix.length());
         break;
       }
     }
@@ -220,8 +219,7 @@ static std::string FindCUDAIncludePath() {
 
 GPUDeviceCode::GPUDeviceCode(const Place& place,
                              const std::string& name,
-                             const std::string& kernel)
-    : module_(nullptr), function_(nullptr) {
+                             const std::string& kernel) {
   if (place.GetType() != phi::AllocationType::GPU) {
     PADDLE_THROW(phi::errors::PermissionDenied(
         "GPUDeviceCode can only launch on GPU place."));

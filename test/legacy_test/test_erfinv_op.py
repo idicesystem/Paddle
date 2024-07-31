@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -70,13 +69,7 @@ class TestErfinvAPIOp(unittest.TestCase):
         self.init_dtype()
         self.x = np.random.rand(5).astype(self.dtype)
         self.res_ref = erfinv(self.x)
-        self.place = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
+        self.place = [paddle.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -126,7 +119,7 @@ class TestErfinvFP16Op(TestErfinvOp):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestErfinvBF16Op(OpTest):
     def setUp(self):

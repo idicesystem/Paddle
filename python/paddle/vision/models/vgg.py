@@ -12,28 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import (
-    TYPE_CHECKING,
-    Literal,
-    TypedDict,
-)
-
-from typing_extensions import NotRequired, Unpack
-
 import paddle
 from paddle import nn
 from paddle.utils.download import get_weights_path_from_url
-
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle.nn import Layer, Sequential
-
-    class _VGGOptions(TypedDict):
-        num_classes: NotRequired[int]
-        with_pool: NotRequired[bool]
-
 
 __all__ = []
 
@@ -71,7 +52,7 @@ class VGG(nn.Layer):
 
             >>> vgg11_cfg = [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M']
 
-            >>> features = make_layers(vgg11_cfg)  # type: ignore
+            >>> features = make_layers(vgg11_cfg)
 
             >>> vgg11 = VGG(features)
 
@@ -82,12 +63,7 @@ class VGG(nn.Layer):
             [1, 1000]
     """
 
-    num_classes: int
-    with_pool: bool
-
-    def __init__(
-        self, features: Layer, num_classes: int = 1000, with_pool: bool = True
-    ) -> None:
+    def __init__(self, features, num_classes=1000, with_pool=True):
         super().__init__()
         self.features = features
         self.num_classes = num_classes
@@ -107,7 +83,7 @@ class VGG(nn.Layer):
                 nn.Linear(4096, num_classes),
             )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = self.features(x)
 
         if self.with_pool:
@@ -120,9 +96,7 @@ class VGG(nn.Layer):
         return x
 
 
-def make_layers(
-    cfg: list[int | Literal['M']], batch_norm: bool = False
-) -> Sequential:
+def make_layers(cfg, batch_norm=False):
     layers = []
     in_channels = 3
     for v in cfg:
@@ -139,44 +113,71 @@ def make_layers(
 
 
 cfgs = {
-    'A': [
-        64, 'M',
-        128, 'M',
-        256, 256, 'M',
-        512, 512, 'M',
-        512, 512, 'M',
-    ],
+    'A': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'B': [
-        64, 64, 'M',
-        128, 128, 'M',
-        256, 256, 'M',
-        512, 512, 'M',
-        512, 512, 'M',
+        64,
+        64,
+        'M',
+        128,
+        128,
+        'M',
+        256,
+        256,
+        'M',
+        512,
+        512,
+        'M',
+        512,
+        512,
+        'M',
     ],
     'D': [
-        64, 64, 'M',
-        128, 128, 'M',
-        256, 256, 256, 'M',
-        512, 512, 512, 'M',
-        512, 512, 512, 'M',
+        64,
+        64,
+        'M',
+        128,
+        128,
+        'M',
+        256,
+        256,
+        256,
+        'M',
+        512,
+        512,
+        512,
+        'M',
+        512,
+        512,
+        512,
+        'M',
     ],
     'E': [
-        64, 64, 'M',
-        128, 128, 'M',
-        256, 256, 256, 256, 'M',
-        512, 512, 512, 512, 'M',
-        512, 512, 512, 512, 'M',
+        64,
+        64,
+        'M',
+        128,
+        128,
+        'M',
+        256,
+        256,
+        256,
+        256,
+        'M',
+        512,
+        512,
+        512,
+        512,
+        'M',
+        512,
+        512,
+        512,
+        512,
+        'M',
     ],
-}  # fmt: skip
+}
 
 
-def _vgg(
-    arch: str,
-    cfg: Literal["A", "B", "D", "E"],
-    batch_norm: bool,
-    pretrained: bool,
-    **kwargs: Unpack[_VGGOptions],
-) -> VGG:
+def _vgg(arch, cfg, batch_norm, pretrained, **kwargs):
     model = VGG(make_layers(cfgs[cfg], batch_norm=batch_norm), **kwargs)
 
     if pretrained:
@@ -193,11 +194,7 @@ def _vgg(
     return model
 
 
-def vgg11(
-    pretrained: bool = False,
-    batch_norm: bool = False,
-    **kwargs: Unpack[_VGGOptions],
-) -> VGG:
+def vgg11(pretrained=False, batch_norm=False, **kwargs):
     """VGG 11-layer model from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
 
@@ -234,11 +231,7 @@ def vgg11(
     return _vgg(model_name, 'A', batch_norm, pretrained, **kwargs)
 
 
-def vgg13(
-    pretrained: bool = False,
-    batch_norm: bool = False,
-    **kwargs: Unpack[_VGGOptions],
-) -> VGG:
+def vgg13(pretrained=False, batch_norm=False, **kwargs):
     """VGG 13-layer model from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
 
@@ -275,11 +268,7 @@ def vgg13(
     return _vgg(model_name, 'B', batch_norm, pretrained, **kwargs)
 
 
-def vgg16(
-    pretrained: bool = False,
-    batch_norm: bool = False,
-    **kwargs: Unpack[_VGGOptions],
-) -> VGG:
+def vgg16(pretrained=False, batch_norm=False, **kwargs):
     """VGG 16-layer model from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
 
@@ -316,11 +305,7 @@ def vgg16(
     return _vgg(model_name, 'D', batch_norm, pretrained, **kwargs)
 
 
-def vgg19(
-    pretrained: bool = False,
-    batch_norm: bool = False,
-    **kwargs: Unpack[_VGGOptions],
-) -> VGG:
+def vgg19(pretrained=False, batch_norm=False, **kwargs):
     """VGG 19-layer model from
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
 

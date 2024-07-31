@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "paddle/cinn/poly/naive_scheduler.h"
+
 #include <vector>
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace poly {
@@ -25,11 +25,7 @@ std::unique_ptr<Schedule> NaiveScheduler::BuildSchedule() {
 
   for (auto &group : groups_) {
     std::vector<Stage *> status;
-    PADDLE_ENFORCE_EQ(
-        group.nodes.size(),
-        1UL,
-        ::common::errors::InvalidArgument(
-            "group.nodes.size() should be 1, but got %d", group.nodes.size()));
+    CHECK_EQ(group.nodes.size(), 1UL);
     NaiveGroupScheduler scheduler(
         const_cast<Stage *>(group.nodes.front()->stage));
     scheduler.Build();

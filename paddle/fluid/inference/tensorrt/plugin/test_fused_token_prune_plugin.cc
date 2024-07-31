@@ -16,7 +16,10 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/plugin/fused_token_prune_op_plugin.h"
 
-namespace paddle::inference::tensorrt::plugin {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
+namespace plugin {
 
 TEST(fused_token_prune_op_plugin, test_plugin) {
   FusedTokenPrunePluginDynamic plugin(true,
@@ -38,4 +41,7 @@ TEST(fused_token_prune_op_plugin, test_plugin_creater) {
   creator.setPluginNamespace("test");
 }
 
-}  // namespace paddle::inference::tensorrt::plugin
+}  // namespace plugin
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle

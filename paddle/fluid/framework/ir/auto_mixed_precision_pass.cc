@@ -26,7 +26,9 @@
 #include "paddle/phi/backends/device_manager.h"
 #endif
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 namespace {
 
@@ -54,7 +56,7 @@ static phi::Backend ConvertPlaceToBackend(const phi::Place& place) {
     case phi::AllocationType::XPU:
       return phi::Backend::XPU;
     default:
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Cannot convert place(%d).", static_cast<int>(place.GetType())));
   }
   return phi::Backend::UNDEFINED;
@@ -94,13 +96,12 @@ inline bool VarNodeHasDtype(Node* var_node) {
   auto type = var_node->Var()->GetType();
   return (type == VarType::SELECTED_ROWS) || (type == VarType::LOD_TENSOR) ||
          (type == VarType::LOD_TENSOR_ARRAY) || (type == VarType::STRINGS) ||
-         (type == VarType::VOCAB) || (type == VarType::SPARSE_COO) ||
-         (type == VarType::SPARSE_CSR);
+         (type == VarType::VOCAB);
 }
 
-inline bool IsFP32(VarType::Type type) { return type == VarType::FP32; }
-
-inline bool IsFP64(VarType::Type type) { return type == VarType::FP64; }
+inline bool IsFP32AndFP64(VarType::Type type) {
+  return (type == VarType::FP64) || (type == VarType::FP32);
+}
 
 inline bool IsFP16AndBFP16(VarType::Type type) {
   return (type == VarType::FP16) || (type == VarType::BF16);
@@ -122,21 +123,12 @@ void DoInsertCastOp(Graph* graph,
                               const std::string& x_name,
                               const std::string& out_name,
                               const int in_dtype,
-                              const int out_dtype,
-                              const VarType::Type t) {
-    if (t == VarType::SPARSE_COO || t == VarType::SPARSE_CSR) {
-      desc.SetType("sparse_cast");
-      desc.SetInput("x", {x_name});
-      desc.SetOutput("out", {out_name});
-      desc.SetAttr("index_dtype", -1);
-      desc.SetAttr("value_dtype", to_type);
-    } else {
-      desc.SetType("cast");
-      desc.SetInput("X", {x_name});
-      desc.SetOutput("Out", {out_name});
-      desc.SetAttr("in_dtype", in_dtype);
-      desc.SetAttr("out_dtype", out_dtype);
-    }
+                              const int out_dtype) {
+    desc.SetType("cast");
+    desc.SetInput("X", {x_name});
+    desc.SetOutput("Out", {out_name});
+    desc.SetAttr("in_dtype", in_dtype);
+    desc.SetAttr("out_dtype", out_dtype);
     desc.SetAttr("use_mkldnn", false);
     desc.SetAttr("with_quant_attr", false);
     desc.Flush();
@@ -148,21 +140,17 @@ void DoInsertCastOp(Graph* graph,
     std::string cast_output_name = var_node->Var()->Name() +
                                    "_cast_auto_mixed.tmp_" +
                                    std::to_string((*suffix)++);
-    VarType::Type var_type = var_node->Var()->GetType();
     framework::OpDesc cast_op_desc(block_desc);
     update_cast_desc(cast_op_desc,
                      cast_input_name,
                      cast_output_name,
                      static_cast<int>(from_type),
-                     static_cast<int>(to_type),
-                     var_type);
+                     static_cast<int>(to_type));
     auto* cast_op_node = graph->CreateOpNode(&cast_op_desc);
     auto* cast_output_vardesc = block_desc->Var(cast_output_name);
-    cast_output_vardesc->SetType(var_type);
     cast_output_vardesc->SetPersistable(false);
     cast_output_vardesc->SetDataType(to_type);
     cast_output_vardesc->SetShape(var_node->Var()->GetShape());
-    cast_output_vardesc->Flush();
     auto* cast_output_node = graph->CreateVarNode(cast_output_vardesc);
     IR_NODE_LINK_TO(cast_op_node, cast_output_node);
     (*cache)[var_node] = cast_output_node;
@@ -227,9 +215,9 @@ void AutoMixedPrecisionPass::Init(Graph* graph) const {
         phi::CustomRegisteredDeviceMap::Instance()
             .GetOrRegisterGlobalDeviceTypeId(device_type));
 #else
-    PADDLE_THROW(
-        common::errors::Unavailable("Paddle is not compiled with CustomDevice. "
-                                    "Cannot enable custom_device_mixed."));
+    PADDLE_THROW(paddle::platform::errors::Unavailable(
+        "Paddle is not compiled with CustomDevice. "
+        "Cannot enable custom_device_mixed."));
 #endif
   }
 
@@ -274,21 +262,21 @@ void AutoMixedPrecisionPass::Init(Graph* graph) const {
 
       auto var_name = var_node->Var()->Name();
       if (real_vars_.count(var_name) == 0) {
-        real_vars_[var_name] = std::vector<Node*>();
+        real_vars_[var_name] = var_node;
+        VLOG(4) << var_name << " is in graph " << i;
       }
-      real_vars_[var_name].push_back(var_node);
     }
   }
 }
 
 void AutoMixedPrecisionPass::ApplyImpl(Graph* graph) const {
   PADDLE_ENFORCE_NOT_NULL(graph,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "During the auto_mixed_precision_pass, the graph "
                               "should not be nullptr."));
   PADDLE_ENFORCE_EQ(graph->IsMainGraph(),
                     true,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "During the auto_mixed_precision_pass, the graph "
                         "should be main graph."));
 
@@ -317,7 +305,6 @@ void AutoMixedPrecisionPass::ApplyImpl(Graph* graph) const {
   ProcessOpWithDtypeAttr();
   VLOG(4) << "ProcessOpWithDtypeAttr done";
   RestoreOpOriginType();
-
   VLOG(4) << "RestoreOpOriginType done";
   LOG(INFO) << "The number of ops run at low precision ["
             << op_run_low_precision_.size() << "/"
@@ -369,7 +356,7 @@ void AutoMixedPrecisionPass::ProcessOpWithDtypeAttr() const {
       if (op_node->Op()->HasAttr("in_dtype")) {
         auto* var_node = op_node->inputs[0];
         auto* real_var_node = real_vars_.count(var_node->Var()->Name())
-                                  ? real_vars_.at(var_node->Var()->Name())[0]
+                                  ? real_vars_.at(var_node->Var()->Name())
                                   : var_node;
         if (IsFP16AndBFP16(real_var_node->Var()->GetDataType())) {
           op_node->Op()->SetAttr(
@@ -386,7 +373,7 @@ void AutoMixedPrecisionPass::ProcessOpWithDtypeAttr() const {
 
       if (op_node->Op()->HasAttr("dtype")) {
         auto dtype = op_node->Op()->GetAttrIfExists<int>("dtype");
-        if (IsFP32(static_cast<VarType::Type>(dtype))) {
+        if (IsFP32AndFP64(static_cast<VarType::Type>(dtype))) {
           op_node->Op()->SetAttr(
               "dtype",
               static_cast<int>(framework::TransToProtoVarType(low_precision_)));
@@ -396,7 +383,7 @@ void AutoMixedPrecisionPass::ProcessOpWithDtypeAttr() const {
         }
       } else if (op_node->Op()->HasAttr("out_dtype")) {
         auto out_dtype = op_node->Op()->GetAttrIfExists<int>("out_dtype");
-        if (IsFP32(static_cast<VarType::Type>(out_dtype))) {
+        if (IsFP32AndFP64(static_cast<VarType::Type>(out_dtype))) {
           op_node->Op()->SetAttr(
               "out_dtype",
               static_cast<int>(framework::TransToProtoVarType(low_precision_)));
@@ -436,13 +423,14 @@ void AutoMixedPrecisionPass::GetOpPrecision() const {
         if (op_node->Op()->HasAttr("dtype") &&
             !check_dtype_op_blacklist.count(GetOpOriginalType(op_type))) {
           auto dtype = op_node->Op()->GetAttrIfExists<int>("dtype");
-          support_low_precision = support_low_precision &&
-                                  IsFP32(static_cast<VarType::Type>(dtype));
+          support_low_precision =
+              support_low_precision &&
+              IsFP32AndFP64(static_cast<VarType::Type>(dtype));
         } else if (op_node->Op()->HasAttr("out_dtype")) {
           auto out_dtype = op_node->Op()->GetAttrIfExists<int>("out_dtype");
           support_low_precision =
               support_low_precision &&
-              (IsFP32(static_cast<VarType::Type>(out_dtype)) ||
+              (IsFP32AndFP64(static_cast<VarType::Type>(out_dtype)) ||
                out_dtype == -1);
         }
 
@@ -465,30 +453,25 @@ void AutoMixedPrecisionPass::GetOpPrecision() const {
           }
         }
 
-        // op's input var and output var only support
-        // dense/sparse_coo/sparse_csr tensor.
+        // if op's input var and output var is not dense tensor, the op should
+        // not run at low precision.
         for (auto* in_var_node : op_node->inputs) {
           CHECK_EQ(in_var_node->IsVar(), true);
-          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name())[0];
+          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name());
           if (real_in_var_node->Var()->Persistable()) continue;
 
           support_low_precision =
               support_low_precision &&
-              (real_in_var_node->Var()->GetType() == VarType::LOD_TENSOR ||
-               real_in_var_node->Var()->GetType() == VarType::SPARSE_COO ||
-               real_in_var_node->Var()->GetType() == VarType::SPARSE_CSR);
+              (real_in_var_node->Var()->GetType() == VarType::LOD_TENSOR);
         }
         for (auto* out_var_node : op_node->outputs) {
           CHECK_EQ(out_var_node->IsVar(), true);
-          auto* real_out_var_node =
-              real_vars_.at(out_var_node->Var()->Name())[0];
+          auto* real_out_var_node = real_vars_.at(out_var_node->Var()->Name());
           if (real_out_var_node->Var()->Persistable()) continue;
 
           support_low_precision =
               support_low_precision &&
-              (real_out_var_node->Var()->GetType() == VarType::LOD_TENSOR ||
-               real_out_var_node->Var()->GetType() == VarType::SPARSE_COO ||
-               real_out_var_node->Var()->GetType() == VarType::SPARSE_CSR);
+              (real_out_var_node->Var()->GetType() == VarType::LOD_TENSOR);
         }
       }
 
@@ -527,11 +510,6 @@ void AutoMixedPrecisionPass::UpdateOpPrecision() const {
           var_input_ops[var_node->Var()->Name()].push_back(op_node);
           VLOG(4) << "var input ops: " << var_node->Var()->Name()
                   << " is output of " << op_type;
-          if (IsFP64(var_node->Var()->GetDataType())) {
-            // All op involving float64 precision must not run in low precision
-            // mode.
-            vars_should_not_low_precision.insert(var_node->Var()->Name());
-          }
         }
 
         // the select_input op's input var should not convert to low
@@ -577,7 +555,7 @@ void AutoMixedPrecisionPass::UpdateOpPrecision() const {
           CHECK_EQ(in_var_node->IsVar(), true);
           if (!VarNodeHasDtype(in_var_node)) continue;
 
-          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name())[0];
+          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name());
           if (real_in_var_node->Var()->Persistable()) continue;
 
           if (vars_should_not_low_precision.count(
@@ -596,8 +574,7 @@ void AutoMixedPrecisionPass::UpdateOpPrecision() const {
           CHECK_EQ(out_var_node->IsVar(), true);
           if (!VarNodeHasDtype(out_var_node)) continue;
 
-          auto* real_out_var_node =
-              real_vars_.at(out_var_node->Var()->Name())[0];
+          auto* real_out_var_node = real_vars_.at(out_var_node->Var()->Name());
           if (real_out_var_node->Var()->Persistable()) continue;
 
           bool not_run_low_precision = false;
@@ -653,25 +630,7 @@ bool AutoMixedPrecisionPass::InputVarsNotConvert(
     if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
       return true;
     }
-  } else if (GetOpOriginalType(op_desc->Type()) == "sparse_batch_norm") {
-    auto vecs = op_desc->Input("bias");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Input("mean");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Input("scale");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Input("variance");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-  } else if (GetOpOriginalType(op_desc->Type()) == "instance_norm" ||
-             GetOpOriginalType(op_desc->Type()) == "layer_norm") {
+  } else if (GetOpOriginalType(op_desc->Type()) == "instance_norm") {
     auto vecs = op_desc->Input("Bias");
     if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
       return true;
@@ -707,15 +666,37 @@ bool AutoMixedPrecisionPass::InputVarsNotConvert(
     if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
       return true;
     }
-  } else if (GetOpOriginalType(op_desc->Type()) == "quantize_linear" ||
-             GetOpOriginalType(op_desc->Type()) == "dequantize_linear") {
-    auto vecs = op_desc->Input("Scale");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Input("ZeroPoint");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
+  }
+
+  if (backend_ == phi::Backend::XPU) {
+    if (GetOpOriginalType(op_desc->Type()) == "layer_norm") {
+      auto vecs = op_desc->Input("Bias");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+      vecs = op_desc->Input("Scale");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+    } else if (GetOpOriginalType(op_desc->Type()) == "instance_norm") {
+      auto vecs = op_desc->Input("Bias");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+      vecs = op_desc->Input("Scale");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+    } else if (GetOpOriginalType(op_desc->Type()) == "quantize_linear" ||
+               GetOpOriginalType(op_desc->Type()) == "dequantize_linear") {
+      auto vecs = op_desc->Input("Scale");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+      vecs = op_desc->Input("ZeroPoint");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
     }
   }
 
@@ -743,36 +724,18 @@ bool AutoMixedPrecisionPass::OutputVarsNotConvert(
     if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
       return true;
     }
-  } else if (GetOpOriginalType(op_desc->Type()) == "sparse_batch_norm") {
-    auto vecs = op_desc->Output("mean_out");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Output("variance_out");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Output("saved_mean");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Output("saved_variance");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Output("reserve_space");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-  } else if (GetOpOriginalType(op_desc->Type()) == "layer_norm" ||
-             GetOpOriginalType(op_desc->Type()) == "group_norm") {
-    auto vecs = op_desc->Output("Mean");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
-    }
-    vecs = op_desc->Output("Variance");
-    if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
-      return true;
+  }
+
+  if (backend_ == phi::Backend::XPU) {
+    if (GetOpOriginalType(op_desc->Type()) == "layer_norm") {
+      auto vecs = op_desc->Output("Mean");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
+      vecs = op_desc->Output("Variance");
+      if (std::find(vecs.begin(), vecs.end(), var_name) != vecs.end()) {
+        return true;
+      }
     }
   }
 
@@ -782,7 +745,7 @@ bool AutoMixedPrecisionPass::OutputVarsNotConvert(
 void AutoMixedPrecisionPass::SetVarPrecision() const {
   auto* scope = param_scope();
   PADDLE_ENFORCE_NOT_NULL(scope,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "During the auto_mixed_precision_pass, the scope "
                               "should not be null."));
   for (const auto& nodes : all_op_nodes_) {
@@ -795,10 +758,10 @@ void AutoMixedPrecisionPass::SetVarPrecision() const {
         for (auto* in_var_node : op_node->inputs) {
           CHECK_EQ(in_var_node->IsVar(), true);
 
-          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name())[0];
+          auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name());
           auto in_var_name = real_in_var_node->Var()->Name();
 
-          if (!IsFP32(real_in_var_node->Var()->GetDataType())) continue;
+          if (!IsFP32AndFP64(real_in_var_node->Var()->GetDataType())) continue;
           if (!VarNodeHasDtype(real_in_var_node)) continue;
           if (InputVarsNotConvert(op_node, in_var_name)) continue;
           // Judge the real tensor is same to variable, Paddle-Slim weight use
@@ -817,14 +780,8 @@ void AutoMixedPrecisionPass::SetVarPrecision() const {
             }
           }
           if (real_in_var_node->Var()->Persistable()) {
-            for (auto* in_var_node :
-                 real_vars_.at(in_var_node->Var()->Name())) {
-              in_var_node->Var()->SetDataType(
-                  framework::TransToProtoVarType(low_precision_));
-            }
-
-            VLOG(4) << real_in_var_node->Var()->Name()
-                    << "'s data type was set to low precision";
+            real_in_var_node->Var()->SetDataType(
+                framework::TransToProtoVarType(low_precision_));
             vars_convert_to_low_precision_.insert(in_var_name);
           }
         }
@@ -834,21 +791,15 @@ void AutoMixedPrecisionPass::SetVarPrecision() const {
         for (auto* out_var_node : op_node->outputs) {
           CHECK_EQ(out_var_node->IsVar(), true);
 
-          auto* real_out_var_node =
-              real_vars_.at(out_var_node->Var()->Name())[0];
+          auto* real_out_var_node = real_vars_.at(out_var_node->Var()->Name());
           auto out_var_name = real_out_var_node->Var()->Name();
 
-          if (!IsFP32(real_out_var_node->Var()->GetDataType())) continue;
+          if (!IsFP32AndFP64(real_out_var_node->Var()->GetDataType())) continue;
           if (!VarNodeHasDtype(real_out_var_node)) continue;
           if (OutputVarsNotConvert(op_node, out_var_name)) continue;
 
-          for (auto* out_var_node :
-               real_vars_.at(out_var_node->Var()->Name())) {
-            out_var_node->Var()->SetDataType(
-                framework::TransToProtoVarType(low_precision_));
-          }
-          VLOG(4) << real_out_var_node->Var()->Name()
-                  << "'s data type was set to low precision";
+          real_out_var_node->Var()->SetDataType(
+              framework::TransToProtoVarType(low_precision_));
           if (real_out_var_node->Var()->Persistable()) {
             vars_convert_to_low_precision_.insert(out_var_name);
           }
@@ -868,8 +819,6 @@ void AutoMixedPrecisionPass::SetVarPrecision() const {
       if (vars_convert_to_low_precision_.count(var_name)) {
         var_node->Var()->SetDataType(
             framework::TransToProtoVarType(low_precision_));
-        VLOG(4) << var_node->Var()->Name()
-                << "'s data type was set to low precision";
       }
     }
   }
@@ -878,7 +827,7 @@ void AutoMixedPrecisionPass::SetVarPrecision() const {
 void AutoMixedPrecisionPass::ConvertWeightsData() const {
   auto* scope = param_scope();
   PADDLE_ENFORCE_NOT_NULL(scope,
-                          common::errors::PreconditionNotMet(
+                          platform::errors::PreconditionNotMet(
                               "During the auto_mixed_precision_pass, the scope "
                               "should not be null."));
 
@@ -958,14 +907,15 @@ void AutoMixedPrecisionPass::InsertCastOp() const {
         if (!VarNodeHasDtype(in_var_node)) continue;
         if (in_var_node->Var()->Persistable()) continue;
 
-        auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name())[0];
+        auto* real_in_var_node = real_vars_.at(in_var_node->Var()->Name());
 
         auto in_var_type = real_in_var_node->Var()->GetDataType();
 
         VLOG(4) << "process var: " << real_in_var_node->Var()->Name()
                 << " with type " << in_var_type;
 
-        if (IsFP32(in_var_type) && op_run_low_precision_.count(op_type)) {
+        if (IsFP32AndFP64(in_var_type) &&
+            op_run_low_precision_.count(op_type)) {
           auto to_type = framework::TransToProtoVarType(low_precision_);
           auto* prev_op =
               in_var_node->inputs.empty() ? nullptr : in_var_node->inputs[0];
@@ -1021,7 +971,9 @@ void AutoMixedPrecisionPass::InsertCastOp() const {
   VLOG(4) << "insert number of cast op: " << cache.size();
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(auto_mixed_precision_pass,
               paddle::framework::ir::AutoMixedPrecisionPass);

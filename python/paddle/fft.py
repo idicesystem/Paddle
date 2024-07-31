@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Literal, Sequence
+from typing import Sequence
 
 import numpy as np
 
@@ -23,15 +21,10 @@ import paddle
 from . import _C_ops
 from .base.data_feeder import check_variable_and_dtype
 from .base.layer_helper import LayerHelper
-from .framework import in_dynamic_or_pir_mode
+from .framework import in_dynamic_mode
 from .tensor.attribute import is_floating_point, is_integer
 from .tensor.creation import _complex_to_real_dtype, _real_to_complex_dtype
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import DTypeLike
-
-    _NormalizeMode = Literal["forward", "backward", "ortho"]
 __all__ = [
     'fft',
     'ifft',
@@ -68,7 +61,7 @@ def _check_normalization(norm):
 def _check_fft_n(n):
     if not isinstance(n, int):
         raise ValueError(
-            f"Invalid FFT argument n({n}), it should be an integer."
+            f"Invalid FFT argument n({n}), it shoule be an integer."
         )
     if n <= 0:
         raise ValueError(f"Invalid FFT argument n({n}), it should be positive.")
@@ -78,7 +71,7 @@ def _check_fft_shape(x, s):
     ndim = x.ndim
     if not isinstance(s, Sequence):
         raise ValueError(
-            "Invalid FFT argument s({}), it should be a sequence of integers."
+            "Invaid FFT argument s({}), it should be a sequence of integers."
         )
 
     if len(s) > ndim:
@@ -94,7 +87,7 @@ def _check_fft_shape(x, s):
 def _check_fft_axis(x, axis):
     ndim = x.ndim
     if not isinstance(axis, int):
-        raise ValueError(f"Invalid FFT axis ({axis}), it should be an integer.")
+        raise ValueError(f"Invalid FFT axis ({axis}), it shoule be an integer.")
     if axis < -ndim or axis >= ndim:
         raise ValueError(
             f"Invalid FFT axis ({axis}), it should be in range [-{ndim}, {ndim})"
@@ -115,7 +108,9 @@ def _check_fft_axes(x, axes):
     for axis in axes:
         if not isinstance(axis, int) or axis < -ndim or axis >= ndim:
             raise ValueError(
-                f"FFT axes {axes} contains invalid value ({axis}), it should be in range [-{ndim}, {ndim})"
+                "FFT axes {} contains invalid value ({}), it should be in range [-{}, {})".format(
+                    axes, axis, ndim, ndim
+                )
             )
 
 
@@ -163,13 +158,7 @@ def _check_at_least_ndim(x, rank):
 
 
 # public APIs 1d
-def fft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def fft(x, n=None, axis=-1, norm="backward", name=None):
     """
     Calculate one-dimensional discrete Fourier transform.
 
@@ -178,7 +167,7 @@ def fft(
 
     Args:
         x (Tensor): The input data. It's a Tensor type. It's a complex.
-        n (int|None, optional): The length of the output transform axis. If `n` is less than
+        n (int, optional): The length of the output transform axis. If `n` is less than
             the length input, the input will be cropped. If larger, the input is filled
             with zeros. If `n` is not given, the input length along the axis specified
             by `axis` is used.
@@ -188,9 +177,9 @@ def fft(
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward", meaning no normalization on
             the forward transforms and scaling by ``1/n`` on the `ifft`. "forward" instead applies
-            the ``1/n`` factor on the forward transform. For ``norm="ortho"``, both directions are
+            the ``1/n`` factor on the forward tranform. For ``norm="ortho"``, both directions are
             scaled by ``1/sqrt(n)``.
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -220,13 +209,7 @@ def fft(
         return fft_c2c(x, n, axis, norm, forward=True, name=name)
 
 
-def ifft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ifft(x, n=None, axis=-1, norm="backward", name=None):
     """
     Compute the 1-D inverse discrete Fourier Transform.
 
@@ -257,7 +240,7 @@ def ifft(
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward", meaning no normalization on
             the forward transforms and scaling by ``1/n`` on the `ifft`. "forward" instead applies
-            the ``1/n`` factor on the forward transform. For ``norm="ortho"``, both directions are
+            the ``1/n`` factor on the forward tranform. For ``norm="ortho"``, both directions are
             scaled by ``1/sqrt(n)``.
         name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
@@ -288,13 +271,7 @@ def ifft(
         return fft_c2c(x, n, axis, norm, forward=False, name=name)
 
 
-def rfft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def rfft(x, n=None, axis=-1, norm="backward", name=None):
     """
     The one dimensional FFT for real input.
 
@@ -308,25 +285,25 @@ def rfft(
     ``n//2 + 1``.
 
     Args:
-        x (Tensor) : Real-valued input tensor
-        n (int, optional): Number of points along transformation axis in the
+        x(Tensor) : Real-valued input tensor
+        n(int, optional): Number of points along transformation axis in the
             input to use. If `n` is smaller than the length of the input, the
             input is cropped. If it is larger, the input is padded with zeros.
             If `n` is not given, the length of the input along the axis
             specified by `axis` is used.
-        axis (int, optional): Axis over which to compute the FFT. Default value
+        axis(int, optional): Axis over which to compute the FFT. Default value
             is last axis.
-        norm (str, optional) : Normalization mode, indicates which direction of
+        norm(str, optional) : Normalization mode, indicates which direction of
             the forward/backward  pair of transforms is scaled and with what
             normalization factor. Include {"backward", "ortho", "forward"},
             default value is "backward".
 
                 - "backward": The factor of forward direction and backward direction are ``1`` and ``1/n`` respectively;
                 - "forward": The factor of forward direction and backward direction are ``1/n`` and ``1`` respectively;
-                - "ortho": The factor of forward direction and backward direction are both ``1/sqrt(n)``.
+                - "ortho": The factor of forward direction and backword direction are both ``1/sqrt(n)``.
 
             Where ``n`` is the multiplication of each element in  ``s`` .
-        name (str|None, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -347,13 +324,7 @@ def rfft(
     return fft_r2c(x, n, axis, norm, forward=True, onesided=True, name=name)
 
 
-def irfft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def irfft(x, n=None, axis=-1, norm="backward", name=None):
     """
     Computes the inverse of `rfft`.
 
@@ -379,7 +350,7 @@ def irfft(
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name` .
 
     Returns:
@@ -404,13 +375,7 @@ def irfft(
     return fft_c2r(x, n, axis, norm, forward=False, name=name)
 
 
-def hfft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def hfft(x, n=None, axis=-1, norm="backward", name=None):
     """
     Compute the FFT of a signal that has Hermitian symmetry, a real
     spectrum.
@@ -453,13 +418,7 @@ def hfft(
     return fft_c2r(x, n, axis, norm, forward=True, name=name)
 
 
-def ihfft(
-    x: Tensor,
-    n: int | None = None,
-    axis: int = -1,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ihfft(x, n=None, axis=-1, norm="backward", name=None):
     """
     The inverse FFT of a signal that has Hermitian symmetry.
 
@@ -473,19 +432,19 @@ def ihfft(
     ``n//2 + 1``.
 
     Args:
-        x (Tensor): Input tensor.
-        n (int|None, optional): The number of points along transformation axis in the
+        x(Tensor): Input tensor.
+        n(int, optional): The number of points along transformation axis in the
             input to use.  If `n` is smaller than the length of the input, the
             input is cropped.  If it is larger, the input is padded with zeros.
             If `n` is not given, the length of the input along the axis
             specified by `axis` is used.
-        axis (int, optional) : Axis over which to compute the inverse FFT. If not
+        axis(int, optional) : Axis over which to compute the inverse FFT. If not
             given, the last axis is used.
-        norm (str, optional) : Normalization mode, indicates which direction of
+        norm(str, optional) : Normalization mode, indicates which direction of
             the forward/backward pair of transforms is scaled and with what
             normalization factor. Include {"backward", "ortho", "forward"},
             default value is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -515,13 +474,7 @@ def ihfft(
 
 
 # public APIs nd
-def fftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def fftn(x, s=None, axes=None, norm="backward", name=None):
     """
     Compute the N-D discrete Fourier Transform.
 
@@ -543,7 +496,7 @@ def fftn(
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward", meaning no normalization on
             the forward transforms and scaling by ``1/n`` on the `ifft`. "forward" instead applies
-            the ``1/n`` factor on the forward transform. For ``norm="ortho"``, both directions are
+            the ``1/n`` factor on the forward tranform. For ``norm="ortho"``, both directions are
             scaled by ``1/sqrt(n)``.
         name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
@@ -589,13 +542,7 @@ def fftn(
         return fftn_c2c(x, s, axes, norm, forward=True, name=name)
 
 
-def ifftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ifftn(x, s=None, axes=None, norm="backward", name=None):
     """
     Compute the N-D inverse discrete Fourier Transform.
 
@@ -613,22 +560,22 @@ def ifftn(
 
     Args:
         x (Tensor): The input data. It's a Tensor type. It's a complex.
-        s (sequence of ints|None, optional): Shape (length of each transformed axis) of the output
+        s (sequence of ints, optional): Shape (length of each transformed axis) of the output
             (``s[0]`` refers to axis 0, ``s[1]`` to axis 1, etc.).
             This corresponds to ``n`` for ``fft(x, n)``.
             Along any axis, if the given shape is smaller than that of the input,
             the input is cropped. If it is larger, the input is padded with zeros.
             if `s` is not given, the shape of the input along the axes specified
             by `axes` is used.
-        axes (sequence of ints|None, optional): Axes used to calculate FFT. If not given, the last ``len(s)``
+        axes (sequence of ints, optional): Axes used to calculate FFT. If not given, the last ``len(s)``
             axes are used, or all axes if `s` is also not specified.
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward", meaning no normalization on
             the forward transforms and scaling by ``1/n`` on the `ifft`. "forward" instead applies
-            the ``1/n`` factor on the forward transform. For ``norm="ortho"``, both directions are
+            the ``1/n`` factor on the forward tranform. For ``norm="ortho"``, both directions are
             scaled by ``1/sqrt(n)``.
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -663,13 +610,7 @@ def ifftn(
         return fftn_c2c(x, s, axes, norm, forward=False, name=name)
 
 
-def rfftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def rfftn(x, s=None, axes=None, norm="backward", name=None):
     """
 
     The N dimensional FFT for real input.
@@ -687,15 +628,15 @@ def rfftn(
     transformation axes.
 
     Args:
-        x (Tensor) : Input tensor, taken to be real.
-        s (Sequence[int]|None, optional) : Shape to use from the exec fft. The final element of
+        x(Tensor) : Input tensor, taken to be real.
+        s(Sequence[int], optional) : Shape to use from the exec fft. The final element of
             `s` corresponds to `n` for ``rfft(x, n)``, while for the remaining
             axes, it corresponds to `n` for ``fft(x, n)``. Along any axis, if
             the given shape is smaller than that of the input, the input is
             cropped.  If it is larger, the input is padded with zeros. if `s` is
             not given, the shape of the input along the axes specified by `axes`
             is used.
-        axes(Sequence[int]|None, optional) : Axes over which to compute the FFT.  If not given,
+        axes(Sequence[int], optional) : Axes over which to compute the FFT.  If not given,
             the last ``len(s)`` axes are used, or all axes if `s` is also not
             specified.
         norm(str, optional) : Normalization mode, indicates which direction of
@@ -708,10 +649,10 @@ def rfftn(
                   and ``1/n`` respectively;
                 - "forward": The factor of forward direction and backward direction are ``1/n``
                   and ``1`` respectively;
-                - "ortho": The factor of forward direction and backward direction are both ``1/sqrt(n)``.
+                - "ortho": The factor of forward direction and backword direction are both ``1/sqrt(n)``.
 
             Where ``n`` is the multiplication of each element in  ``s`` .
-        name(str|None, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -748,13 +689,7 @@ def rfftn(
     return fftn_r2c(x, s, axes, norm, forward=True, onesided=True, name=name)
 
 
-def irfftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def irfftn(x, s=None, axes=None, norm="backward", name=None):
     """
     Computes the inverse of `rfftn`.
 
@@ -771,7 +706,7 @@ def irfftn(
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence of ints|None, optional): The length of the output transform axis.
+        s (sequence of ints, optional): The length of the output transform axis.
             (``s[0]`` refers to axis 0, ``s[1]`` to axis 1, etc.).
 
             - `s` is also the number of input points used along this axis, except for the last axis, where ``s[-1]//2+1`` points of the input are used.
@@ -780,7 +715,7 @@ def irfftn(
 
             where ``k`` is the length of the input along that axis.
 
-        axes (sequence of ints|None, optional): Axes over which to compute the inverse FFT. If not given, the last
+        axes (sequence of ints, optional): Axes over which to compute the inverse FFT. If not given, the last
             `len(s)` axes are used, or all axes if `s` is also not specified.
         norm (str): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
@@ -789,10 +724,10 @@ def irfftn(
 
                 - "backward": The factor of forward direction and backward direction are ``1`` and ``1/n`` respectively;
                 - "forward": The factor of forward direction and backward direction are ``1/n`` and ``1`` respectively;
-                - "ortho": The factor of forward direction and backward direction are both ``1/sqrt(n)``.
+                - "ortho": The factor of forward direction and backword direction are both ``1/sqrt(n)``.
 
             Where ``n`` is the multiplication of each element in  ``s`` .
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -824,13 +759,7 @@ def irfftn(
     return fftn_c2r(x, s, axes, norm, forward=False, name=name)
 
 
-def hfftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def hfftn(x, s=None, axes=None, norm="backward", name=None):
     """
     Compute the N-D FFT of Hermitian symmetric complex input, i.e., a
     signal with a real spectrum.
@@ -843,7 +772,7 @@ def hfftn(
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence of ints|None, optional): The length of the output transform axis.
+        s (sequence of ints, optional): The length of the output transform axis.
             (``s[0]`` refers to axis 0, ``s[1]`` to axis 1, etc.). `s` is also the
             number of input points used along this axis, except for the last axis,
             where ``s[-1]//2+1`` points of the input are used. Along any axis, if
@@ -852,12 +781,12 @@ def hfftn(
             If `s` is not given, the shape of the input along the axes specified by axes
             is used. Except for the last axis which is taken to be ``2*(k-1)`` where
             ``k`` is the length of the input along that axis.
-        axes (sequence of ints|None, optional): Axes over which to compute the inverse FFT. If not given, the last
+        axes (sequence of ints, optional): Axes over which to compute the inverse FFT. If not given, the last
             `len(s)` axes are used, or all axes if `s` is also not specified.
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -879,13 +808,7 @@ def hfftn(
     return fftn_c2r(x, s, axes, norm, forward=True, name=name)
 
 
-def ihfftn(
-    x: Tensor,
-    s: Sequence[int] | None = None,
-    axes: Sequence[int] | None = None,
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ihfftn(x, s=None, axes=None, norm="backward", name=None):
     """
     The n dimensional inverse FFT of a signal that has Hermitian symmetry.
 
@@ -894,20 +817,20 @@ def ihfftn(
     efficient algorithm called the Fast Fourier Transform (FFT).
 
     Args:
-        x (Tensor): Input tensor.
-        s (Sequence[int]|None, optional) : Shape (length along each transformed axis)
+        x(Tensor): Input tensor.
+        s(Sequence[int], optional) : Shape (length along each transformed axis)
             to use from the input. (``s[0]`` refers to axis 0, ``s[1]`` to axis
             1, etc.). Along any axis, if the given shape is smaller than that
             of the input, the input is cropped. If it is larger, the input is
             padded with zeros. if `s` is not given, the shape of the input
             along the axes specified by `axes` is used.
-        axes (Sequence[int]|None, optional) : Axis over which to compute the inverse FFT. If not
+        axes(Sequence[int], optional) : Axis over which to compute the inverse FFT. If not
             given, the last axis is used.
         norm(str, optional) : Normalization mode, indicates which direction of
             the forward/backward pair of transforms is scaled and with what
             normalization factor. Include {"backward", "ortho", "forward"},
             default value is "backward".
-        name(str|None, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -936,13 +859,7 @@ def ihfftn(
 
 
 # public APIs 2d
-def fft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def fft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     Compute the 2-D discrete Fourier Transform
 
@@ -953,7 +870,7 @@ def fft2(
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence of ints|None, optional): Shape (length of each transformed axis) of the output.
+        s (sequence of ints, optional): Shape (length of each transformed axis) of the output.
             It should be a sequence of 2 integers. This corresponds to ``n`` for ``fft(x, n)``.
             Along each axis, if the given shape is smaller than that of the input,
             the input is cropped. If it is larger, the input is padded with zeros.
@@ -964,7 +881,7 @@ def fft2(
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -1001,13 +918,7 @@ def fft2(
     return fftn(x, s, axes, norm, name)
 
 
-def ifft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ifft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     Compute the 2-D inverse discrete Fourier Transform.
 
@@ -1026,18 +937,18 @@ def ifft2(
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence of ints|None, optional): Shape (length of each transformed axis) of the output.
-            It should be a sequence of 2 integers. This corresponds to ``n`` for ``ifft(x, n)``.
+        s (sequence of ints, optional): Shape (length of each transformed axis) of the output.
+            It should be a sequence of 2 integers. This corresponds to ``n`` for ``fft(x, n)``.
             Along each axis, if the given shape is smaller than that of the input,
             the input is cropped. If it is larger, the input is padded with zeros.
             if `s` is not given, the shape of the input along the axes specified
             by `axes` is used. Default is None.
-        axes (sequence of ints, optional):  Axes over which to compute the inverse FFT. It should be a
+        axes (sequence of ints, optional):  Axes over which to compute the FFT. It should be a
             sequence of 2 integers. If not specified, the last two axes are used by default.
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -1073,13 +984,7 @@ def ifft2(
     return ifftn(x, s, axes, norm, name)
 
 
-def rfft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def rfft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     The two dimensional FFT with real tensor input.
 
@@ -1087,16 +992,10 @@ def rfft2(
     For more details see `rfftn`.
 
     Args:
-        x (Tensor): Input tensor, taken to be real.
-        s (sequence[int]|None, optional): Shape (length of each transformed axis) of the output.
-            It should be a sequence of 2 integers. This corresponds to ``n`` for ``rfft(x, n)``.
-            Along each axis, if the given shape is smaller than that of the input,
-            the input is cropped. If it is larger, the input is padded with zeros.
-            if `s` is not given, the shape of the input along the axes specified
-            by `axes` is used. Default is None.
-        axes (sequence[int], optional):  Axes over which to compute the FFT. It should be a
-            sequence of 2 integers. If not specified, the last two axes are used by default.
-        norm (str, optional) : {"backward", "ortho", "forward"},
+        x(Tensor): Input tensor, taken to be real.
+        s(Sequence[int], optional) : Shape of the FFT.
+        axes(Sequence[int], optional): Axes over which to compute the FFT.
+        norm(str, optional) : {"backward", "ortho", "forward"},
             default is "backward". Indicates which direction of the
             forward/backward pair of transforms is scaled and with what
             normalization factor. The details of
@@ -1104,10 +1003,10 @@ def rfft2(
 
                 - "backward": The factor of forward direction and backward direction are ``1`` and ``1/n`` respectively;
                 - "forward": The factor of forward direction and backward direction are ``1/n`` and ``1`` respectively;
-                - "ortho": The factor of forward direction and backward direction are both ``1/sqrt(n)``.
+                - "ortho": The factor of forward direction and backword direction are both ``1/sqrt(n)``.
 
             Where ``n`` is the multiplication of each element in  ``s`` .
-        name (str|None, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -1145,26 +1044,15 @@ def rfft2(
     return rfftn(x, s, axes, norm, name)
 
 
-def irfft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def irfft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     Computes the inverse of `rfft2`.
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence[int]|None, optional): Shape (length of each transformed axis) of the output.
-            It should be a sequence of 2 integers. This corresponds to ``n`` for ``irfft(x, n)``.
-            Along each axis, if the given shape is smaller than that of the input,
-            the input is cropped. If it is larger, the input is padded with zeros.
-            if `s` is not given, the shape of the input along the axes specified
-            by `axes` is used. Default is None.
-        axes (sequence[int], optional):  Axes over which to compute the inverse FFT. It should be a
-            sequence of 2 integers. If not specified, the last two axes are used by default.
+        s (sequence of ints, optional): Shape of the real output to the inverse FFT. Default is None.
+        axes (sequence of ints, optional): The axes over which to compute the inverse FFT. Axes
+            must be two-dimensional. If not specified, the last two axes are used by default.
         norm (str, optional): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward". The details of
@@ -1172,10 +1060,10 @@ def irfft2(
 
                 - "backward": The factor of forward direction and backward direction are ``1`` and ``1/n`` respectively;
                 - "forward": The factor of forward direction and backward direction are ``1/n`` and ``1`` respectively;
-                - "ortho": The factor of forward direction and backward direction are both ``1/sqrt(n)``.
+                - "ortho": The factor of forward direction and backword direction are both ``1/sqrt(n)``.
 
             Where ``n`` is the multiplication of each element in  ``s`` .
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name` .
 
     Returns:
@@ -1208,30 +1096,19 @@ def irfft2(
     return irfftn(x, s, axes, norm, name)
 
 
-def hfft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def hfft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     Compute the 2-D FFT of a Hermitian complex array.
 
     Args:
         x (Tensor): The input data. It's a Tensor type.
-        s (sequence[int]|None, optional): Shape (length of each transformed axis) of the output.
-            It should be a sequence of 2 integers. This corresponds to ``n`` for ``hfft(x, n)``.
-            Along each axis, if the given shape is smaller than that of the input,
-            the input is cropped. If it is larger, the input is padded with zeros.
-            if `s` is not given, the shape of the input along the axes specified
-            by `axes` is used. Default is None.
-        axes (sequence[int], optional):  Axes over which to compute the FFT. It should be a
-            sequence of 2 integers. If not specified, the last two axes are used by default.
+        s (sequence of ints, optional): Shape of the real output. Default is None.
+        axes (sequence of ints, optional):  Axes over which to compute the FFT. Axes must be
+            two-dimensional. If not specified, the last two axes are used by default.
         norm (str): Indicates which direction to scale the `forward` or `backward` transform
             pair and what normalization factor to use. The parameter value must be one
             of "forward" or "backward" or "ortho". Default is "backward".
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -1264,13 +1141,7 @@ def hfft2(
     return hfftn(x, s, axes, norm, name)
 
 
-def ihfft2(
-    x: Tensor,
-    s: list[int] | tuple[int, int] | None = None,
-    axes: list[int] | tuple[int, int] = (-2, -1),
-    norm: _NormalizeMode = "backward",
-    name: str | None = None,
-) -> Tensor:
+def ihfft2(x, s=None, axes=(-2, -1), norm="backward", name=None):
     """
     Compute the two dimensional inverse FFT of a real spectrum.
 
@@ -1278,18 +1149,13 @@ def ihfft2(
     For more details see `ihfftn`.
 
     Args:
-        x (Tensor): Input tensor.
-        s (sequence[int]|None, optional): Shape (length of each transformed axis) of the output.
-            It should be a sequence of 2 integers. This corresponds to ``n`` for ``ihfft(x, n)``.
-            Along each axis, if the given shape is smaller than that of the input,
-            the input is cropped. If it is larger, the input is padded with zeros.
-            if `s` is not given, the shape of the input along the axes specified
-            by `axes` is used. Default is None.
-        axes (sequence[int], optional):  Axes over which to compute the inverse FFT. It should be a
-            sequence of 2 integers. If not specified, the last two axes are used by default.
-        norm (str, optional): {"backward", "ortho", "forward"}. Default is
+        x(Tensor): Input tensor.
+        s(Sequence[int], optional): Shape of the real input to the inverse FFT.
+        axes(Sequance[int], optional): The axes over which to compute the
+            inverse fft. Default is the last two axes.
+        norm(str, optional): {"backward", "ortho", "forward"}. Default is
             "backward".
-        name (str, optional): The default value is None.  Normally there is no
+        name(str, optional): The default value is None.  Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name` .
 
@@ -1335,12 +1201,7 @@ def ihfft2(
 
 
 # public APIs utilities
-def fftfreq(
-    n: int,
-    d: float = 1.0,
-    dtype: DTypeLike | None = None,
-    name: str | None = None,
-) -> Tensor:
+def fftfreq(n, d=1.0, dtype=None, name=None):
     """
     Return the Discrete Fourier Transform sample frequencies.
 
@@ -1355,9 +1216,7 @@ def fftfreq(
 
     Args:
         n (int): Dimension inputed.
-        d (float, optional): Sample spacing (inverse of the sampling rate). Defaults is 1.
-        dtype (str, optional): The data type of returns. Defaults is the data type of returns
-            of ``paddle.get_default_dtype()``.
+        d (scalar, optional): Sample spacing (inverse of the sampling rate). Defaults is 1.
         name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
@@ -1388,12 +1247,7 @@ def fftfreq(
     return indices * val
 
 
-def rfftfreq(
-    n: int,
-    d: float = 1.0,
-    dtype: DTypeLike | None = None,
-    name: str | None = None,
-) -> Tensor:
+def rfftfreq(n, d=1.0, dtype=None, name=None):
     """
     Return the Discrete Fourier Transform sample frequencies.
 
@@ -1409,7 +1263,7 @@ def rfftfreq(
 
     Args:
         n (int): Dimension inputed.
-        d (float, optional): Sample spacing (inverse of the sampling rate). Defaults is 1.
+        d (scalar, optional): Sample spacing (inverse of the sampling rate). Defaults is 1.
         dtype (str, optional): The data type of returns. Defaults is the data type of returns
             of ``paddle.get_default_dtype()``.
         name (str, optional): The default value is None.  Normally there is no need for user to set
@@ -1441,9 +1295,7 @@ def rfftfreq(
     return indices * val
 
 
-def fftshift(
-    x: Tensor, axes: Sequence[int] | None = None, name: str | None = None
-) -> Tensor:
+def fftshift(x, axes=None, name=None):
     """
     Shift the zero-frequency component to the center of the spectrum.
 
@@ -1452,9 +1304,9 @@ def fftshift(
 
     Args:
         n (int): Dimension inputed.
-        axes (int|tuple|None, optional): The axis on which to move. The default is none, which moves all axes.
+        axes (int|tuple, optional): The axis on which to move. The default is none, which moves all axes.
             Default is None.
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -1490,18 +1342,16 @@ def fftshift(
     return paddle.roll(x, shifts, axes, name=name)
 
 
-def ifftshift(
-    x: Tensor, axes: Sequence[int] | None = None, name: str | None = None
-) -> Tensor:
+def ifftshift(x, axes=None, name=None):
     """
     The inverse of `fftshift`. Although the even length 'x' is the same, the function of the
     odd length 'x' is different. An example.
 
     Args:
         n (int): Dimension inputed.
-        axes (int|tuple|None, optional): The axis on which to move. The default is none, which moves all axes.
+        axes (int|tuple, optional): The axis on which to move. The default is none, which moves all axes.
             Default is None.
-        name (str|None, optional): The default value is None.  Normally there is no need for user to set
+        name (str, optional): The default value is None.  Normally there is no need for user to set
             this property. For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -1554,7 +1404,7 @@ def fft_c2c(x, n, axis, norm, forward, name):
         s = [n]
         x = _resize_fft_input(x, s, axes)
 
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         out = _C_ops.fft_c2c(x, axes, norm, forward)
     else:
         op_type = 'fft_c2c'
@@ -1585,7 +1435,7 @@ def fft_r2c(x, n, axis, norm, forward, onesided, name):
         _check_fft_n(n)
         s = [n]
         x = _resize_fft_input(x, s, axes)
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         out = _C_ops.fft_r2c(x, axes, norm, forward, onesided)
     else:
         op_type = 'fft_r2c'
@@ -1628,7 +1478,7 @@ def fft_c2r(x, n, axis, norm, forward, name):
         s = [n // 2 + 1]
         x = _resize_fft_input(x, s, axes)
 
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         if n is not None:
             out = _C_ops.fft_c2r(x, axes, norm, forward, n)
         else:
@@ -1678,14 +1528,16 @@ def fftn_c2c(x, s, axes, norm, forward, name):
         if s is not None:
             if len(s) != len(axes):
                 raise ValueError(
-                    f"Length of s ({len(s)}) and length of axes ({len(axes)}) does not match."
+                    "Length of s ({}) and length of axes ({}) does not match.".format(
+                        len(s), len(axes)
+                    )
                 )
             s = [s[i] for i in axes_argsoft]
 
     if s is not None:
         x = _resize_fft_input(x, s, axes)
 
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         out = _C_ops.fft_c2c(x, axes, norm, forward)
     else:
         op_type = 'fft_c2c'
@@ -1726,14 +1578,16 @@ def fftn_r2c(x, s, axes, norm, forward, onesided, name):
         if s is not None:
             if len(s) != len(axes):
                 raise ValueError(
-                    f"Length of s ({len(s)}) and length of axes ({len(axes)}) does not match."
+                    "Length of s ({}) and length of axes ({}) does not match.".format(
+                        len(s), len(axes)
+                    )
                 )
             s = [s[i] for i in axes_argsoft] + [s[-1]]
 
     if s is not None:
         x = _resize_fft_input(x, s, axes)
 
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         out = _C_ops.fft_r2c(x, axes, norm, forward, onesided)
     else:
         op_type = 'fft_r2c'
@@ -1786,7 +1640,9 @@ def fftn_c2r(x, s, axes, norm, forward, name):
         if s is not None:
             if len(s) != len(axes):
                 raise ValueError(
-                    f"Length of s ({len(s)}) and length of axes ({len(axes)}) does not match."
+                    "Length of s ({}) and length of axes ({}) does not match.".format(
+                        len(s), len(axes)
+                    )
                 )
             s = [s[i] for i in axes_argsoft] + [s[-1]]
 
@@ -1795,7 +1651,7 @@ def fftn_c2r(x, s, axes, norm, forward, name):
         fft_input_shape[-1] = fft_input_shape[-1] // 2 + 1
         x = _resize_fft_input(x, fft_input_shape, axes)
 
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         if s is not None:
             out = _C_ops.fft_c2r(x, axes, norm, forward, s[-1])
         else:

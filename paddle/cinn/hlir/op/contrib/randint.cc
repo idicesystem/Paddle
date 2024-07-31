@@ -26,6 +26,7 @@
 #include "paddle/cinn/common/ir_util.h"
 #include "paddle/cinn/common/macros.h"
 #include "paddle/cinn/common/target.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/hlir/framework/op.h"
 #include "paddle/cinn/hlir/framework/op_strategy.h"
 #include "paddle/cinn/hlir/op/op_util.h"
@@ -37,6 +38,7 @@
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/op/ir_operators.h"
 #include "paddle/cinn/ir/tensor.h"
+#include "paddle/cinn/lang/builtin.h"
 #include "paddle/cinn/lang/compute.h"
 #include "paddle/cinn/lang/packed_func.h"
 #include "paddle/cinn/poly/stage.h"
@@ -60,7 +62,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForRandInt(
         ir::Tensor shape_tensor;
         std::string tensor_name = "randint_out";
         auto out = pe::Identity(shape_tensor, tensor_name).front();
-        std::vector<CINNValue> res{CINNValue(out)};
+        auto stages = CreateStages({out});
+        std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
         *ret = CINNValuePack{res};
       });
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -69,6 +72,22 @@ std::shared_ptr<framework::OpStrategy> StrategyForRandInt(
                     "strategy.randint.x86",
                     1);
   return strategy;
+}
+
+std::vector<framework::shape_t> InferShapeForRandInt(
+    const std::vector<framework::shape_t> &inputs_shape,
+    const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("shape"));
+  auto shape = absl::get<std::vector<int>>(attrs.at("shape"));
+  CHECK(!shape.empty()) << "shape attr is empty!";
+  return {shape};
+}
+
+std::vector<Type> InferDtypeForRandInt(const std::vector<Type> &inputs_type,
+                                       const framework::AttrMapType &attrs) {
+  std::string dtype = "int32";
+  std::vector<Type> res{cinn::common::Str2Type(dtype)};
+  return res;
 }
 
 }  // namespace op
@@ -82,6 +101,10 @@ CINN_REGISTER_HELPER(randint_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>(
           "CINNStrategy", cinn::hlir::op::StrategyForRandInt)
+      .set_attr("infershape",
+                MakeOpFunction(cinn::hlir::op::InferShapeForRandInt))
+      .set_attr("inferdtype",
+                MakeOpFunction(cinn::hlir::op::InferDtypeForRandInt))
       .set_attr<cinn::hlir::framework::OpPatternKind>(
           "OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);

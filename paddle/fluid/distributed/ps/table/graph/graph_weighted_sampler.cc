@@ -19,7 +19,8 @@
 #include <unordered_map>
 
 #include "paddle/phi/core/generator.h"
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 void RandomSampler::build(GraphEdgeBlob *edges) { this->edges = edges; }
 
@@ -29,7 +30,6 @@ std::vector<int> RandomSampler::sample_k(
   if (k >= n) {
     k = n;
     std::vector<int> sample_result;
-    sample_result.reserve(k);
     for (int i = 0; i < k; i++) {
       sample_result.push_back(i);
     }
@@ -62,9 +62,6 @@ WeightedSampler::WeightedSampler() {
   left = nullptr;
   right = nullptr;
   edges = nullptr;
-  weight = 0;
-  count = 0;
-  idx = 0;
 }
 
 WeightedSampler::~WeightedSampler() {
@@ -116,7 +113,6 @@ std::vector<int> WeightedSampler::sample_k(
   if (k >= count) {
     k = count;
     std::vector<int> sample_result;
-    sample_result.reserve(k);
     for (int i = 0; i < k; i++) {
       sample_result.push_back(i);
     }
@@ -165,4 +161,5 @@ int WeightedSampler::sample(
   subtract_count_map[this]++;
   return return_idx;
 }
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

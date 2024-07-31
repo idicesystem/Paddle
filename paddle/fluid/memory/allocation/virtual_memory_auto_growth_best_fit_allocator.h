@@ -36,7 +36,7 @@ struct Block {
 
 struct BlockAllocation : public Allocation {
   explicit BlockAllocation(const std::list<Block>::iterator &it,
-                           phi::Place place)
+                           platform::Place place)
       : Allocation(it->ptr_, it->size_, place), block_it_(it) {}
 
   std::list<Block>::iterator block_it_;
@@ -46,7 +46,7 @@ struct BlockAllocation : public Allocation {
  * Like AutoGrowthBestFitAllocator, VirtualMemoryAutoGrowthBestFitAllocator will
  * gradually apply to GPU for video memory as the model uses more video memory.
  * However, the difference is that VirtualMemoryAutoGrowthBestFitAllocator uses
- * NVIDIA's virtual memory management technology and obtains the virtual memory
+ * nviaid's virtual memory management technology and obtains the virtual memory
  * address. If the video memory applied for twice is continuous, we can combine
  * the two video memories later. This combination can greatly reduce
  * fragmentation.
@@ -56,7 +56,7 @@ class VirtualMemoryAutoGrowthBestFitAllocator : public Allocator {
   VirtualMemoryAutoGrowthBestFitAllocator(
       const std::shared_ptr<Allocator> &underlying_allocator,
       size_t alignment,
-      const phi::GPUPlace &place);
+      const platform::CUDAPlace &place);
 
   bool IsAllocThreadSafe() const override { return true; }
 
@@ -76,7 +76,7 @@ class VirtualMemoryAutoGrowthBestFitAllocator : public Allocator {
   std::map<std::pair<size_t, void *>, std::list<Block>::iterator> free_blocks_;
   std::list<Block> all_blocks_;
   std::list<AllocationPtr> allocations_;
-  phi::Place place_;
+  platform::Place place_;
   SpinLock spinlock_;
 };
 

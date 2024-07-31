@@ -14,7 +14,6 @@
 
 #include "paddle/fluid/framework/new_executor/interpreter/static_build.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/eager/api/utils/global_utils.h"
 #include "paddle/fluid/framework/new_executor/new_executor_defs.h"
 #include "paddle/fluid/framework/new_executor/standalone_executor.h"
@@ -22,21 +21,20 @@
 #include "paddle/fluid/operators/controlflow/control_flow_op_helper.h"
 #include "paddle/fluid/operators/controlflow/while_op_helper.h"
 #include "paddle/fluid/operators/reader/buffered_reader.h"
+#include "paddle/fluid/platform/flags.h"
 
 #ifdef PADDLE_WITH_DNNL
-#include "paddle/fluid/platform/onednn_helper.h"
+#include "paddle/fluid/platform/mkldnn_helper.h"
 #endif
 
-COMMON_DECLARE_bool(cache_inference_while_scope);
+PHI_DECLARE_bool(cache_inference_while_scope);
+
+// These Ops is OperatorBase, but we have been handle them in static build
+std::set<std::string> OperatorBasesHandledInStaticBuild = {
+    "read", "conditional_block", "while"};
 
 std::set<std::string> OperatorBasesMustRunInStaticBuild = {
     "create_double_buffer_reader", "create_py_reader"};
-
-std::set<std::string> OpsHandledInStaticBuild = {"conditional_block",
-                                                 "fused_rms_norm",
-                                                 "fused_rms_norm_grad",
-                                                 "read",
-                                                 "while"};
 
 std::set<std::string> OpsCanSkipedFakeAllocInStaticBuild = {
     "c_comm_init",
@@ -133,11 +131,6 @@ bool BlockCanBeStaticBuilt(const framework::BlockDesc& block) {
   std::set<std::pair<std::string, KernelCode>> invalid_ops;
   for (auto& op : block.AllOps()) {
     auto op_type = op->Type();
-    if (OpsCanSkipedFakeAllocInStaticBuild.count(op_type) ||
-        OpsHandledInStaticBuild.count(op_type)) {
-      continue;
-    }
-
     const framework::OpInfo& info = OpInfoMap::Instance().Get(op_type);
     auto op_base =
         info.Creator()(op_type, op->Inputs(), op->Outputs(), op->GetAttrMap());
@@ -164,10 +157,13 @@ bool BlockCanBeStaticBuilt(const framework::BlockDesc& block) {
     KernelCode kernel_code = static_cast<KernelCode>(
         (in_black_list << 5) + (is_operator_base << 4) + (is_custom_op << 3) +
         (use_mkldnn << 2) + (sub_block_can_not_static_build << 1));
-
-    if (in_black_list || is_operator_base || is_custom_op || use_mkldnn ||
-        sub_block_can_not_static_build) {
-      invalid_ops.insert(std::make_pair(op_type, kernel_code));
+    if (!OpsCanSkipedFakeAllocInStaticBuild.count(op_type)) {
+      if (in_black_list ||
+          (is_operator_base &&
+           !OperatorBasesHandledInStaticBuild.count(op_type)) ||
+          is_custom_op || use_mkldnn || sub_block_can_not_static_build) {
+        invalid_ops.insert(std::make_pair(op_type, kernel_code));
+      }
     }
   }
 
@@ -294,7 +290,7 @@ phi::TensorBase* GetTensorFormVar(framework::Variable* var) {
                !var->IsInitialized()) {
       return var->template GetMutable<paddle::framework::RawTensor>();
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "Unsupported `%s` type when get tensor.",
           framework::ToTypeName(var->Type())));
     }
@@ -305,27 +301,27 @@ phi::TensorBase* GetTensorFormVar(framework::Variable* var) {
 }
 
 template <class TensorType>
-void FakeInitializeTensor(const phi::DeviceContext& dev_ctx,
+void FakeInitializeTensor(const platform::DeviceContext& dev_ctx,
                           const phi::Place& place,
                           const phi::DataType& dtype,
                           const phi::DataLayout& layout,
                           TensorType* tensor) {
   PADDLE_ENFORCE_NE(place.GetType(),
                     phi::AllocationType::UNDEFINED,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "The place %s to fake intialize is not valid.", place));
   PADDLE_ENFORCE_NE(dtype,
                     phi::DataType::UNDEFINED,
-                    common::errors::InvalidArgument(
+                    phi::errors::InvalidArgument(
                         "The dtype %s to fake intialize is not valid.", dtype));
   PADDLE_ENFORCE_NE(
       layout,
       phi::DataLayout::UNDEFINED,
-      common::errors::InvalidArgument(
+      phi::errors::InvalidArgument(
           "The layout %s to fake intialize is not valid.", layout));
   PADDLE_ENFORCE_NOT_NULL(
       tensor,
-      common::errors::InvalidArgument(
+      phi::errors::InvalidArgument(
           "The tensor to fake intialize should not be null."));
 
   if (tensor->initialized() && place == tensor->place() &&
@@ -335,12 +331,12 @@ void FakeInitializeTensor(const phi::DeviceContext& dev_ctx,
 
   // set place
   if (tensor->initialized()) {  // avoid overwriting valid data
-    phi::DeviceContext* dev_ctx_for_copy = nullptr;
+    platform::DeviceContext* dev_ctx_for_copy = nullptr;
     if (place.GetType() != AllocationType::CPU) {
-      dev_ctx_for_copy = phi::DeviceContextPool::Instance().Get(place);
+      dev_ctx_for_copy = platform::DeviceContextPool::Instance().Get(place);
     } else {
       dev_ctx_for_copy =
-          phi::DeviceContextPool::Instance().Get(tensor->place());
+          platform::DeviceContextPool::Instance().Get(tensor->place());
     }
     phi::Copy(*dev_ctx_for_copy, *tensor, place, /*blocking=*/true, tensor);
   } else {
@@ -352,7 +348,7 @@ void FakeInitializeTensor(const phi::DeviceContext& dev_ctx,
     } else {
       PADDLE_ENFORCE_EQ(place,
                         dev_ctx.GetPlace(),
-                        common::errors::Unavailable(
+                        phi::errors::Unavailable(
                             "The place %s for fack alloc is not equal to "
                             "the place %s of DeviceContext.",
                             place,
@@ -373,7 +369,7 @@ void FakeInitializeTensor(const phi::DeviceContext& dev_ctx,
           << ", place = " << place << ", layout = " << layout;
 }
 
-void FakeInitializeTensorBase(const phi::DeviceContext& dev_ctx,
+void FakeInitializeTensorBase(const platform::DeviceContext& dev_ctx,
                               const phi::Place& place,
                               const phi::DataType& dtype,
                               const phi::DataLayout& layout,
@@ -403,19 +399,19 @@ void FakeInitializeTensorBase(const phi::DeviceContext& dev_ctx,
     FakeInitializeTensor(
         dev_ctx, place, dtype, layout, dynamic_cast<phi::TensorArray*>(tensor));
   } else {
-    PADDLE_THROW(common::errors::Unimplemented(
+    PADDLE_THROW(phi::errors::Unimplemented(
         "Unsupported `%s` type when fake initialize tensor.",
         tensor->type_info().name()));
   }
 }
 
 void RunConditionalBlockPreStaticBuild(const framework::Scope& scope,
-                                       const phi::Place& dev_place,
+                                       const platform::Place& dev_place,
                                        const OperatorBase& op) {
   auto* scope_var = scope.FindVar(op.Output("Scope"));
   PADDLE_ENFORCE_NOT_NULL(
       scope_var,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Expect Scope variable to be set in conditional_block_op, but "
           "got a null Scope variable. Please set the Scope variable."));
 
@@ -442,7 +438,7 @@ void RunConditionalBlockPreStaticBuild(const framework::Scope& scope,
       << "[ControlFlow][ConditionalBlock] New Executor is Running.";
 
   VLOG(10) << "[interpreterCore cache]" << core.get();
-  VLOG_IF(10, core) << phi::is_same_place(core->GetPlace(), dev_place);
+  VLOG_IF(10, core) << platform::is_same_place(core->GetPlace(), dev_place);
 
   framework::interpreter::ExecutionConfig execution_config;
   execution_config.create_local_scope = false;
@@ -458,11 +454,11 @@ void RunConditionalBlockPreStaticBuild(const framework::Scope& scope,
 }
 
 void RunWhileBlockPreStaticBuild(const framework::Scope& scope,
-                                 const phi::Place& dev_place,
+                                 const platform::Place& dev_place,
                                  const OperatorBase& op) {
   PADDLE_ENFORCE_NOT_NULL(
       scope.FindVar(op.Input("Condition")),
-      common::errors::NotFound("Input(Condition) of WhileOp is not found."));
+      platform::errors::NotFound("Input(Condition) of WhileOp is not found."));
 
 #ifdef PADDLE_WITH_DNNL
   // Executor on being destroyed clears oneDNN cache and resets
@@ -473,7 +469,7 @@ void RunWhileBlockPreStaticBuild(const framework::Scope& scope,
   auto* block = op.Attr<framework::BlockDesc*>("sub_block");
 
   // get device context from pool
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
+  platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
   auto& dev_ctx = *pool.Get(dev_place);
 
   bool is_test = op.Attr<bool>("is_test");
@@ -498,7 +494,7 @@ void RunWhileBlockPreStaticBuild(const framework::Scope& scope,
       const framework::VariableNameMap& output_var_names = item->Outputs();
       for (auto& ipt : input_var_names) {
         for (const std::string& var_name : ipt.second) {
-          if (operators::StrInVariableNameMap(var_name, output_var_names)) {
+          if (operators::StrInVaraiableNameMap(var_name, output_var_names)) {
             no_copy_var_names.insert(var_name);
           }
         }
@@ -510,7 +506,7 @@ void RunWhileBlockPreStaticBuild(const framework::Scope& scope,
                          ->GetMutable<std::vector<framework::Scope*>>();
 
   if (!step_scopes->empty()) {
-    phi::DeviceContextPool::Instance().Get(dev_place)->Wait();
+    platform::DeviceContextPool::Instance().Get(dev_place)->Wait();
     for (auto& s : *step_scopes) {
       if (scope.HasKid(s)) {
         scope.DeleteScope(s);
@@ -521,7 +517,7 @@ void RunWhileBlockPreStaticBuild(const framework::Scope& scope,
 
   PADDLE_ENFORCE_EQ(step_scopes->size(),
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The Output(StepScope) of WhileOp should be empty."));
 
   auto& skip_vars =
@@ -654,7 +650,8 @@ void FakeInitializeOutputsForOperatorBase(
     return;
   }
 
-  phi::DeviceContext* dev_ctx = phi::DeviceContextPool::Instance().Get(place);
+  phi::DeviceContext* dev_ctx =
+      platform::DeviceContextPool::Instance().Get(place);
 
   if (op_type == "conditional_block" || op_type == "while") {
     // Note(sonder): skip fake init for conditional_block when there is no
@@ -700,7 +697,7 @@ void FakeInitializeOutputsForOperatorBase(
       if (out_var_info_before_build[i] != out_var_info_after_build[i]) {
         auto var_name = out_var_info_before_build[i].name_;
         if (following_input_vars.count(var_name)) {
-          PADDLE_THROW(common::errors::PreconditionNotMet(
+          PADDLE_THROW(phi::errors::PreconditionNotMet(
               "The output %s s' dtype/place of %s is "
               "changed after static build. Befer static build, the "
               "dtype is %s, place is %s. After static "
@@ -728,13 +725,13 @@ void FakeInitializeOutputsForOperatorBase(
 
     auto& outputs = op.Outputs("Out");
     auto& var_types = reader->VarTypes();
-    PADDLE_ENFORCE_EQ(outputs.size(),
-                      var_types.size(),
-                      common::errors::Unavailable(
-                          "The output size of read_op (%d) should equal "
-                          "to the var_types size of ReaderHolder (%d).",
-                          outputs.size(),
-                          var_types.size()));
+    PADDLE_ENFORCE_EQ(
+        outputs.size(),
+        var_types.size(),
+        phi::errors::Unavailable("The output size of read_op (%d) should equal "
+                                 "to the var_types size of ReaderHolder (%d).",
+                                 outputs.size(),
+                                 var_types.size()));
 
     for (size_t i = 0; i < outputs.size(); ++i) {
       const std::string& parameter_name = outputs[i];
@@ -747,8 +744,8 @@ void FakeInitializeOutputsForOperatorBase(
       }
     }
   } else {
-    PADDLE_THROW(common::errors::Unimplemented(
-        "Can not static build for op: %s", op_type));
+    PADDLE_THROW(
+        phi::errors::Unimplemented("Can not static build for op: %s", op_type));
   }
 }
 
@@ -792,13 +789,13 @@ void FakeInitializeOutputsForFunctionKernel(
     const phi::Kernel& phi_kernel,
     const phi::KernelSignature& kernel_sig,
     const RuntimeContext& runtime_ctx,
-    const phi::DeviceContext& dev_ctx) {
-  const std::string& op_type = op.Type();
+    const platform::DeviceContext& dev_ctx) {
+  std::string op_type = op.Type();
   auto output_names = kernel_sig.output_names;
   auto output_defs = phi_kernel.args_def().output_defs();
   PADDLE_ENFORCE_EQ(output_names.size(),
                     output_defs.size(),
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The size of outputs_args names (%d) must be equal to "
                         "the size of kernel output_defs (%d).",
                         output_names.size(),
@@ -850,7 +847,7 @@ void FakeInitializeOutputsForFunctionKernel(
                 GetTensorFormVar(runtime_ctx.inputs.find("X")->second.at(0));
             backend = phi::TransToPhiBackend(x->place());
           } else {
-            PADDLE_THROW(common::errors::Unimplemented(
+            PADDLE_THROW(phi::errors::Unimplemented(
                 "Unsupported UNDEFINED backend for op: %s, parameter: %s",
                 op_type,
                 parameter_name));
@@ -874,8 +871,6 @@ void FakeInitializeOutputsForFunctionKernel(
           } else if (op_type == "bincount" || op_type == "reduce_sum_grad") {
             dtype = GetInputDType(runtime_ctx, "X");
           } else if (op_type == "dequantize_linear") {
-            dtype = GetInputDType(runtime_ctx, "Scale");
-          } else if (op_type == "quantize_linear") {
             dtype = GetInputDType(runtime_ctx, "Scale");
           } else if (op_type == "lamb") {
             bool multi_precision = op.Attr<bool>("multi_precision");
@@ -949,36 +944,14 @@ void FakeInitializeOutputsForStructureKernel(
 
   const VariableNameMap& outputs = op.Outputs();
   for (auto& item : outputs) {
-    const std::string& output_parameter_name = item.first;
-    auto multi_output_var =
-        execution_context->MultiOutputVar(output_parameter_name);
+    const std::string& parameter_name = item.first;
+    auto multi_output_var = execution_context->MultiOutputVar(parameter_name);
     for (Variable* var : multi_output_var) {
       phi::TensorBase* out_tensor = GetTensorFormVar(var);
-      if (TensorShouldBeFakeInitialized(
-              op, output_parameter_name, out_tensor)) {
+      if (TensorShouldBeFakeInitialized(op, parameter_name, out_tensor)) {
         phi::Place place = execution_context->GetPlace();
         phi::DataType dtype =
             phi::TransToPhiDataType(op_kernel_type.data_type_);
-        // temporarily hack for extern op fused_rms_norm
-        if (op.Type() == "fused_rms_norm") {
-          if (output_parameter_name == "invvar") {
-            dtype = DataType::FLOAT32;
-          } else if (output_parameter_name == "y") {
-            dtype = GetInputDType(execution_context->Context(), "x");
-          }
-          VLOG(4) << "Set fused_rms_norm output " << output_parameter_name
-                  << " to " << dtype;
-        }
-        if (op.Type() == "fused_rms_norm_grad") {
-          if (output_parameter_name == paddle::Grad("x")) {
-            dtype = GetInputDType(execution_context->Context(), "x");
-          } else if (output_parameter_name == paddle::Grad("scale")) {
-            dtype = GetInputDType(execution_context->Context(), "scale");
-          }
-          VLOG(4) << "Set fused_rms_norm_grad output " << output_parameter_name
-                  << " to " << dtype;
-        }
-
         phi::DataLayout layout = out_tensor->layout();
         FakeInitializeTensorBase(execution_context->device_context(),
                                  place,

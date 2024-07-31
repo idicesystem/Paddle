@@ -354,21 +354,13 @@ int32_t EmbLayerNormVarSeqlenPluginHFace::enqueue(
   int32_t batchSize = inputDesc[0].dims.d[0] - 1;
   // read out the maximum sequence length from the dummy input
   int32_t const maxSeqlen = inputDesc[nbLookupTables_].dims.d[1];
-  int32_t S = 512;
+  int32_t S = 384;
   if (maxSeqlen <= 128) {
     S = 128;
   } else if (maxSeqlen <= 192) {
     S = 192;
   } else if (maxSeqlen <= 256) {
     S = 256;
-  } else if (maxSeqlen <= 384) {
-    S = 384;
-  } else if (maxSeqlen <= 512) {
-    S = 512;
-  } else {
-    std::cerr << "fused_embedding_eltwise_layernorm'max sequence lengths is "
-                 "512 for VarSeqlen"
-              << std::endl;
   }
   const float* beta = mBetaDev.get();
   const float* gamma = mGammaDev.get();
@@ -432,7 +424,7 @@ int32_t EmbLayerNormVarSeqlenPluginHFace::enqueue(
           mIdsVocabSize[3],
           output);
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Only support 2,3,4 lookup_tables fused "));
     }
   } else if (mType == nvinfer1::DataType::kHALF) {
@@ -495,11 +487,11 @@ int32_t EmbLayerNormVarSeqlenPluginHFace::enqueue(
           mIdsVocabSize[3],
           output);
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Only support 2,3,4 lookup_tables fused "));
     }
   } else {
-    PADDLE_THROW(common::errors::InvalidArgument(
+    PADDLE_THROW(platform::errors::InvalidArgument(
         "Unsupported type error, expected [kHALF,kFLOAT]"));
   }
   return STATUS_SUCCESS;
@@ -515,21 +507,13 @@ int32_t EmbLayerNormVarSeqlenPluginMTron::enqueue(
   int32_t batchSize = inputDesc[0].dims.d[0] - 1;
   // read out the maximum sequence length from the dummy input
   int32_t const maxSeqlen = inputDesc[nbLookupTables_].dims.d[1];
-  int32_t S = 512;
+  int32_t S = 384;
   if (maxSeqlen <= 128) {
     S = 128;
   } else if (maxSeqlen <= 192) {
     S = 192;
   } else if (maxSeqlen <= 256) {
     S = 256;
-  } else if (maxSeqlen <= 384) {
-    S = 384;
-  } else if (maxSeqlen <= 512) {
-    S = 512;
-  } else {
-    std::cerr << "fused_embedding_eltwise_layernorm'max sequence lengths is "
-                 "512 for VarSeqlen"
-              << std::endl;
   }
   const float* beta = mBetaDev.get();
   const float* gamma = mGammaDev.get();
@@ -598,7 +582,7 @@ int32_t EmbLayerNormVarSeqlenPluginMTron::enqueue(
           output,
           skip);
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Only support 2,3,4 lookup_tables fused "));
     }
   } else if (mType == nvinfer1::DataType::kHALF) {
@@ -665,11 +649,11 @@ int32_t EmbLayerNormVarSeqlenPluginMTron::enqueue(
           output,
           skip);
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Only support 2,3,4 lookup_tables fused "));
     }
   } else {
-    PADDLE_THROW(common::errors::InvalidArgument(
+    PADDLE_THROW(platform::errors::InvalidArgument(
         "Unsupported type error, expected [kHALF,kFLOAT]"));
   }
   return STATUS_SUCCESS;

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.w
 
-import os
 import sys
 import unittest
 
@@ -25,7 +24,7 @@ sys.path.append("..")
 from op_test import OpTest
 
 from paddle import base
-from paddle.pir_utils import test_with_pir_api
+from paddle.base import Program, program_guard
 
 
 # 2D normal case
@@ -91,11 +90,7 @@ class TestSolveOpBatched_case1(OpTest):
             'X': np.random.random((20, 6, 6)).astype(self.dtype),
             'Y': np.random.random((20, 6)).astype(self.dtype),
         }
-        result = np.empty_like(self.inputs['Y'])
-        for i in range(self.inputs['X'].shape[0]):
-            result[i] = np.linalg.solve(
-                self.inputs['X'][i], self.inputs['Y'][i]
-            )
+        result = np.linalg.solve(self.inputs['X'], self.inputs['Y'])
         self.outputs = {'Out': result}
 
     def test_check_output(self):
@@ -263,11 +258,8 @@ class TestSolveOpBatched_case8(OpTest):
 
 
 class TestSolveOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_errors(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with program_guard(Program(), Program()):
             # The input type of solve_op must be Variable.
             x1 = base.create_lod_tensor(
                 np.array([[-1]]), [[1]], base.CPUPlace()
@@ -309,14 +301,8 @@ class TestSolveOpError(unittest.TestCase):
 class TestSolveOpAPI_1(unittest.TestCase):
     def setUp(self):
         np.random.seed(2021)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.dtype = "float64"
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -375,14 +361,8 @@ class TestSolveOpAPI_1(unittest.TestCase):
 class TestSolveOpAPI_2(unittest.TestCase):
     def setUp(self):
         np.random.seed(2021)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.dtype = "float64"
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -441,14 +421,8 @@ class TestSolveOpAPI_2(unittest.TestCase):
 class TestSolveOpAPI_3(unittest.TestCase):
     def setUp(self):
         np.random.seed(2021)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.dtype = "float32"
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -508,14 +482,8 @@ class TestSolveOpAPI_3(unittest.TestCase):
 class TestSolveOpAPI_4(unittest.TestCase):
     def setUp(self):
         np.random.seed(2021)
-        self.place = []
+        self.place = [paddle.CPUPlace()]
         self.dtype = "float64"
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.place.append(paddle.CPUPlace())
         if core.is_compiled_with_cuda():
             self.place.append(paddle.CUDAPlace(0))
 
@@ -573,14 +541,8 @@ class TestSolveOpAPI_4(unittest.TestCase):
 class TestSolveOpSingularAPI(unittest.TestCase):
     # Singular matrix is ​​not invertible
     def setUp(self):
-        self.places = []
+        self.places = [base.CPUPlace()]
         self.dtype = "float64"
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 
@@ -616,8 +578,8 @@ class TestSolveOpSingularAPI(unittest.TestCase):
             with base.dygraph.guard(place):
                 input_x_np = np.ones([4, 4]).astype(self.dtype)
                 input_y_np = np.ones([4, 4]).astype(self.dtype)
-                input_x = paddle.to_tensor(input_x_np)
-                input_y = paddle.to_tensor(input_y_np)
+                input_x = base.dygraph.to_variable(input_x_np)
+                input_y = base.dygraph.to_variable(input_y_np)
                 try:
                     result = paddle.linalg.solve(input_x, input_y)
                 except RuntimeError as ex:

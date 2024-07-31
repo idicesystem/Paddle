@@ -19,6 +19,19 @@
 
 namespace cinn::adt {
 
-using SymbolicDim = std::string;
+DEFINE_ADT_TAG(tSymbolicDim);
+
+using SymbolicDim = tSymbolicDim<UniqueId>;
 
 }  // namespace cinn::adt
+
+namespace std {
+
+template <>
+struct hash<cinn::adt::SymbolicDim> final {
+  std::size_t operator()(const cinn::adt::SymbolicDim& symbolic_dim) const {
+    return symbolic_dim.value().unique_id();
+  }
+};
+
+}  // namespace std

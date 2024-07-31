@@ -73,7 +73,7 @@ class SimbolCompareNet(nn.Layer):
         return z1, z2, z3, z4
 
 
-class TestValueSymbol(unittest.TestCase):
+class TestOpresultSymbol(unittest.TestCase):
     def setUp(self):
         np.random.seed(2023)
         self.shape_x = [2, 1024, 1024]
@@ -133,7 +133,7 @@ class TestValueSymbol(unittest.TestCase):
         self.assertEqual(ops_ref, ops)
 
 
-class TestValueCompareSymbol(unittest.TestCase):
+class TestOpresultCompareSymbol(unittest.TestCase):
     def setUp(self):
         np.random.seed(2023)
         self.shape_x = [2, 1024, 1024]

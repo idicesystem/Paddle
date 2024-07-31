@@ -25,21 +25,24 @@
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/cuda_device_guard.h"
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
-#include "paddle/phi/backends/dynload/cuda_driver.h"
+#include "paddle/fluid/platform/dynload/cuda_driver.h"
 #endif
 #if CUDA_VERSION >= 10020
 
-namespace paddle::memory::allocation {
+namespace paddle {
+namespace memory {
+namespace allocation {
 
-CUDAVirtualMemAllocator::CUDAVirtualMemAllocator(const phi::GPUPlace& place)
-    : place_(place), virtual_mem_base_(0), prop_{} {
+CUDAVirtualMemAllocator::CUDAVirtualMemAllocator(
+    const platform::CUDAPlace& place)
+    : place_(place) {
   CUmemAllocationProp prop = {};
 
   // Setup the properties common for all the chunks
   // The allocations will be device pinned memory.
   // This property structure describes the physical location where the memory
-  // will be allocated via cuMemCreate along with additional properties In this
-  // case, the allocation will be pinned device memory local to a given device.
+  // will be allocated via cuMemCreate allong with additional properties In this
+  // case, the allocation will be pinnded device memory local to a given device.
   prop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
   prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
   prop.location.id = place.device;  // NOLINT
@@ -74,8 +77,9 @@ CUDAVirtualMemAllocator::CUDAVirtualMemAllocator(const phi::GPUPlace& place)
   for (int dev_id = 0; dev_id < platform::GetGPUDeviceCount(); ++dev_id) {
     size_t granularity;
     prop.location.id = dev_id;
-    PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cuMemGetAllocationGranularity(
-        &granularity, &prop, CU_MEM_ALLOC_GRANULARITY_MINIMUM));
+    PADDLE_ENFORCE_GPU_SUCCESS(
+        paddle::platform::dynload::cuMemGetAllocationGranularity(
+            &granularity, &prop, CU_MEM_ALLOC_GRANULARITY_MINIMUM));
     granularity_ = std::max(granularity, granularity_);
   }
 
@@ -90,7 +94,7 @@ CUDAVirtualMemAllocator::CUDAVirtualMemAllocator(const phi::GPUPlace& place)
   // GPU,
   // so the virtual address space size we reserve is equal to the GPU video
   // memory size
-  PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::cuMemAddressReserve(
+  PADDLE_ENFORCE_GPU_SUCCESS(paddle::platform::dynload::cuMemAddressReserve(
       &virtual_mem_base_, virtual_mem_size_, 0, 0, 0));
 
   virtual_mem_alloced_offset_ = 0;
@@ -102,13 +106,13 @@ void CUDAVirtualMemAllocator::FreeImpl(phi::Allocation* allocation) {
   PADDLE_ENFORCE_EQ(
       allocation->place(),
       place_,
-      common::errors::PermissionDenied(
+      platform::errors::PermissionDenied(
           "GPU memory is freed in incorrect device. This may be a bug"));
 
   auto iter = virtual_2_physical_map_.find(
       reinterpret_cast<CUdeviceptr>(allocation->ptr()));
   if (iter == virtual_2_physical_map_.end()) {
-    PADDLE_THROW(common::errors::InvalidArgument(
+    PADDLE_THROW(platform::errors::InvalidArgument(
         "Can not find virtual memory address at %s", allocation->ptr()));
   }
 
@@ -118,7 +122,8 @@ void CUDAVirtualMemAllocator::FreeImpl(phi::Allocation* allocation) {
     cudaSetDevice(place_.device);
   }
 
-  auto result = phi::dynload::cuMemUnmap(iter->first, iter->second.second);
+  auto result =
+      paddle::platform::dynload::cuMemUnmap(iter->first, iter->second.second);
   if (result != CUDA_ERROR_DEINITIALIZED) {
     PADDLE_ENFORCE_GPU_SUCCESS(result);
   }
@@ -143,7 +148,7 @@ phi::Allocation* CUDAVirtualMemAllocator::AllocateImpl(size_t size) {
   CUdeviceptr ptr = virtual_mem_base_ + virtual_mem_alloced_offset_;
 
   if (ptr + size > virtual_mem_base_ + virtual_mem_size_) {
-    PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+    PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
         "\n\nOut of memory error on GPU Virtual Memory %d. "
         "Cannot allocate %s memory on GPU Virtual Memory %d, %s memory has "
         "been allocated and "
@@ -173,7 +178,7 @@ phi::Allocation* CUDAVirtualMemAllocator::AllocateImpl(size_t size) {
       PADDLE_ENFORCE_GPU_SUCCESS(cudaMemGetInfo(&actual_avail, &actual_total));
       size_t actual_allocated = actual_total - actual_avail;
 
-      PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+      PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
           "\n\nOut of memory error on GPU %d. "
           "Cannot allocate %s memory on GPU %d, %s memory has been allocated "
           "and "
@@ -196,7 +201,7 @@ phi::Allocation* CUDAVirtualMemAllocator::AllocateImpl(size_t size) {
   // Assign the chunk to the appropriate VA range and release the handle.
   // After mapping the memory, it can be referenced by virtual address.
   // The allocation will be kept live until it is unmapped.
-  result = phi::dynload::cuMemMap(ptr, size, 0, handle, 0);
+  result = paddle::platform::dynload::cuMemMap(ptr, size, 0, handle, 0);
 
   if (result != CUDA_SUCCESS) {
     platform::RecordedGpuMemRelease(handle, size, place_.device);
@@ -205,11 +210,11 @@ phi::Allocation* CUDAVirtualMemAllocator::AllocateImpl(size_t size) {
   }
 
   // Apply the access descriptors to the whole VA range.
-  result = phi::dynload::cuMemSetAccess(
+  result = paddle::platform::dynload::cuMemSetAccess(
       ptr, size, access_desc_.data(), access_desc_.size());
 
   if (result != CUDA_SUCCESS) {
-    phi::dynload::cuMemUnmap(ptr, size);
+    paddle::platform::dynload::cuMemUnmap(ptr, size);
     platform::RecordedGpuMemRelease(handle, size, place_.device);
     PADDLE_ENFORCE_GPU_SUCCESS(result);
     return nullptr;
@@ -220,9 +225,11 @@ phi::Allocation* CUDAVirtualMemAllocator::AllocateImpl(size_t size) {
   virtual_mem_alloced_offset_ += size;
 
   return new Allocation(
-      reinterpret_cast<void*>(ptr), size, phi::Place(place_));  // NOLINT
+      reinterpret_cast<void*>(ptr), size, platform::Place(place_));
 }
 
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle
 
 #endif

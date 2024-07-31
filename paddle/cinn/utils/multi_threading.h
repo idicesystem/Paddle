@@ -43,7 +43,7 @@ class SequenceDispatcher : public JobDispatcher {
   int Next() const override;
 
  private:
-  // the maximum index of extent
+  // the maxmimum index of extent
   int end_;
   // the traversal step to the next one
   int step_;

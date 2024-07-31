@@ -24,6 +24,7 @@ import numpy as np
 
 import paddle
 from paddle.base import (
+    CompiledProgram,
     Program,
     Variable,
     core,
@@ -32,13 +33,7 @@ from paddle.base import (
     unique_name,
 )
 from paddle.base.executor import Executor, global_scope
-from paddle.base.framework import (
-    Parameter,
-    dygraph_not_support,
-    in_pir_mode,
-    process_type_promotion,
-    static_only,
-)
+from paddle.base.framework import Parameter, dygraph_not_support, static_only
 from paddle.base.log_helper import get_logger
 from paddle.framework.io_utils import (
     _clone_var_in_block_,
@@ -51,29 +46,74 @@ from paddle.framework.io_utils import (
     is_persistable,
 )
 
-from .io_utils import (
-    _check_args,
-    _check_vars,
-    _get_valid_program,
-    _normalize_path_prefix,
-    _safe_load_pickle,
-)
-from .pir_io import (
-    get_pir_parameters,
-    load_inference_model_pir,
-    load_pir,
-    load_vars_pir,
-    normalize_pir_program,
-    save_inference_model_pir,
-    save_pir,
-    save_vars_pir,
-)
-
 __all__ = []
 
 _logger = get_logger(
     __name__, logging.INFO, fmt='%(asctime)s-%(levelname)s: %(message)s'
 )
+
+
+def _check_args(caller, args, supported_args=None, deprecated_args=None):
+    supported_args = [] if supported_args is None else supported_args
+    deprecated_args = [] if deprecated_args is None else deprecated_args
+    for arg in args:
+        if arg in deprecated_args:
+            raise ValueError(
+                "argument '{}' in function '{}' is deprecated, only {} are supported.".format(
+                    arg, caller, supported_args
+                )
+            )
+        elif arg not in supported_args:
+            raise ValueError(
+                "function '{}' doesn't support argument '{}',\n only {} are supported.".format(
+                    caller, arg, supported_args
+                )
+            )
+
+
+def _check_vars(name, var_list):
+    if not isinstance(var_list, list):
+        var_list = [var_list]
+    if not all(isinstance(var, Variable) for var in var_list):
+        raise ValueError(
+            f"'{name}' should be a Variable or a list of Variable."
+        )
+
+
+def _normalize_path_prefix(path_prefix):
+    """
+    convert path_prefix to absolute path.
+    """
+    if not isinstance(path_prefix, str):
+        raise ValueError("'path_prefix' should be a string.")
+    if path_prefix.endswith("/"):
+        raise ValueError("'path_prefix' should not be a directory")
+    path_prefix = os.path.normpath(path_prefix)
+    path_prefix = os.path.abspath(path_prefix)
+    return path_prefix
+
+
+def _get_valid_program(program=None):
+    """
+    return default main program if program is None.
+    """
+    if program is None:
+        program = default_main_program()
+    elif isinstance(program, CompiledProgram):
+        program = program._program
+        if program is None:
+            raise TypeError(
+                "The type of input program is invalid, expected tyep is Program, but received None"
+            )
+        warnings.warn(
+            "The input is a CompiledProgram, this is not recommended."
+        )
+    if not isinstance(program, Program):
+        raise TypeError(
+            "The type of input program is invalid, expected type is base.Program, but received %s"
+            % type(program)
+        )
+    return program
 
 
 def _clone_var_in_block(block, var):
@@ -113,9 +153,11 @@ def prepend_feed_ops(
     for i, name in enumerate(feed_target_names):
         if not global_block.has_var(name):
             raise ValueError(
-                f"The feeded_var_names[{i}]: '{name}' doesn't exist in pruned inference program. "
-                f"Please check whether '{name}' is a valid feed_var name, or remove it from feeded_var_names "
-                f"if '{name}' is not involved in the target_vars calculation."
+                "The feeded_var_names[{i}]: '{name}' doesn't exist in pruned inference program. "
+                "Please check whether '{name}' is a valid feed_var name, or remove it from feeded_var_names "
+                "if '{name}' is not involved in the target_vars calculation.".format(
+                    i=i, name=name
+                )
             )
         out = global_block.var(name)
         global_block._prepend_op(
@@ -155,7 +197,7 @@ def normalize_program(program, feed_vars, fetch_vars, **kwargs):
         feed_vars(Tensor | list[Tensor]): Variables needed by inference.
         fetch_vars(Tensor | list[Tensor]): Variables returned by inference.
         kwargs: Supported keys including ``skip_prune_program``.
-            - skip_prune_program(bool): whether to skip pruning program. Defaults to False.
+            - skip_prune_program(bool): whether to skip prunning program. Defaults to False.
 
     Returns:
         Program: Normalized/Optimized program.
@@ -169,7 +211,7 @@ def normalize_program(program, feed_vars, fetch_vars, **kwargs):
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -184,11 +226,10 @@ def normalize_program(program, feed_vars, fetch_vars, **kwargs):
             >>> normalized_program = paddle.static.normalize_program(program, [image], [predict])
 
     """
-    if in_pir_mode():
-        return normalize_pir_program(program, feed_vars, fetch_vars, **kwargs)
     if not isinstance(program, Program):
         raise TypeError(
-            f"program type must be `base.Program`, but received `{type(program)}`"
+            "program type must be `base.Program`, but received `%s`"
+            % type(program)
         )
     if not isinstance(feed_vars, list):
         feed_vars = [feed_vars]
@@ -242,10 +283,10 @@ def normalize_program(program, feed_vars, fetch_vars, **kwargs):
                 # remove backward block
                 copy_program.blocks.pop(backward_block_id)
                 # update attrs ``blocks``
-                reserved_blocks = []
+                reserverd_blocks = []
                 for block_id in sub_blocks_ids[:-1]:
-                    reserved_blocks.append(copy_program.block(block_id))
-                op._update_desc_attr("blocks", reserved_blocks)
+                    reserverd_blocks.append(copy_program.block(block_id))
+                op._update_desc_attr("blocks", reserverd_blocks)
 
     for idx in remove_op_idx[::-1]:
         global_block._remove_op(idx)
@@ -291,7 +332,7 @@ def serialize_program(feed_vars, fetch_vars, **kwargs):
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -350,7 +391,7 @@ def serialize_persistables(feed_vars, fetch_vars, executor, **kwargs):
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -390,7 +431,7 @@ def _serialize_persistables(program, executor):
             "variables in your model to save"
         )
         return None
-    # create a new program and clone persistable vars to it
+    # create a new program and clone persitable vars to it
     save_program = Program()
     save_block = save_program.global_block()
     save_var_map = {}
@@ -502,7 +543,7 @@ def save_inference_model(
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -524,12 +565,6 @@ def save_inference_model(
 
     """
 
-    if in_pir_mode():
-        save_inference_model_pir(
-            path_prefix, feed_vars, fetch_vars, executor, **kwargs
-        )
-        return
-
     # check path_prefix, set model_path and params_path
     path_prefix = _normalize_path_prefix(path_prefix)
     try:
@@ -539,7 +574,6 @@ def save_inference_model(
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-
     model_path = path_prefix + ".pdmodel"
     params_path = path_prefix + ".pdiparams"
     if os.path.isdir(model_path):
@@ -553,19 +587,15 @@ def save_inference_model(
     _check_vars('fetch_vars', fetch_vars)
 
     program = _get_valid_program(kwargs.get('program', None))
-
-    # do type promotion
-    program = process_type_promotion(program)
-
     clip_extra = kwargs.get('clip_extra', True)
-    # serialize and save program
-
     program = normalize_program(
         program,
         feed_vars,
         fetch_vars,
         skip_prune_program=kwargs.get('skip_prune_program', False),
     )
+
+    # serialize and save program
     legacy_format = kwargs.get('legacy_format', False)
     program_bytes = _serialize_program(
         program._remove_training_info(clip_extra=clip_extra),
@@ -614,7 +644,7 @@ def deserialize_program(data):
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -663,7 +693,7 @@ def deserialize_persistables(program, data, executor):
 
             >>> path_prefix = "./infer_model"
 
-            # User defined network, here a softmax regression example
+            # User defined network, here a softmax regession example
             >>> image = paddle.static.data(name='img', shape=[None, 28, 28], dtype='float32')
             >>> label = paddle.static.data(name='label', shape=[None, 1], dtype='int64')
             >>> predict = paddle.static.nn.fc(image, 10, activation='softmax')
@@ -684,7 +714,8 @@ def deserialize_persistables(program, data, executor):
     """
     if not isinstance(program, Program):
         raise TypeError(
-            f"program type must be `base.Program`, but received `{type(program)}`"
+            "program type must be `base.Program`, but received `%s`"
+            % type(program)
         )
     # load params to a tmp program
     load_program = Program()
@@ -737,8 +768,10 @@ def deserialize_persistables(program, data, executor):
         origin_shape = origin_shape_map.get(var.name)
         if new_shape != origin_shape:
             raise RuntimeError(
-                f"Shape mismatch, program needs a parameter with shape ({origin_shape}), "
-                f"but the loaded parameter ('{var.name}') has a shape of ({new_shape})."
+                "Shape mismatch, program needs a parameter with shape ({}), "
+                "but the loaded parameter ('{}') has a shape of ({}).".format(
+                    origin_shape, var.name, new_shape
+                )
             )
 
 
@@ -837,7 +870,7 @@ def load_inference_model(path_prefix, executor, **kwargs):
 
             >>> [inference_program, feed_target_names, fetch_targets] = (
             ...     paddle.static.load_inference_model(path_prefix, exe))
-            >>> tensor_img = np.array(np.random.random((64, 784)), dtype=np.float32) # type: ignore[var-annotated]
+            >>> tensor_img = np.array(np.random.random((64, 784)), dtype=np.float32)
             >>> results = exe.run(inference_program,
             ...               feed={feed_target_names[0]: tensor_img},
             ...               fetch_list=fetch_targets)
@@ -849,8 +882,6 @@ def load_inference_model(path_prefix, executor, **kwargs):
             # fetch_targets, we can use an executor to run the inference
             # program to get the inference result.
     """
-    if in_pir_mode():
-        return load_inference_model_pir(path_prefix, executor, **kwargs)
     # check kwargs
     supported_args = ('model_filename', 'params_filename')
     deprecated_args = ('pserver_endpoints',)
@@ -871,9 +902,6 @@ def load_inference_model(path_prefix, executor, **kwargs):
         program_bytes = model_filename
         # deserialize bytes to program
         program = deserialize_program(program_bytes)
-
-        # do type promotion
-        program = process_type_promotion(program)
 
         vars = list(filter(is_persistable, program.list_vars()))
         if len(vars) > 0:
@@ -930,9 +958,6 @@ def load_inference_model(path_prefix, executor, **kwargs):
         # deserialize bytes to program
         program = deserialize_program(program_bytes)
 
-        # do type promotion
-        program = process_type_promotion(program)
-
         vars = list(filter(is_persistable, program.list_vars()))
         if len(vars) > 0:
             load_dirname = os.path.dirname(params_path)
@@ -945,37 +970,13 @@ def load_inference_model(path_prefix, executor, **kwargs):
                 predicate=is_persistable,
                 filename=params_filename,
             )
-    feed_target_names = program.desc.get_feed_target_names()
-    if paddle.framework.in_pir_executor_mode():
-        with paddle.pir_utils.IrGuard():
-            program = paddle.pir.translate_to_pir(program.desc)
-            block = program.global_block()
-            remove_op_list = []
-            fetch_targets = []
-            for op in block.ops:
-                if op.name() == "pd_op.feed":
-                    var_name = op.attrs()["name"]
-                    org_value = op.result(0)
-                    with block:
-                        value = paddle.static.data(
-                            name=var_name,
-                            shape=org_value.shape,
-                            dtype=org_value.dtype,
-                        )
-                        org_value.replace_all_uses_with(value)
-                        value.get_defining_op().move_before(op)
-                    remove_op_list.append(op)
-            for op in remove_op_list:
-                block.remove_op(op)
-            for op in block.ops:
-                if op.name() == "pd_op.fetch":
-                    fetch_targets.append(op.operand_source(0))
 
-    else:
-        fetch_target_names = program.desc.get_fetch_target_names()
-        fetch_targets = [
-            program.global_block().var(name) for name in fetch_target_names
-        ]
+    feed_target_names = program.desc.get_feed_target_names()
+    fetch_target_names = program.desc.get_fetch_target_names()
+    fetch_targets = [
+        program.global_block().var(name) for name in fetch_target_names
+    ]
+
     return [program, feed_target_names, fetch_targets]
 
 
@@ -1062,9 +1063,6 @@ def save_vars(
 
 
     """
-    if in_pir_mode():
-        return save_vars_pir(dirname, main_program, vars, filename)
-
     save_to_memory = False
     if dirname is None and filename is None:
         save_to_memory = True
@@ -1230,9 +1228,6 @@ def load_vars(
             # And all the variables are supposed to be saved in separate files.
 
     """
-    if in_pir_mode():
-        return load_vars_pir(executor, dirname, main_program, vars, filename)
-
     vars_from_memory = False
     if dirname is not None:
         dirname = os.path.normpath(dirname)
@@ -1247,7 +1242,8 @@ def load_vars(
             main_program = default_main_program()
         if not isinstance(main_program, Program):
             raise TypeError(
-                f"The type of input main_program is invalid, expected type is base.Program, but received {type(main_program)}"
+                "The type of input main_program is invalid, expected type is base.Program, but received %s"
+                % type(main_program)
             )
 
         load_vars(
@@ -1266,7 +1262,8 @@ def load_vars(
 
         if not isinstance(main_program, Program):
             raise TypeError(
-                f"The type of input main_program is invalid, expected type is base.Program, but received {type(main_program)}"
+                "The type of input main_program is invalid, expected type is base.Program, but received %s"
+                % type(main_program)
             )
 
         # save origin param shape
@@ -1397,8 +1394,10 @@ def load_vars(
             orig_shape = orig_para_shape.get(each_var.name)
             if new_shape != orig_shape:
                 raise RuntimeError(
-                    f"Variable's shape does not match, the Program requires a parameter with the shape of ({orig_shape}), "
-                    f"while the loaded parameter (namely [ {each_var.name} ]) has a shape of  ({new_shape})."
+                    "Variable's shape does not match, the Program requires a parameter with the shape of ({}), "
+                    "while the loaded parameter (namely [ {} ]) has a shape of  ({}).".format(
+                        orig_shape, each_var.name, new_shape
+                    )
                 )
 
 
@@ -1441,8 +1440,6 @@ def save(program, model_path, protocol=4, **configs):
 
             >>> static.save(prog, "./temp")
     """
-    if in_pir_mode():
-        return save_pir(program, model_path, protocol, **configs)
 
     base_name = os.path.basename(model_path)
     assert (
@@ -1547,6 +1544,7 @@ def load(program, model_path, executor=None, var_list=None):
             >>> static.save(prog, "./temp")
             >>> static.load(prog, "./temp")
     """
+
     assert executor is None or isinstance(executor, Executor)
 
     model_prefix = model_path
@@ -1556,11 +1554,6 @@ def load(program, model_path, executor=None, var_list=None):
         model_prefix = model_prefix[:-6]
     elif model_prefix.endswith(".pdmodel"):
         model_prefix = model_prefix[:-8]
-    elif model_prefix.endswith(".json"):
-        model_prefix = model_prefix[:-5]
-
-    if in_pir_mode():
-        return load_pir(program, model_prefix, executor, var_list)
 
     parameter_file_name = model_prefix + ".pdparams"
 
@@ -1568,7 +1561,9 @@ def load(program, model_path, executor=None, var_list=None):
         # model file save by base.save not found, try to load model file saved with
         # [save_vars, save_params, save_persistables]
         _logger.debug(
-            f"{parameter_file_name} not found, try to load model file saved with [ save_params, save_persistables, save_vars ]"
+            "{} not found, try to load model file saved with [ save_params, save_persistables, save_vars ]".format(
+                parameter_file_name
+            )
         )
         if executor is None:
             raise ValueError(
@@ -1600,9 +1595,8 @@ def load(program, model_path, executor=None, var_list=None):
             if len(binary_file_set) > 0:
                 unused_var_list = " ".join(list(binary_file_set))
                 _logger.warning(
-                    "variable file [ {} ] not used".format(
-                        " ".join(list(binary_file_set))
-                    )
+                    "variable file [ %s ] not used"
+                    % (" ".join(list(binary_file_set)))
                 )
             try:
                 load_vars(
@@ -1626,7 +1620,7 @@ def load(program, model_path, executor=None, var_list=None):
             program_var_list = program.list_vars()
             program_var_name_set = {var.name for var in program_var_list}
 
-            # check all the variable included in program
+            # check all the variable inlcuded in program
             for var in var_list:
                 if var.name not in program_var_name_set:
                     raise LookupError(
@@ -1688,7 +1682,7 @@ def load(program, model_path, executor=None, var_list=None):
         if sys.platform == 'darwin' and sys.version_info.major == 3:
             load_dict = _pickle_loads_mac(parameter_file_name, f)
         else:
-            load_dict = _safe_load_pickle(f, encoding='latin1')
+            load_dict = pickle.load(f, encoding='latin1')
         load_dict = _pack_loaded_dict(load_dict)
     for v in parameter_list:
         assert (
@@ -1712,7 +1706,7 @@ def load(program, model_path, executor=None, var_list=None):
             )
 
         with open(opt_file_name, 'rb') as f:
-            load_dict = _safe_load_pickle(f, encoding='latin1')
+            load_dict = pickle.load(f, encoding='latin1')
         for v in optimizer_var_list:
             assert (
                 v.name in load_dict
@@ -1758,12 +1752,7 @@ def set_program_state(program, state_dict):
             >>> static.set_program_state(prog, program_state)
     """
     state_dict = _pack_loaded_dict(state_dict)
-    if in_pir_mode():
-        params, opts = get_pir_parameters(program)
-        parameter_list = params + opts
-        parameter_list = [var for var in parameter_list if var.persistable]
-    else:
-        parameter_list = list(filter(is_persistable, program.list_vars()))
+    parameter_list = list(filter(is_persistable, program.list_vars()))
 
     used_para_list = {}
     for para in parameter_list:
@@ -1776,12 +1765,16 @@ def set_program_state(program, state_dict):
             orig_para_np = np.array(var_temp.get_tensor())
             new_para_np = state_dict[para.name]
             assert orig_para_np.shape == new_para_np.shape, (
-                f"Parameter's shape does not match, the Program requires a parameter with the shape of ({orig_para_np.shape}), "
-                f"while the loaded parameter (namely [ {para.name} ]) has a shape of  ({new_para_np.shape})."
+                "Parameter's shape does not match, the Program requires a parameter with the shape of ({}), "
+                "while the loaded parameter (namely [ {} ]) has a shape of  ({}).".format(
+                    orig_para_np.shape, para.name, new_para_np.shape
+                )
             )
             assert orig_para_np.dtype == new_para_np.dtype, (
-                f"Parameter's data type does not match, the Program requires a parameter with a dtype of ({orig_para_np.dtype}), "
-                f"while the loaded parameter (namely [ {para.name} ]) has a dtype of  ({new_para_np.dtype})."
+                "Parameter's data type does not match, the Program requires a parameter with a dtype of ({}), "
+                "while the loaded parameter (namely [ {} ]) has a dtype of  ({}).".format(
+                    orig_para_np.dtype, para.name, new_para_np.dtype
+                )
             )
 
             ten = var_temp.get_tensor()
@@ -1811,7 +1804,7 @@ def set_program_state(program, state_dict):
             unused_para_list.append(k)
     if len(unused_para_list) > 0:
         warnings.warn(
-            "This list is not set, Because of Parameter not found in program. There are: {}".format(
+            "This list is not set, Because of Paramerter not found in program. There are: {}".format(
                 " ".join(unused_para_list)
             )
         )
@@ -1888,7 +1881,9 @@ def load_program_state(model_path, var_list=None):
         # model file saved with base.save is not found, try to load model file saved with
         # [save_vars, save_params, save_persistables]
         _logger.debug(
-            f"{parameter_file_name} not found, try to load model file saved with [ save_params, save_persistables, save_vars ]"
+            "{} not found, try to load model file saved with [ save_params, save_persistables, save_vars ]".format(
+                parameter_file_name
+            )
         )
 
         var_name_list = []
@@ -1916,11 +1911,9 @@ def load_program_state(model_path, var_list=None):
                     shape=var.shape,
                     dtype=var.dtype,
                     type=var.type,
-                    lod_level=(
-                        var.lod_level
-                        if var.desc.type() == core.VarDesc.VarType.LOD_TENSOR
-                        else None
-                    ),
+                    lod_level=var.lod_level
+                    if var.desc.type() == core.VarDesc.VarType.LOD_TENSOR
+                    else None,
                     persistable=True,
                 )
 
@@ -2007,13 +2000,13 @@ def load_program_state(model_path, var_list=None):
         if sys.platform == 'darwin' and sys.version_info.major == 3:
             para_dict = _pickle_loads_mac(parameter_file_name, f)
         else:
-            para_dict = _safe_load_pickle(f, encoding='latin1')
+            para_dict = pickle.load(f, encoding='latin1')
     para_dict = _pack_loaded_dict(para_dict)
 
     opt_file_name = model_prefix + ".pdopt"
     if os.path.exists(opt_file_name):
         with open(opt_file_name, 'rb') as f:
-            opti_dict = _safe_load_pickle(f, encoding='latin1')
+            opti_dict = pickle.load(f, encoding='latin1')
 
         para_dict.update(opti_dict)
 

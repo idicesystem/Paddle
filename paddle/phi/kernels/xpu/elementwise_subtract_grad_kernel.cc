@@ -53,5 +53,4 @@ PD_REGISTER_KERNEL(subtract_grad,
                    ALL_LAYOUT,
                    phi::SubtractGradKernel,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
                    float) {}

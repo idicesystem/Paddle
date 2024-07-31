@@ -263,7 +263,7 @@ void SetValueKernelImpl(const Context& dev_ctx,
                         const std::vector<int64_t>& decrease_axes,
                         const std::vector<int64_t>& none_axes,
                         DenseTensor* out) {
-  // rank是x tensor的维度信息
+  // rank是xtensor的维度信息
   const int rank = x.dims().size();
 
   switch (rank) {
@@ -430,7 +430,6 @@ PD_REGISTER_KERNEL(set_value,
                    phi::SetValueKernel,
                    float,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
                    int,
                    int64_t,
                    bool) {}
@@ -441,7 +440,6 @@ PD_REGISTER_KERNEL(set_value_with_tensor,
                    phi::SetTensorValueKernel,
                    float,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
                    int,
                    int64_t,
                    bool) {}

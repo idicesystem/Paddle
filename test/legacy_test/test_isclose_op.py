@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -121,13 +120,7 @@ class TestIscloseStatic(unittest.TestCase):
         paddle.enable_static()
         x_data = np.random.rand(10, 10)
         y_data = np.random.rand(10, 10)
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.base.core.is_compiled_with_cuda()
-        ):
-            places.append(paddle.base.CPUPlace())
+        places = [paddle.base.CPUPlace()]
         if paddle.base.core.is_compiled_with_cuda():
             places.append(paddle.base.CUDAPlace(0))
         for place in places:
@@ -153,13 +146,7 @@ class TestIscloseStatic(unittest.TestCase):
 
 class TestIscloseDygraph(unittest.TestCase):
     def test_api_case(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.base.core.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.base.core.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for place in places:

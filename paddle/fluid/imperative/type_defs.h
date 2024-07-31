@@ -32,6 +32,9 @@ class OpBase;
 class GradOpNode;
 class Tracer;
 
+using WeakNameVarBaseMap =
+    std::map<std::string, std::vector<std::weak_ptr<VarBase>>>;
+
 namespace details {
 template <typename T>
 struct NameVarMapTrait {};

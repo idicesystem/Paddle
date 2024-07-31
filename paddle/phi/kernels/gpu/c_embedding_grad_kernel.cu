@@ -16,14 +16,14 @@
 
 #include "glog/logging.h"
 
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/backends/gpu/gpu_primitives.h"
 #include "paddle/phi/core/kernel_registry.h"
 #include "paddle/phi/kernels/funcs/eigen/common.h"
 #include "paddle/phi/kernels/funcs/embedding_grad.h"
+#include "paddle/utils/flags.h"
 
-COMMON_DECLARE_int64(embedding_deterministic);
+PD_DECLARE_int64(embedding_deterministic);
 
 namespace phi {
 
@@ -140,8 +140,7 @@ void CEmbeddingGradKernel(const Context& dev_ctx,
 
 }  // namespace phi
 
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+#if NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000
 PD_REGISTER_KERNEL(c_embedding_grad,
                    GPU,
                    ALL_LAYOUT,
@@ -149,9 +148,7 @@ PD_REGISTER_KERNEL(c_embedding_grad,
                    float,
                    double,
                    phi::dtype::bfloat16,
-                   phi::dtype::float16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::float16) {}
 #else
 PD_REGISTER_KERNEL(c_embedding_grad,
                    GPU,
@@ -159,7 +156,5 @@ PD_REGISTER_KERNEL(c_embedding_grad,
                    phi::CEmbeddingGradKernel,
                    float,
                    double,
-                   phi::dtype::float16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::float16) {}
 #endif

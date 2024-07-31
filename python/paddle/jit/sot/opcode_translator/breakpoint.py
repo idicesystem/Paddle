@@ -36,7 +36,8 @@ class Breakpoint:
         return hash((self.file, self.line, self.co_name, self.offset))
 
 
-class BreakpointManager(metaclass=Singleton):
+@Singleton
+class BreakpointManager:
     def __init__(self):
         self.breakpoints = set()
         self.executors = OpcodeExecutorBase.call_stack
@@ -122,7 +123,7 @@ class BreakpointManager(metaclass=Singleton):
         if "All" in self.record_event or event in self.record_event:
             print("event captured.")
             self.activate = len(self.executors) - 1
-            breakpoint()  # noqa: T100
+            breakpoint()
 
     def _dis_source_code(self):
         cur_exe = self.executors[self.activate]

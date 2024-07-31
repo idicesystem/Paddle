@@ -12,16 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
+#ifndef PADDLE_WITH_HIP
+
 #include "paddle/phi/kernels/multiclass_nms3_kernel.h"
 
-#ifdef PADDLE_WITH_HIP
-#include <hip/hip_runtime.h>
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
 #include <cub/cub.cuh>
 #include "cuda.h"  // NOLINT
-#endif
 
 #include "paddle/phi/backends/context_pool.h"
 #include "paddle/phi/common/place.h"
@@ -238,7 +234,7 @@ __launch_bounds__(nthds_per_cta) __global__
 }
 
 template <typename T_SCORE>
-void SortScoresPerClassGPU(gpuStream_t stream,
+void SortScoresPerClassGPU(cudaStream_t stream,
                            const int num,
                            const int num_classes,
                            const int num_preds_per_class,
@@ -302,11 +298,7 @@ void SortScoresPerClassGPU(gpuStream_t stream,
       begin_bit,
       end_bit,
       stream);
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipGetLastError());
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(cudaGetLastError());
-#endif
 }
 
 /* ===========
@@ -547,7 +539,7 @@ __global__ void AllClassNMSKernel(
 }
 
 template <typename T_SCORE, typename T_BBOX>
-void AllClassNMSGPU(gpuStream_t stream,
+void AllClassNMSGPU(cudaStream_t stream,
                     const int num,
                     const int num_classes,
                     const int num_preds_per_class,
@@ -611,11 +603,7 @@ void AllClassNMSGPU(gpuStream_t stream,
       score_shift,
       caffe_semantics);
 
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipGetLastError());
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(cudaGetLastError());
-#endif
 }
 
 /* ==================
@@ -630,15 +618,11 @@ __launch_bounds__(nthds_per_cta) __global__
   if (idx <= num_segments) d_offsets[idx] = idx * offset;
 }
 
-void SetUniformOffsets(gpuStream_t stream,
+void SetUniformOffsets(cudaStream_t stream,
                        const int num_segments,
                        const int offset,
                        int* d_offsets) {
-#ifdef PADDLE_WITH_HIP
-  const int BS = 256;
-#else
   const int BS = 32;
-#endif
   const int GS = (num_segments + 1 + BS - 1) / BS;
   SetUniformOffsetsKernel<BS>
       <<<GS, BS, 0, stream>>>(num_segments, offset, d_offsets);
@@ -722,7 +706,7 @@ __launch_bounds__(nthds_per_cta) __global__
 }
 
 template <typename T_BBOX, typename T_SCORE>
-void GatherNMSOutputsGPU(gpuStream_t stream,
+void GatherNMSOutputsGPU(cudaStream_t stream,
                          const bool share_location,
                          const int num_images,
                          const int num_preds_per_class,
@@ -740,15 +724,9 @@ void GatherNMSOutputsGPU(gpuStream_t stream,
                          void* nmsed_valid_mask,
                          bool clip_boxes,
                          const float score_shift) {
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(
-      hipMemsetAsync(num_detections, 0, num_images * sizeof(int), stream));
-  const int BS = 256;
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(
       cudaMemsetAsync(num_detections, 0, num_images * sizeof(int), stream));
   const int BS = 32;
-#endif
   const int GS = 32;
   GatherNMSOutputsKernel<T_BBOX, T_SCORE, BS>
       <<<GS, BS, 0, stream>>>(share_location,
@@ -768,15 +746,12 @@ void GatherNMSOutputsGPU(gpuStream_t stream,
                               reinterpret_cast<int*>(nmsed_valid_mask),
                               clip_boxes,
                               T_SCORE(score_shift));
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipGetLastError());
-#else
+
   PADDLE_ENFORCE_GPU_SUCCESS(cudaGetLastError());
-#endif
 }
 
 template <typename T_SCORE>
-void SortScoresPerImageGPU(gpuStream_t stream,
+void SortScoresPerImageGPU(cudaStream_t stream,
                            const int num_images,
                            const int num_items_per_image,
                            void* unsorted_scores,
@@ -817,15 +792,11 @@ void SortScoresPerImageGPU(gpuStream_t stream,
       begin_bit,
       end_bit,
       stream);
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipGetLastError());
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(cudaGetLastError());
-#endif
 }
 
 template <typename T>
-void InferNMS(gpuStream_t stream,
+void InferNMS(cudaStream_t stream,
               const int N,
               const int per_batch_boxes_size,
               const int per_batch_scores_size,
@@ -860,19 +831,11 @@ void InferNMS(gpuStream_t stream,
   size_t bbox_data_size =
       CalcDetectionForwardBBoxDataSize<T>(N, per_batch_boxes_size);
   void* bbox_data_raw = workspace;
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipMemcpyAsync(bbox_data_raw,
-                                            loc_data,
-                                            bbox_data_size,
-                                            hipMemcpyDeviceToDevice,
-                                            stream));
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(cudaMemcpyAsync(bbox_data_raw,
                                              loc_data,
                                              bbox_data_size,
                                              cudaMemcpyDeviceToDevice,
                                              stream));
-#endif
   void* bbox_data = bbox_data_raw;
 
   const int num_scores = N * per_batch_scores_size;
@@ -880,13 +843,8 @@ void InferNMS(gpuStream_t stream,
       CalcDetectionForwardPreNMSSize<T>(N, per_batch_scores_size);
   void* scores =
       GetNextWorkspacePtr(reinterpret_cast<int8_t*>(bbox_data), bbox_data_size);
-#ifdef PADDLE_WITH_HIP
-  PADDLE_ENFORCE_GPU_SUCCESS(hipMemcpyAsync(
-      scores, conf_data, total_scores_size, hipMemcpyDeviceToDevice, stream));
-#else
   PADDLE_ENFORCE_GPU_SUCCESS(cudaMemcpyAsync(
       scores, conf_data, total_scores_size, cudaMemcpyDeviceToDevice, stream));
-#endif
 
   size_t indices_size =
       CalcDetectionForwardPreNMSSize<int>(N, per_batch_scores_size);
@@ -1178,8 +1136,13 @@ void MultiClassNMSGPUKernel(const Context& ctx,
 
 }  // namespace phi
 
-PD_REGISTER_KERNEL(
-    multiclass_nms3, GPU, ALL_LAYOUT, phi::MultiClassNMSGPUKernel, float) {
+PD_REGISTER_KERNEL(multiclass_nms3,  // cuda_only
+                   GPU,
+                   ALL_LAYOUT,
+                   phi::MultiClassNMSGPUKernel,
+                   float) {
   kernel->OutputAt(1).SetDataType(phi::DataType::INT32);
   kernel->OutputAt(2).SetDataType(phi::DataType::INT32);
 }
+
+#endif

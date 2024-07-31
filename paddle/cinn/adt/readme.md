@@ -3,16 +3,13 @@
 #### 1.1 开启 FLAGS_cinn_enable_map_expr:
 
 ```
-export FLAGS_enable_pir_api=1
-export FLAGS_prim_all=True
-export FLAGS_cinn_enable_map_expr=True
-export GLOG_v=1
+export FLAGS_cinn_enable_map_expr=true
 ```
 
 #### 1.2 执行 python 脚本:
 
 ```
-cd test/ir/pir/cinn/adt && python test_cinn_sub_graph_map_expr.py
+cd test/cinn/op && python test_relu_expr.py
 ```
 
 ### 二、输出预览
@@ -26,7 +23,7 @@ y = builder.sin(x)
 out = builder.relu(y)
 ```
 
-#### 2.2 输出结果（随项目开发可能有变化）
+#### 2.2 输出结果
 
 ```
 fill_constant_1_sin_0_max_2(&t_var_1, t_x) {

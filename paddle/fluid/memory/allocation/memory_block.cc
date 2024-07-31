@@ -16,7 +16,9 @@ limitations under the License. */
 
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::memory::detail {
+namespace paddle {
+namespace memory {
+namespace detail {
 
 void MemoryBlock::Init(MetadataCache* cache,
                        Type t,
@@ -41,23 +43,19 @@ MemoryBlock* MemoryBlock::GetRightBuddy(MetadataCache* cache) {
   return cache->LoadDesc(this)->right_buddy;
 }
 
-void MemoryBlock::Split(MetadataCache* cache,
-                        size_t size,
-                        size_t extra_padding_size) {
+void MemoryBlock::Split(MetadataCache* cache, size_t size) {
   auto desc = cache->LoadDesc(this);
   // make sure the split fits
   PADDLE_ENFORCE_GE(desc->total_size,
                     size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The size of memory block (%d) to split is "
                         "not larger than size of request memory (%d)",
                         desc->total_size,
                         size));
 
-  size_t pay_load_size = sizeof(MemoryBlock::Desc) + extra_padding_size;
-
   // bail out if there is no room for another partition
-  if (desc->total_size - size <= pay_load_size) {
+  if (desc->total_size - size <= sizeof(MemoryBlock::Desc)) {
     return;
   }
 
@@ -73,13 +71,13 @@ void MemoryBlock::Split(MetadataCache* cache,
   cache->Save(static_cast<MemoryBlock*>(right_partition),
               MemoryBlock::Desc(FREE_CHUNK,
                                 desc->index,
-                                remaining_size - pay_load_size,
+                                remaining_size - sizeof(MemoryBlock::Desc),
                                 remaining_size,
                                 this,
                                 new_block_right_buddy));
 
   desc->right_buddy = static_cast<MemoryBlock*>(right_partition);
-  desc->size = size - pay_load_size;
+  desc->size = size - sizeof(MemoryBlock::Desc);
   desc->total_size = size;
 
   desc->UpdateGuards();
@@ -99,11 +97,11 @@ void MemoryBlock::Merge(MetadataCache* cache, MemoryBlock* right_buddy) {
   auto rb_desc = cache->LoadDesc(right_buddy);
   PADDLE_ENFORCE_EQ(desc->type,
                     FREE_CHUNK,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The destination chunk to merge is not free"));
   PADDLE_ENFORCE_EQ(rb_desc->type,
                     FREE_CHUNK,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The source chunk to merge is not free"));
 
   // link this->buddy's buddy
@@ -131,11 +129,11 @@ void MemoryBlock::MarkAsFree(MetadataCache* cache) {
   auto desc = cache->LoadDesc(this);
   PADDLE_ENFORCE_NE(desc->type,
                     FREE_CHUNK,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The chunk to mark as free is free already"));
   PADDLE_ENFORCE_NE(desc->type,
                     INVALID_CHUNK,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "The chunk to mark as free is invalid"));
   desc->type = FREE_CHUNK;
   desc->UpdateGuards();
@@ -152,4 +150,6 @@ MemoryBlock* MemoryBlock::Metadata() const {
       reinterpret_cast<const MemoryBlock::Desc*>(this) - 1));
 }
 
-}  // namespace paddle::memory::detail
+}  // namespace detail
+}  // namespace memory
+}  // namespace paddle

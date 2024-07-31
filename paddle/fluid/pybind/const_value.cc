@@ -21,6 +21,7 @@ limitations under the License. */
 
 #if defined(PADDLE_WITH_DGC)
 #include "paddle/fluid/framework/details/dgc_const_values.h"
+#include "paddle/fluid/framework/details/sparse_all_reduce_op_handle.h"
 #endif
 
 namespace paddle {

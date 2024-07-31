@@ -21,11 +21,9 @@ limitations under the License. */
 #include "paddle/phi/backends/xpu/xpu_header.h"
 #include "paddle/phi/common/place.h"
 
-#include "paddle/phi/api/lib/kernel_dispatch.h"
-
 // TODO(wilber): The phi computing library requires a component to manage
 // flags.
-#include "paddle/common/flags.h"
+#include "paddle/phi/core/flags.h"
 
 PHI_DEFINE_EXPORTED_string(
     selected_xpus,
@@ -58,11 +56,11 @@ int GetDriverVersion() {
 
 //! Get the version of XPU Runtime
 int GetRuntimeVersion() {
-  uint32_t runtime_version_major = 0;
-  uint32_t runtime_version_minor = 0;
+  uint32_t rumtime_version_major = 0;
+  uint32_t rumtime_version_minor = 0;
   PADDLE_ENFORCE_XPU_SUCCESS(
-      xpu_get_runtime_version(&runtime_version_major, &runtime_version_minor));
-  int runtime_version = runtime_version_major * 10 + runtime_version_minor;
+      xpu_get_runtime_version(&rumtime_version_major, &rumtime_version_minor));
+  int runtime_version = rumtime_version_major * 10 + rumtime_version_minor;
   return runtime_version;
 }
 
@@ -204,13 +202,6 @@ XPUVersion get_xpu_version(int dev_id) {
     VLOG(1) << "KUNLUN device " << dev_id << " is XPU3\n";
     return XPU3;
   }
-}
-
-void set_xpu_debug_level(int level) {
-  auto* dev_ctx =
-      paddle::experimental::GetDeviceContextByBackend(phi::Backend::XPU);
-  auto* xpu_ctx = static_cast<const phi::XPUContext*>(dev_ctx);
-  PADDLE_ENFORCE_XPU_SUCCESS(xpu_ctx->x_context()->set_debug_level(level));
 }
 
 int get_xpu_max_ptr_size(int dev_id) {

@@ -16,7 +16,6 @@ limitations under the License. */
 #include <iostream>
 #include <sstream>
 #include "gtest/gtest.h"
-#include "paddle/phi/core/distributed/auto_parallel/proto_helper.h"
 
 namespace phi {
 namespace distributed {
@@ -44,7 +43,7 @@ TEST(ProcessMesh, Ctor) {
   std::stringstream sstream;
   sstream << process_mesh;
   EXPECT_EQ(sstream.str(), process_mesh.to_string());
-  auto proto = phi::distributed::to_proto(process_mesh);
+  auto proto = process_mesh.to_proto();
   ProcessMesh new_process_mesh = ProcessMesh::from_proto(proto);
   EXPECT_EQ(process_mesh, new_process_mesh);
 }

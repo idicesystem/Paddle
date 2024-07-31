@@ -60,7 +60,8 @@ class Partitioner:
         """
         if not isinstance(dist_context, DistributedContext):
             raise TypeError(
-                f"dist_context be DistributedContext, got {type(dist_context)} here"
+                "dist_context be DistributedContext, got %s here"
+                % type(dist_context)
             )
 
         self._dist_context = dist_context
@@ -76,7 +77,8 @@ class Partitioner:
     ):
         if not isinstance(serial_main_program, (Program)):
             raise TypeError(
-                f"main_program be paddle.framework.Program, got {type(serial_main_program)} here"
+                "main_program be paddle.framework.Program, got %s here"
+                % type(serial_main_program)
             )
 
         # check if shard annotated serial program valid
@@ -116,13 +118,11 @@ class Partitioner:
     ):
         if not isinstance(serial_startup_program, (Program)):
             raise TypeError(
-                f"dist_context be paddle.framework.Program, got {type(serial_startup_program)} here"
+                "dist_context be paddle.framework.Program, got %s here"
+                % type(serial_startup_program)
             )
 
         partitioned_startup_prog = paddle.framework.Program()
-        partitioned_startup_prog._name_generator = (
-            serial_startup_program._name_generator.clone()
-        )
         ref_block = serial_main_program.global_block()
         target_block = partitioned_startup_prog.global_block()
         var2shape = {}
@@ -144,7 +144,7 @@ class Partitioner:
             output_vars = op.desc.output_arg_names()
             assert (
                 len(output_vars) == 1
-            ), f"initializer should output only ONE variable, but got [{op.desc}]"
+            ), f"initializer should output only ONE variable, but got [{str(op.desc)}]"
             assert (
                 temp_varname_map[output_vars[0]] in var2shape
             ), f"try to initialize [{output_vars[0]}] which is not a persistable var"
@@ -158,7 +158,7 @@ class Partitioner:
             )
             target_block._sync_with_cpp()
 
-            # set distribute attribute
+            # set distribute atrribute
             new_op = target_block.ops[-1]
             assert new_op.type == new_op_desc.type()
             assert new_op.desc == new_op_desc
@@ -185,9 +185,6 @@ class Partitioner:
         """
 
         partitioned_main_prog = paddle.framework.Program()
-        partitioned_main_prog._name_generator = (
-            serial_main_program._name_generator.clone()
-        )
         dist_op_context = self._dist_context.dist_op_context
         dist_op_context.dst_main_program = partitioned_main_prog
 
@@ -354,7 +351,7 @@ class Partitioner:
                 )
             else:
                 raise NotImplementedError(
-                    f"partitioner only support forward and backward, optimize ops, but got {op}"
+                    f"partitioner only support forward and backward, optimize ops, but got {str(op)}"
                 )
 
     def _is_valid_annotated_program(self, program):
@@ -408,7 +405,14 @@ def _get_dist_shape(var, dist_attr):
         else:
             assert (
                 var_shape[idx] % mesh[mapping[idx]] == 0
-            ), f"un-event partition: var_shape[idx]=[{var_shape[idx]}], mesh[{mesh[mapping[idx]]}], {var.name}, {var_shape}, {mesh}, {mapping}"
+            ), "un-event partition: var_shape[idx]=[{}], mesh[{}], {}, {}, {}, {}".format(
+                var_shape[idx],
+                mesh[mapping[idx]],
+                var.name,
+                var_shape,
+                mesh,
+                mapping,
+            )
             new_shape.append(var_shape[idx] // mesh[mapping[idx]])
 
     return new_shape

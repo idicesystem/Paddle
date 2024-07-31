@@ -21,7 +21,7 @@
 #include "paddle/cinn/ir/ir_mutator.h"
 #include "paddle/cinn/ir/ir_printer.h"
 #include "paddle/cinn/ir/op/ir_operators.h"
-#include "paddle/common/enforce.h"
+
 namespace cinn {
 namespace common {
 
@@ -29,34 +29,19 @@ namespace {
 
 // ramp + scalar or broadcast
 Expr RampRelatedMul(ir::Ramp *ramp, Expr other) {
-  PADDLE_ENFORCE_EQ(
-      other.type().ElementOf(),
-      Int(32),
-      ::common::errors::InvalidArgument("The type of other should be int32."));
-  PADDLE_ENFORCE_EQ(ramp->base.type(),
-                    Int(32),
-                    ::common::errors::InvalidArgument(
-                        "The type of ramp->base should be int32."));
-  PADDLE_ENFORCE_EQ(ramp->stride.type(),
-                    Int(32),
-                    ::common::errors::InvalidArgument(
-                        "The type of ramp->stride should be int32."));
+  CHECK_EQ(other.type().ElementOf(), Int(32));
+  CHECK_EQ(ramp->base.type(), Int(32));
+  CHECK_EQ(ramp->stride.type(), Int(32));
   auto *other_broadcast = other.As<ir::Broadcast>();
   if (other_broadcast) {
-    PADDLE_ENFORCE_EQ(ramp->lanes,
-                      other_broadcast->lanes,
-                      ::common::errors::InvalidArgument(
-                          "The lanes of ramp and other should be equal."));
+    CHECK_EQ(ramp->lanes, other_broadcast->lanes);
     other = other_broadcast->value;
   }
   return ir::Ramp::Make(ramp->base * other, ramp->stride * other, ramp->lanes);
 }
 
 Expr RampRelatedMul(ir::Broadcast *broadcast, Expr other) {
-  PADDLE_ENFORCE_EQ(
-      other.type().lanes(),
-      1,
-      ::common::errors::InvalidArgument("The lanes of other should be 1."));
+  CHECK_EQ(other.type().lanes(), 1);
   return ir::Broadcast::Make(broadcast->value * other, broadcast->lanes);
 }
 // ramp * ramp
@@ -66,26 +51,17 @@ Expr RampRelatedMul(ir::Ramp *ramp, ir::Ramp *other) {
 }
 // ramp + scalar
 Expr RampRelatedAdd(ir::Ramp *ramp, Expr other) {
-  PADDLE_ENFORCE_EQ(
-      other.type().ElementOf(),
-      Int(32),
-      ::common::errors::InvalidArgument("The type of other should be int32."));
+  CHECK_EQ(other.type().ElementOf(), Int(32));
 
   auto *other_broadcast = other.As<ir::Broadcast>();
   if (other_broadcast) {
-    PADDLE_ENFORCE_EQ(ramp->lanes,
-                      other_broadcast->lanes,
-                      ::common::errors::InvalidArgument(
-                          "The lanes of ramp and other should be equal."));
+    CHECK_EQ(ramp->lanes, other_broadcast->lanes);
     other = other_broadcast->value;
   }
   return ir::Ramp::Make(ramp->base + other, ramp->stride, ramp->lanes);
 }
 Expr RampRelatedAdd(ir::Broadcast *broadcast, Expr other) {
-  PADDLE_ENFORCE_EQ(
-      other.type().lanes(),
-      1,
-      ::common::errors::InvalidArgument("The lanes of other should be 1."));
+  CHECK_EQ(other.type().lanes(), 1);
   return ir::Broadcast::Make(broadcast->value + other, broadcast->lanes);
 }
 // ramp + ramp
@@ -122,11 +98,7 @@ Expr RampRelatedAdd(Expr a, Expr b) {
   } else if (!a_broadcast && b_broadcast) {
     return RampRelatedAdd(b_broadcast, a);
   } else if (a_broadcast && b_broadcast) {
-    PADDLE_ENFORCE_EQ(
-        a_broadcast->lanes,
-        b_broadcast->lanes,
-        ::common::errors::InvalidArgument(
-            "The lanes of a_broadcast and b_broadcast should be equal."));
+    CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value + b_broadcast->value,
                                a_broadcast->lanes);
   } else {
@@ -153,11 +125,7 @@ Expr RampRelatedMul(Expr a, Expr b) {
   } else if (!a_broadcast && b_broadcast) {
     return RampRelatedMul(b_broadcast, a);
   } else if (a_broadcast && b_broadcast) {
-    PADDLE_ENFORCE_EQ(
-        a_broadcast->lanes,
-        b_broadcast->lanes,
-        ::common::errors::InvalidArgument(
-            "The lanes of a_broadcast and b_broadcast should be equal."));
+    CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value,
                                a_broadcast->lanes);
   } else {
@@ -173,18 +141,10 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape,
   VLOG(3) << "Begin IndiceToAbsOffset";
   VLOG(3) << "shape is : " << utils::Join(shape, ",");
   VLOG(3) << "indices is : " << utils::Join(indices, ",");
-  PADDLE_ENFORCE_LE(shape.size(),
-                    indices.size(),
-                    ::common::errors::InvalidArgument(
-                        "The size of shape should be less than or "
-                        "equal to the size of indices."));
+  CHECK_LE(shape.size(), indices.size());
   Expr res;
-  ir::TryElevateInt32ToInt64(shape);
   for (int i = 0; i < shape.size(); i++) {
-    CHECK(shape[i].type() == Int(64) || shape[i].type() == Int(32))
-        << "The shape data type currently supports only int32 or int64, but "
-           "the current data type of shape["
-        << i << "] is " << shape[i].type();
+    CHECK_EQ(shape[i].type(), Int(32));
     Expr indice_prod = indices[i];
     optim::SimplifyCast(&indice_prod);
     for (int j = i + 1; j < shape.size(); j++) {
@@ -297,11 +257,10 @@ void CheckTensorUniqueInExpr(Expr expr) {
     if (!tensor_names.count(tp->name)) {
       tensor_names[tp->name] = tp;
     } else {
-      PADDLE_ENFORCE_EQ(
-          tensor_names[tp->name],
-          tp,
-          ::common::errors::InvalidArgument(
-              "Found tensor not unique, The original express is %d .", expr));
+      CHECK_EQ(tensor_names[tp->name], tp)
+          << "Found tensor not unique [" << tp->name
+          << "]\nThe original expression is \n"
+          << expr;
     }
   }
 }
@@ -318,11 +277,7 @@ void CheckBufferUniqueInExpr(Expr expr) {
   absl::flat_hash_map<std::string, const ir::_Buffer_ *> buffer_name;
   auto check_buffer_uniq = [&](const ir::_Buffer_ *b) {
     if (buffer_name.count(b->name)) {
-      PADDLE_ENFORCE_EQ(
-          buffer_name[b->name],
-          b,
-          ::common::errors::InvalidArgument(
-              "Found buffer not unique, The original express is %d .", expr));
+      CHECK_EQ(buffer_name[b->name], b);
     } else {
       buffer_name[b->name] = b->const_self();
     }
@@ -467,18 +422,12 @@ std::vector<Expr *> GetForloopStackToStore(Expr *expr,
 }
 
 Expr max(Expr a, Expr b) {
-  PADDLE_ENFORCE_EQ(a.type(),
-                    b.type(),
-                    ::common::errors::InvalidArgument(
-                        "The type of a and b should be equal."));
+  CHECK_EQ(a.type(), b.type());
   return ir::Max::Make(a, b);
 }
 
 Expr min(Expr a, Expr b) {
-  PADDLE_ENFORCE_EQ(a.type(),
-                    b.type(),
-                    ::common::errors::InvalidArgument(
-                        "The type of a and b should be equal."));
+  CHECK_EQ(a.type(), b.type());
   return ir::Min::Make(a, b);
 }
 

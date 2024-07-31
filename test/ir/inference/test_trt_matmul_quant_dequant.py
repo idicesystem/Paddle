@@ -59,7 +59,10 @@ class TensorRTMatMulQuantDequantDims3Test(QuantDequantTest):
             avg_loss = paddle.mean(loss)
             return avg_loss, result
 
-        paddle.seed(2)
+        self.main_program.random_seed = 2
+        self.startup_program.random_seed = 2
+        self.test_main_program.random_seed = 2
+        # self.test_startup_program.random_seed = 2
         with base.unique_name.guard():
             with base.program_guard(self.main_program, self.startup_program):
                 self.loss, result = network()
@@ -168,7 +171,10 @@ class TensorRTMatMulQuantDequantDims4Test(QuantDequantTest):
             avg_loss = paddle.mean(loss)
             return avg_loss, result
 
-        paddle.seed(2)
+        self.main_program.random_seed = 2
+        self.startup_program.random_seed = 2
+        self.test_main_program.random_seed = 2
+        # self.test_startup_program.random_seed = 2
         with base.unique_name.guard():
             with base.program_guard(self.main_program, self.startup_program):
                 self.loss, result = network()
@@ -276,7 +282,10 @@ class TensorRTMatMulQuantDequantDims3DynamicTest(QuantDequantTest):
             avg_loss = paddle.mean(loss)
             return avg_loss, result
 
-        paddle.seed(2)
+        self.main_program.random_seed = 2
+        self.startup_program.random_seed = 2
+        self.test_main_program.random_seed = 2
+        # self.test_startup_program.random_seed = 2
         with base.unique_name.guard():
             with base.program_guard(self.main_program, self.startup_program):
                 self.loss, result = network()

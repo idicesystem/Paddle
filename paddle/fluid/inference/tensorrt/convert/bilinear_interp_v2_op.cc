@@ -15,7 +15,9 @@ limitations under the License. */
 #include "paddle/fluid/framework/data_layout.h"
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class BilinearInterpolateV2OpConverter : public OpConverter {
  public:
@@ -47,11 +49,7 @@ class BilinearInterpolateV2OpConverter : public OpConverter {
 
     auto layer = TRT_ENGINE_ADD_LAYER(engine_, Resize, *input);
     if (align_mode == 0) {
-#if IS_TRT_VERSION_GE(8600)
-      layer->setResizeMode(nvinfer1::InterpolationMode::kLINEAR);
-#else
       layer->setResizeMode(nvinfer1::ResizeMode::kLINEAR);
-#endif
     }
 #if IS_TRT_VERSION_GE(8000)
     if (align_corners == true) {
@@ -150,11 +148,13 @@ class BilinearInterpolateV2OpConverter : public OpConverter {
       layer->setScales(scales.data(), scales.size());
     }
 
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "bilinear_interp_v2", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(bilinear_interp_v2, BilinearInterpolateV2OpConverter);

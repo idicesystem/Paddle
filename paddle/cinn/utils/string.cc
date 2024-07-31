@@ -20,7 +20,6 @@
 #include <iomanip>
 
 #include "glog/logging.h"
-#include "paddle/common/enforce.h"
 
 namespace cinn {
 namespace utils {
@@ -47,7 +46,7 @@ std::string StringFormat(const std::string &fmt_str, ...) {
 
 std::string RemoveSuffix(const std::string &name) {
   std::string res = name;
-  while (EndsWith(res, "_outer") || EndsWith(res, "_inner")) {
+  while (Endswith(res, "_outer") || Endswith(res, "_inner")) {
     res = res.substr(0, res.size() - 6);
   }
   return res;
@@ -69,10 +68,10 @@ std::string Uppercase(const std::string &x) {
   return res;
 }
 
-bool StartsWith(const std::string &x, const std::string &str) {
+bool Startswith(const std::string &x, const std::string &str) {
   return x.find(str) == 0;
 }
-bool EndsWith(const std::string &x, const std::string &str) {
+bool Endswith(const std::string &x, const std::string &str) {
   if (x.length() >= str.length()) {
     return std::equal(str.rbegin(), str.rend(), x.rbegin());
   }
@@ -175,8 +174,7 @@ std::string Attribute2String(const utils::Attribute &attr) {
     }
     ss << "[" + cinn::utils::Join(attrs, ", ") + "]";
   } else {
-    PADDLE_THROW(::common::errors::InvalidArgument(
-        "Unkown attribute data type! Please check."));
+    LOG(FATAL) << "Unkown attribute data type! Please check.";
   }
   return ss.str();
 }

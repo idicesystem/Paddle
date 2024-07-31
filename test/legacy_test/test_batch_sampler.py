@@ -87,16 +87,6 @@ class TestRandomSampler(unittest.TestCase):
             rets.append(i)
             assert i >= 0 and i < 100
 
-    def test_with_num_samples_and_without_replacement(self):
-        dataset = RandomDataset(100, 10)
-        sampler = RandomSampler(dataset, num_samples=80, replacement=False)
-        assert len(sampler) == 80
-
-        rets = []
-        for i in iter(sampler):
-            rets.append(i)
-            assert i >= 0 and i < 100
-
     def test_with_generator(self):
         dataset = RandomDataset(100, 10)
         generator = iter(range(0, 60))
@@ -120,10 +110,6 @@ class TestRandomSampler(unittest.TestCase):
         for i in iter(sampler):
             rets.append(i)
         assert tuple(sorted(rets)) == tuple(range(0, 50))
-
-    def test_with_num_samples_error(self):
-        dataset = RandomDataset(100, 10)
-        self.assertRaises(ValueError, RandomSampler, dataset, False, 120)
 
 
 class TestSubsetRandomSampler(unittest.TestCase):
@@ -243,39 +229,6 @@ class TestBatchSamplerWithSamplerShuffle(unittest.TestCase):
             self.assertTrue(False)
         except AssertionError:
             pass
-
-
-class TestBatchSamplerWithIterableSampler(TestBatchSampler):
-    def init_batch_sampler(self):
-        sampler = range(1000)
-        bs = BatchSampler(
-            sampler=sampler,
-            batch_size=self.batch_size,
-            drop_last=self.drop_last,
-        )
-        return bs
-
-
-class TestBatchSamplerWithIterableSamplerDropLast(
-    TestBatchSamplerWithIterableSampler
-):
-    def setUp(self):
-        self.num_samples = 1000
-        self.num_classes = 10
-        self.batch_size = 32
-        self.shuffle = False
-        self.drop_last = True
-
-
-class TestBatchSamplerWithIterableSamplerShuffle(
-    TestBatchSamplerWithIterableSampler
-):
-    def setUp(self):
-        self.num_samples = 1000
-        self.num_classes = 10
-        self.batch_size = 32
-        self.shuffle = True
-        self.drop_last = True
 
 
 class TestWeightedRandomSampler(unittest.TestCase):

@@ -223,12 +223,7 @@ void IRMutator<T>::Visit(const Reduce *expr, T op) {
   auto *node = op->template As<Reduce>();
   if (node->init.defined())
     IRVisitorRequireReImpl<void, T>::Visit(&node->init, &node->init);
-  PADDLE_ENFORCE_EQ(node->body.defined(),
-                    true,
-                    phi::errors::InvalidArgument(
-                        "The node's body is not defined. Ensure that the "
-                        "node's body is properly initialized and defined."));
-
+  CHECK(node->body.defined());
   IRVisitorRequireReImpl<void, T>::Visit(&node->body, &node->body);
 }
 
@@ -305,11 +300,7 @@ void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _BufferRange_ *expr, T op) {
   auto *node = op->template As<_BufferRange_>();
-  PADDLE_ENFORCE_NOT_NULL(
-      node,
-      phi::errors::InvalidArgument("Node is null. Ensure that the node is "
-                                   "properly initialized and not null."));
-
+  CHECK(node);
   IRVisitorRequireReImpl<void, T>::Visit(&node->buffer, &node->buffer);
   for (auto &var : node->ranges) {
     if (var->lower_bound.defined()) {
@@ -326,11 +317,7 @@ void IRMutator<T>::Visit(const _BufferRange_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
   auto *node = op->template As<ScheduleBlock>();
-  PADDLE_ENFORCE_NOT_NULL(
-      node,
-      phi::errors::InvalidArgument("Node is null. Ensure that the node is "
-                                   "properly initialized and not null."));
-
+  CHECK(node);
   for (auto &var : node->iter_vars) {
     if (var->lower_bound.defined()) {
       IRVisitorRequireReImpl<void, T>::Visit(&var->lower_bound,
@@ -353,11 +340,7 @@ void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const ScheduleBlockRealize *expr, T op) {
   auto *node = op->template As<ScheduleBlockRealize>();
-  PADDLE_ENFORCE_NOT_NULL(
-      node,
-      phi::errors::InvalidArgument("Node is null. Ensure that the node is "
-                                   "properly initialized and not null."));
-
+  CHECK(node);
   for (auto &value : node->iter_values) {
     IRVisitorRequireReImpl<void, T>::Visit(&value, &value);
   }
@@ -368,11 +351,7 @@ void IRMutator<T>::Visit(const ScheduleBlockRealize *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _Dim_ *expr, T op) {
   auto *node = op->template As<_Dim_>();
-  PADDLE_ENFORCE_NOT_NULL(
-      node,
-      phi::errors::InvalidArgument("Node is null. Ensure that the node is "
-                                   "properly initialized and not null."));
-
+  CHECK(node);
   // IRVisitorRequireReImpl<void, T>::Visit(&node->sym_dim, &node->sym_dim);
 }
 

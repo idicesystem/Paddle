@@ -15,7 +15,8 @@
 from ...utils import Singleton
 
 
-class StackAnalyser(metaclass=Singleton):
+@Singleton
+class StackAnalyser:
     def stack_effect(self, instr):
         if "BINARY" in instr.opname or "INPLACE" in instr.opname:
             return 2, 1

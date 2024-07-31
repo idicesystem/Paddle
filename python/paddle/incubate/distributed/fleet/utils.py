@@ -109,7 +109,8 @@ def check_pruned_program_vars(train_prog, pruned_prog):
             train_prog_var = train_prog.global_block().var(var_name)
         except ValueError as e:
             logger.error(
-                f"not find variable '{var_name}' in train program. please check pruning."
+                "not find variable '%s' in train program. please check pruning."
+                % var_name
             )
             logger.error(e)
             continue
@@ -118,7 +119,13 @@ def check_pruned_program_vars(train_prog, pruned_prog):
             or var.dtype != train_prog_var.dtype
         ):
             logger.error(
-                f"variable: {var_name} not match. in pruned program shape: {var.shape} dtype:{var.dtype}, in train program shape: {train_prog_var.shape} dtype: {train_prog_var.dtype}"
+                "variable: {} not match. in pruned program shape: {} dtype:{}, in train program shape: {} dtype: {}".format(
+                    var_name,
+                    var.shape,
+                    var.dtype,
+                    train_prog_var.shape,
+                    train_prog_var.dtype,
+                )
             )
             is_match = False
     return is_match
@@ -258,8 +265,10 @@ def try_load_model_vars(
             orig_shape = orig_para_shape.get(each_var.name)
             if new_shape != orig_shape:
                 raise RuntimeError(
-                    f"Shape not matching: the Program requires a parameter with a shape of ({orig_shape}), "
-                    f"while the loaded parameter (namely [ {each_var.name} ]) has a shape of  ({new_shape})."
+                    "Shape not matching: the Program requires a parameter with a shape of ({}), "
+                    "while the loaded parameter (namely [ {} ]) has a shape of  ({}).".format(
+                        orig_shape, each_var.name, new_shape
+                    )
                 )
 
         # check feed/fetch vars in program and config
@@ -275,7 +284,9 @@ def try_load_model_vars(
             and feed_target_names != feed_config.feeded_vars_names
         ):
             logger.warning(
-                f"feed vars in program and config are diff: feed in program: {feed_target_names}. feed in config {feed_config.feeded_vars_names}."
+                "feed vars in program and config are diff: feed in program: {}. feed in config {}.".format(
+                    feed_target_names, feed_config.feeded_vars_names
+                )
             )
             feed_name_list = feed_config.feeded_vars_names
             # remove feed op in inference_program. new feed op will be added in exe.run
@@ -292,7 +303,9 @@ def try_load_model_vars(
             and fetch_targets_names != fetch_config.fetch_vars_names
         ):
             logger.warning(
-                f"fetch vars in program and config are diff: fetch in program: {fetch_targets_names}. fetch in config {fetch_config.fetch_vars_names}."
+                "fetch vars in program and config are diff: fetch in program: {}. fetch in config {}.".format(
+                    fetch_targets_names, fetch_config.fetch_vars_names
+                )
             )
             fetch_list = [
                 inference_program.global_block().var(i)
@@ -331,7 +344,11 @@ def try_load_model_vars(
             var_shape = var.shape[1:]
             if tensor_shape != var_shape:
                 raise RuntimeError(
-                    f"feed variable '{feed_config.feeded_vars_names[i]}' shape not match. infer program  shape: {var_shape}. feed tensor shape: {tensor_shape}"
+                    "feed variable '{}' shape not match. infer program  shape: {}. feed tensor shape: {}".format(
+                        feed_config.feeded_vars_names[i],
+                        var_shape,
+                        tensor_shape,
+                    )
                 )
 
         if not feed_config.feeded_vars_filelist:
@@ -403,7 +420,7 @@ def try_load_model_vars(
                 return_numpy=return_numpy,
             )
         for i, v in enumerate(fetch_list):
-            logger.info(f"fetch_targets name: {v.name}")
+            logger.info("fetch_targets name: %s" % v.name)
             logger.info(f"fetch_targets: {results[i]}")
         return results
 

@@ -26,7 +26,9 @@ limitations under the License. */
 #include "paddle/phi/backends/device_manager.h"
 #endif
 
-namespace paddle::experimental::detail {
+namespace paddle {
+namespace experimental {
+namespace detail {
 
 // We need judge whether the allocation is nullptr,
 // whether the allocation is initialized, wo we need GetHolder method
@@ -107,8 +109,7 @@ std::size_t CountLeadingZeros(uint32_t val) {
 #endif
 }
 
-}  // namespace paddle::experimental::detail
-namespace paddle::experimental {
+}  // namespace detail
 
 phi::DeviceContext* GetDeviceContextByBackend(phi::Backend backend) {
   auto& pool = paddle::experimental::DeviceContextPool::Instance();
@@ -181,4 +182,5 @@ phi::DataLayout ParseLayoutWithInputOrder(phi::DataLayout layout,
   return layout != phi::DataLayout::UNDEFINED ? layout : ParseLayout(tensor);
 }
 
-}  // namespace paddle::experimental
+}  // namespace experimental
+}  // namespace paddle

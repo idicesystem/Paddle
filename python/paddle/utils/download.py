@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import hashlib
 import os
 import os.path as osp
@@ -22,7 +20,6 @@ import sys
 import tarfile
 import time
 import zipfile
-from typing import Literal
 
 import httpx
 
@@ -61,7 +58,7 @@ WEIGHTS_HOME = osp.expanduser("~/.cache/paddle/hapi/weights")
 DOWNLOAD_RETRY_LIMIT = 3
 
 
-def is_url(path: str) -> bool:
+def is_url(path):
     """
     Whether path is URL.
     Args:
@@ -70,7 +67,7 @@ def is_url(path: str) -> bool:
     return path.startswith('http://') or path.startswith('https://')
 
 
-def get_weights_path_from_url(url: str, md5sum: str | None = None) -> str:
+def get_weights_path_from_url(url, md5sum=None):
     """Get weights path from WEIGHT_HOME, if not exists,
     download it from url.
 
@@ -117,13 +114,8 @@ def _get_unique_endpoints(trainer_endpoints):
 
 
 def get_path_from_url(
-    url: str,
-    root_dir: str,
-    md5sum: str | None = None,
-    check_exist: bool = True,
-    decompress: bool = True,
-    method: Literal['wget', 'get'] = 'get',
-) -> str:
+    url, root_dir, md5sum=None, check_exist=True, decompress=True, method='get'
+):
     """Download from given url to root_dir.
     if file or directory specified by url is exists under
     root_dir, return the path directly, otherwise download
@@ -133,9 +125,9 @@ def get_path_from_url(
         url (str): download url
         root_dir (str): root dir for downloading, it should be
                         WEIGHTS_HOME or DATASET_HOME
-        md5sum (str|None, optional): md5 sum of download package
-        decompress (bool, optional): decompress zip or tar file. Default is `True`
-        method (str, optional): which download method to use. Support `wget` and `get`. Default is `get`.
+        md5sum (str): md5 sum of download package
+        decompress (bool): decompress zip or tar file. Default is `True`
+        method (str): which download method to use. Support `wget` and `get`. Default is `get`.
 
     Returns:
         str: a local path to save downloaded models & weights & datasets.
@@ -197,7 +189,9 @@ def _get_download(url, fullname):
             return fullname
 
     except Exception as e:  # requests.exceptions.ConnectionError
-        logger.info(f"Downloading {fname} from {url} failed with exception {e}")
+        logger.info(
+            f"Downloading {fname} from {url} failed with exception {str(e)}"
+        )
         return False
 
 

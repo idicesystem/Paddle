@@ -25,7 +25,8 @@ limitations under the License. */
 #include "paddle/fluid/distributed/ps/table/table.h"
 #include "paddle/fluid/distributed/the_one_ps.pb.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 // MemorySparseGeoTable
 TEST(MemorySparseGeoTable, SSUM) {
@@ -144,4 +145,5 @@ TEST(MemorySparseGeoTable, SSUM) {
   }
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

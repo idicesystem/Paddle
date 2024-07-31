@@ -53,11 +53,8 @@ Tensor::Tensor(std::shared_ptr<phi::TensorBase> tensor_impl)
 }
 
 Tensor::Tensor(std::shared_ptr<phi::TensorBase> tensor_impl,
-               std::shared_ptr<AbstractAutogradMeta> autograd_meta,
-               const std::string &name)
-    : impl_(std::move(tensor_impl)),
-      autograd_meta_(std::move(autograd_meta)),
-      name_(name) {
+               std::shared_ptr<AbstractAutogradMeta> autograd_meta)
+    : impl_(std::move(tensor_impl)), autograd_meta_(std::move(autograd_meta)) {
   PADDLE_ENFORCE_NOT_NULL(
       impl_,
       phi::errors::InvalidArgument("TensorImpl with nullptr is not supported"));
@@ -156,9 +153,6 @@ bool Tensor::is_dense_tensor() const {
   return phi::DenseTensor::classof(impl_.get());
 }
 bool Tensor::is_dist_tensor() const {
-  if (impl_ == nullptr) {
-    return false;
-  }
   return phi::distributed::DistTensor::classof(impl_.get());
 }
 bool Tensor::is_selected_rows() const {
@@ -244,10 +238,6 @@ template PADDLE_API phi::dtype::complex<float>
     *Tensor::mutable_data<phi::dtype::complex<float>>();
 template PADDLE_API phi::dtype::complex<double>
     *Tensor::mutable_data<phi::dtype::complex<double>>();
-template PADDLE_API phi::dtype::float8_e4m3fn *
-Tensor::mutable_data<phi::dtype::float8_e4m3fn>();
-template PADDLE_API phi::dtype::float8_e5m2 *
-Tensor::mutable_data<phi::dtype::float8_e5m2>();
 
 template <typename T>
 T *Tensor::mutable_data(const Place &place) {
@@ -311,10 +301,6 @@ template PADDLE_API const phi::dtype::complex<float>
     *Tensor::data<phi::dtype::complex<float>>() const;
 template PADDLE_API const phi::dtype::complex<double>
     *Tensor::data<phi::dtype::complex<double>>() const;
-template PADDLE_API const phi::dtype::float8_e4m3fn *
-Tensor::data<phi::dtype::float8_e4m3fn>() const;
-template PADDLE_API const phi::dtype::float8_e5m2 *
-Tensor::data<phi::dtype::float8_e5m2>() const;
 
 template <typename T>
 T *Tensor::data() {
@@ -345,10 +331,6 @@ template PADDLE_API phi::dtype::complex<float>
     *Tensor::data<phi::dtype::complex<float>>();
 template PADDLE_API phi::dtype::complex<double>
     *Tensor::data<phi::dtype::complex<double>>();
-template PADDLE_API phi::dtype::float8_e4m3fn *
-Tensor::data<phi::dtype::float8_e4m3fn>();
-template PADDLE_API phi::dtype::float8_e5m2 *
-Tensor::data<phi::dtype::float8_e5m2>();
 
 const void *Tensor::data() const {
   if (is_dense_tensor()) {

@@ -296,7 +296,6 @@ TEST(Attribute, ProtoAttrToAttribute_scalars) {
   proto_attr_scalars.set_type(paddle::framework::proto::SCALARS);
 
   std::vector<paddle::experimental::Scalar> scalars;
-  scalars.reserve(10);
   for (int i = 0; i < 10; i++) {
     scalars.emplace_back(i);
   }

@@ -19,6 +19,7 @@ from op_test import OpTest
 import paddle
 import paddle.incubate.nn.functional as incubate_f
 import paddle.nn.functional as F
+from paddle.base.framework import default_main_program
 from paddle.nn.layer import transformer
 from paddle.nn.layer.common import Dropout, Linear
 from paddle.nn.layer.norm import LayerNorm
@@ -158,7 +159,7 @@ class TestFusedFFNOp(OpTest):
         return out, x.grad
 
     def test_out_and_grad(self):
-        paddle.seed(42)
+        default_main_program().random_seed = 42
         base_out, base_grad = self.Base()
         fused_out, fused_grad = self.FusedFFN()
         np.testing.assert_allclose(
@@ -232,7 +233,7 @@ class APITestStaticFusedFFN(unittest.TestCase):
     ):
         main = paddle.static.Program()
         startup = paddle.static.Program()
-        paddle.seed(42)
+        main.random_seed = 42
         with paddle.static.program_guard(main, startup):
             x = paddle.static.data(
                 name='x',
@@ -313,7 +314,7 @@ class APITestStaticFusedFFN(unittest.TestCase):
     ):
         main = paddle.static.Program()
         startup = paddle.static.Program()
-        paddle.seed(42)
+        main.random_seed = 42
         with paddle.static.program_guard(main, startup):
             x = paddle.static.data(
                 name='x',

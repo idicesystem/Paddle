@@ -13,7 +13,8 @@ limitations under the License. */
 #include "paddle/fluid/framework/op_registry.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class FakeInitInferShape : public framework::InferShapeBase {
  public:
@@ -30,7 +31,7 @@ class FakeInitOp : public framework::OperatorBase {
 
  private:
   void RunImpl(const framework::Scope &scope,
-               const phi::Place &dev_place) const override {
+               const platform::Place &dev_place) const override {
     phi::DenseTensor *tensor = nullptr;
 
     auto &out_var = *scope.FindVar(Output("Out"));
@@ -42,7 +43,7 @@ class FakeInitOp : public framework::OperatorBase {
       tensor = out_var.GetMutable<phi::SelectedRows>()->mutable_value();
       tensor->Resize(common::make_ddim(Attr<std::vector<int64_t>>("shape")));
     } else {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "fake init op's output only"
           "supports SelectedRows and phi::DenseTensor"));
     }
@@ -69,7 +70,8 @@ table parameter at trainer side in distributed lookup table.
 )DOC");
   }
 };
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 REGISTER_OPERATOR(

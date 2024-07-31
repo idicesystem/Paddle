@@ -20,10 +20,11 @@
 #include "paddle/fluid/operators/collective/c_allreduce_op.h"
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_KERNEL(mp_allreduce_sum,
                    KP,
-                   phi::XPUPlace,
+                   plat::XPUPlace,
                    ops::CAllReduceOpXPUKernel<ops::kRedSum, float>);
 
 #endif

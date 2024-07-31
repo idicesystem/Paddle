@@ -10,6 +10,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 
 #include "paddle/phi/kernels/strided_copy_kernel.h"
+#include "paddle/fluid/memory/malloc.h"
+#include "paddle/fluid/memory/memcpy.h"
 #include "paddle/phi/backends/gpu/gpu_launch_config.h"
 #include "paddle/phi/common/memory_utils.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -1435,6 +1437,4 @@ PD_REGISTER_KERNEL(strided_copy,
                    ::phi::dtype::float16,
                    ::phi::dtype::bfloat16,
                    ::phi::dtype::complex<float>,
-                   ::phi::dtype::complex<double>,
-                   ::phi::dtype::float8_e4m3fn,
-                   ::phi::dtype::float8_e5m2) {}
+                   ::phi::dtype::complex<double>) {}

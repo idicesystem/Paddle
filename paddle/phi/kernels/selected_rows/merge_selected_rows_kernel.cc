@@ -20,7 +20,8 @@
 
 #include "paddle/phi/kernels/funcs/selected_rows_functor.h"
 
-namespace phi::sr {
+namespace phi {
+namespace sr {
 
 template <typename T, typename Context>
 void MergeSelectedRowsKernel(const Context& dev_ctx,
@@ -30,7 +31,8 @@ void MergeSelectedRowsKernel(const Context& dev_ctx,
   merge_func(dev_ctx, x, out);
 }
 
-}  // namespace phi::sr
+}  // namespace sr
+}  // namespace phi
 
 PD_REGISTER_KERNEL(merge_selected_rows,
                    CPU,

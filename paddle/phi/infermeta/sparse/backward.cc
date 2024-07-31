@@ -17,7 +17,8 @@ limitations under the License. */
 
 #include "paddle/phi/core/infermeta_utils.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 void FusedAttentionGradInferMeta(const MetaTensor& query,
                                  const MetaTensor& key,
@@ -30,4 +31,5 @@ void FusedAttentionGradInferMeta(const MetaTensor& query,
   // TODO(zhouwei, zhangkaihuo) add correct infer meta
 }
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi

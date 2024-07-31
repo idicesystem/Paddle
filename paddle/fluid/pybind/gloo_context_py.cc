@@ -35,7 +35,8 @@ limitations under the License. */
 #include "paddle/fluid/memory/allocation/mmap_allocator.h"
 #include "paddle/fluid/platform/gloo_context.h"
 
-namespace paddle::pybind {
+namespace paddle {
+namespace pybind {
 
 namespace py = ::pybind11;
 
@@ -108,4 +109,5 @@ void BindGlooContext(py::module *m) {
 #endif
 }
 
-}  // namespace paddle::pybind
+}  // namespace pybind
+}  // namespace paddle

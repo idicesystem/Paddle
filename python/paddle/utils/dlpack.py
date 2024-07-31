@@ -12,20 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import paddle
 
 from ..base.core import LoDTensor
 from ..base.data_feeder import check_type
 from ..base.framework import in_dygraph_mode
-
-if TYPE_CHECKING:
-    from typing_extensions import CapsuleType
-
-    from paddle import Tensor
 
 __all__ = [
     'to_dlpack',
@@ -33,7 +24,7 @@ __all__ = [
 ]
 
 
-def to_dlpack(x: Tensor) -> CapsuleType:
+def to_dlpack(x):
     """
     Encodes a tensor to DLPack.
 
@@ -59,7 +50,7 @@ def to_dlpack(x: Tensor) -> CapsuleType:
     """
 
     if in_dygraph_mode():
-        if not isinstance(x, paddle.Tensor):
+        if not isinstance(x, (paddle.Tensor, paddle.base.core.eager.Tensor)):
             raise TypeError(
                 "The type of 'x' in to_dlpack must be paddle.Tensor,"
                 f" but received {type(x)}."
@@ -71,7 +62,7 @@ def to_dlpack(x: Tensor) -> CapsuleType:
     return x._to_dlpack()
 
 
-def from_dlpack(dlpack: CapsuleType) -> Tensor:
+def from_dlpack(dlpack):
     """
     Decodes a DLPack to a tensor.
 

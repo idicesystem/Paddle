@@ -18,11 +18,15 @@
 
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Scope;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 SeqConvEltAddReluFusePass::SeqConvEltAddReluFusePass() {
   AddOpCompat(OpCompat("sequence_conv"))
@@ -145,7 +149,9 @@ void SeqConvEltAddReluFusePass::ApplyImpl(ir::Graph* graph) const {
   AddStatis(fusion_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(seqconv_eltadd_relu_fuse_pass,
               paddle::framework::ir::SeqConvEltAddReluFusePass);

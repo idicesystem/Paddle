@@ -45,10 +45,6 @@ class DistTensor final
   /// will be set by reshard later.
   DistTensor();
 
-  /// \brief Construct a dist tensor based dtype.
-  /// \param dtype The dtype of the current tensor.
-  explicit DistTensor(phi::DataType dtype);
-
   /// \brief Construct a dist tensor based dense tensor.
   /// \param global_value The global dense tensor of the current tensor.
   /// \param dist_attr The distributed attributes of the current tensor.
@@ -62,24 +58,8 @@ class DistTensor final
              const ProcessMesh& process_mesh,
              const Placements& placements);
 
-  /// \brief Construct a dist tensor based local dense tensor.
-  /// \param global_dims The global dim of the dist tensor.
-  /// \param dist_attr The distributed attributes of the current tensor.
-  DistTensor(const std::shared_ptr<phi::DenseTensor>& local_value,
-             const DDim& global_dims,
-             const TensorDistAttr& dist_attr);
-
-  /// \brief Construct a dist tensor based local dense tensor.
-  /// \param global_dims The global dim of the dist tensor.
-  /// \param process_mesh The process mesh of the current tensor.
-  /// \param placements The distributed placements of the current tensor.
-  DistTensor(const std::shared_ptr<phi::DenseTensor>& local_value,
-             const DDim& global_dims,
-             const ProcessMesh& process_mesh,
-             const Placements& placements);
-
   /// \brief Construct a empty dist tensor (for infer spmd)
-  /// \param dims The global dimension of the current Tensor.
+  /// \param dims The global dimension of the currnet Tensor.
   /// \param dist_attr The distributed attributes of the current tensor.
   DistTensor(const DDim& dims, const TensorDistAttr& dist_attr);
 
@@ -130,10 +110,6 @@ class DistTensor final
   /// \return The DenseTensor value's const reference
   const DenseTensor& value() const { return *value_; }
 
-  /// \brief Returns the shared_ptr of dense tensor value's in dist tensor.
-  /// \return The shared_ptr of dense tensor value
-  std::shared_ptr<DenseTensor> shared_value() { return value_; }
-
   /// \brief Returns the mutable dense tensor value in dist tensor.
   /// \note If DenseTensor value is modified externally, the corresponding
   /// relationship between it and the current tensor's global dims and
@@ -181,17 +157,6 @@ class DistTensor final
                      DataType dtype,
                      size_t requested_size = 0,
                      bool fake_alloc = false) override;
-
-  /// \brief Set the flag indicating whether to skip checking the process mesh.
-  /// \note Currently only used for the MoE apis,
-  /// it receives the inputs with different process meshes and outputs the dist
-  /// tensor with global process mesh.
-  /// \return void
-  void unsafe_set_skip_check_mesh(bool skip);
-
-  bool skip_check_mesh() const { return dist_attr_.skip_check_mesh(); }
-
-  void clear();
 
  private:
   friend class ReshardFunction;

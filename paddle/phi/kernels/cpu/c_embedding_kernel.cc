@@ -85,6 +85,4 @@ PD_REGISTER_KERNEL(c_embedding,
                    phi::CEmbeddingKernel,
                    float,
                    double,
-                   phi::dtype::float16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::float16) {}

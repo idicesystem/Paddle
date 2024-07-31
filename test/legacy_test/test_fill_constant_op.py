@@ -12,19 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
 import unittest
 
 import numpy as np
-
-sys.path.append("../../legacy_test")
 from op import Operator
 from op_test import OpTest, convert_float_to_uint16, paddle_static_guard
 
 import paddle
 from paddle import base
-from paddle.base import core
+from paddle.base import Program, core, program_guard
 from paddle.pir_utils import test_with_pir_api
 
 
@@ -142,13 +138,7 @@ class TestFillConstantOpWithSelectedRows(unittest.TestCase):
         np.testing.assert_array_equal(result_array, full_array)
 
     def test_fill_constant_with_selected_rows(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(core.CPUPlace())
+        places = [core.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(core.CUDAPlace(0))
 
@@ -179,7 +169,7 @@ class TestFillConstantOp1_ShapeTensorList(OpTest):
         self.value = 3.8
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 class TestFillConstantOp2_ShapeTensorList(OpTest):
@@ -203,7 +193,7 @@ class TestFillConstantOp2_ShapeTensorList(OpTest):
         self.infer_shape = [-1, -1]
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 class TestFillConstantOp3_ShapeTensorList(TestFillConstantOp1_ShapeTensorList):
@@ -237,7 +227,7 @@ class TestFillConstantOp1_ShapeTensor(OpTest):
         self.value = 3.8
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 # Situation 4: value is a tensor
@@ -261,7 +251,7 @@ class TestFillConstantOp1_ValueTensor(OpTest):
         self.dtype = np.float32
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 # Situation 5: value is a tensor
@@ -285,7 +275,7 @@ class TestFillConstantOp2_ValueTensor(OpTest):
         self.dtype = np.int32
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 # Test python API
@@ -383,9 +373,9 @@ class TestFillConstantImperative(unittest.TestCase):
             data1 = np.array([1, 2]).astype('int32')
             data2 = np.array([1.1]).astype('float32')
             data3 = np.array([88]).astype('int32')
-            shape = paddle.to_tensor(data1)
-            val = paddle.to_tensor(data2)
-            value = paddle.to_tensor(data3)
+            shape = base.dygraph.to_variable(data1)
+            val = base.dygraph.to_variable(data2)
+            value = base.dygraph.to_variable(data3)
             res1 = paddle.tensor.fill_constant(
                 shape=[1, 2], dtype='float32', value=1.1
             )
@@ -423,17 +413,14 @@ class TestFillConstantImperative(unittest.TestCase):
 
     def test_ninf(self):
         with base.dygraph.guard():
-            res = paddle.tensor.fill_constant([1], 'float32', -np.inf)
+            res = paddle.tensor.fill_constant([1], 'float32', np.NINF)
             self.assertTrue(np.isinf(res.numpy().item(0)))
-            self.assertEqual(-np.inf, res.numpy().item(0))
+            self.assertEqual(np.NINF, res.numpy().item(0))
 
 
 class TestFillConstantOpError(unittest.TestCase):
-    @test_with_pir_api
-    def test_errors1(self):
-        with paddle_static_guard(), paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+    def test_errors(self):
+        with paddle_static_guard(), program_guard(Program(), Program()):
             # for ci coverage
             x1 = paddle.static.data(name='x1', shape=[-1, 1], dtype="int16")
             self.assertRaises(
@@ -453,6 +440,19 @@ class TestFillConstantOpError(unittest.TestCase):
                 out=x1,
             )
 
+            # The argument dtype of fill_constant_op must be one of bool, float16,
+            # float32, float64, uint8, int16, int32 or int64
+            x2 = paddle.static.data(name='x2', shape=[-1, 1], dtype="int32")
+
+            self.assertRaises(
+                TypeError,
+                paddle.tensor.fill_constant,
+                shape=[1],
+                value=5,
+                dtype='float64',
+                out=x2,
+            )
+
             x3 = np.random.randn(100, 100).astype('int32')
             self.assertRaises(
                 TypeError,
@@ -461,22 +461,6 @@ class TestFillConstantOpError(unittest.TestCase):
                 value=5,
                 dtype='float64',
                 out=x3,
-            )
-
-    def test_errors2(self):
-        with paddle_static_guard(), paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
-            # The argument dtype of fill_constant_op must be one of bool, float16,
-            # float32, float64, uint8, int16, int32 or int64
-            x2 = paddle.static.data(name='x2', shape=[-1, 1], dtype="int32")
-            self.assertRaises(
-                TypeError,
-                paddle.tensor.fill_constant,
-                shape=[1],
-                value=5,
-                dtype='float64',
-                out=x2,
             )
 
             # The argument shape's type of fill_constant_op must be list, tuple or Variable.
@@ -506,23 +490,57 @@ class TestFillConstantOpError(unittest.TestCase):
 
             self.assertRaises(TypeError, test_shape_tensor_list_dtype)
 
+        with paddle.pir_utils.IrGuard(), program_guard(Program()):
+            x1 = paddle.static.data(name='x1', shape=[-1, 1], dtype="int16")
+            self.assertRaises(
+                TypeError,
+                paddle.tensor.fill_constant,
+                shape=[1],
+                value=5,
+                dtype='uint4',
+            )
+
+            self.assertRaises(
+                ValueError,
+                paddle.tensor.fill_constant,
+                shape=[1.1],
+                value=5,
+                dtype='float32',
+                out=x1,
+            )
+
+            x3 = np.random.randn(100, 100).astype('int32')
+            self.assertRaises(
+                ValueError,
+                paddle.tensor.fill_constant,
+                shape=[100, 100],
+                value=5,
+                dtype='float64',
+                out=x3,
+            )
+
     def test_pir_errors(self):
         def test_shape_type():
             # The shape dtype of fill_constant_op must be int32 or int64.
             # test_shape_tensor_dtype:
-            shape = paddle.static.data(
-                name="shape_tensor", shape=[2], dtype="int32"
-            )
-            out = paddle.tensor.fill_constant(
-                shape=shape, dtype="float32", value=1
-            )
-            exe = base.Executor(place=base.CPUPlace())
-            exe.run(
-                feed={"shape_tensor": np.array([1, 2]).astype("float32")},
-                fetch_list=[out],
-            )
+            with paddle.pir_utils.IrGuard():
+                pir_program = paddle.static.Program()
+                with paddle.static.program_guard(pir_program):
+                    shape = paddle.static.data(
+                        name="shape_tensor", shape=[2], dtype="int32"
+                    )
+                    out = paddle.tensor.fill_constant(
+                        shape=shape, dtype="float32", value=1
+                    )
+                    exe = base.Executor(place=base.CPUPlace())
+                    exe.run(
+                        feed={
+                            "shape_tensor": np.array([1, 2]).astype("float32")
+                        },
+                        fetch_list=[out],
+                    )
 
-        # TODO(chenzhiyang): pir test_shape_dtype
+        self.assertRaises(ValueError, test_shape_type)
 
 
 class TestFillConstantOp_ValueTensorBf16(OpTest):

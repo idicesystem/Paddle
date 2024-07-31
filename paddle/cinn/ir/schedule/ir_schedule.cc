@@ -44,7 +44,7 @@
 #include "paddle/cinn/optim/ir_simplify.h"
 #include "paddle/cinn/optim/replace_var_with_expr.h"
 #include "paddle/cinn/utils/string.h"
-#include "paddle/common/enforce.h"
+
 PD_DECLARE_int32(cinn_error_message_level);
 
 namespace cinn {
@@ -55,13 +55,24 @@ std::unique_ptr<ScheduleBase> ScheduleBase::Make(
     bool debug_flag,
     utils::ErrorMessageLevel err_msg_level,
     bool is_dynamic) {
-  return std::make_unique<DyScheduleImpl>(
-      module_expr, debug_flag, err_msg_level);
+  if (is_dynamic) {
+    return std::make_unique<DyScheduleImpl>(
+        module_expr, debug_flag, err_msg_level);
+  } else {
+    return std::make_unique<StScheduleImpl>(
+        module_expr, debug_flag, err_msg_level);
+  }
+  return nullptr;
 }
 
 std::unique_ptr<ScheduleBase> ScheduleBase::Make(ModuleExpr&& module_expr,
                                                  bool is_dynamic) {
-  return std::make_unique<DyScheduleImpl>(std::move(module_expr));
+  if (is_dynamic) {
+    return std::make_unique<DyScheduleImpl>(std::move(module_expr));
+  } else {
+    return std::make_unique<StScheduleImpl>(std::move(module_expr));
+  }
+  return nullptr;
 }
 
 /** \brief A macro that guards the beginning of each implementation of schedule
@@ -74,11 +85,10 @@ std::unique_ptr<ScheduleBase> ScheduleBase::Make(ModuleExpr&& module_expr,
  * @param err_msg_level A ScheduleErrorMessageLevel enum, level of error message
  * printing
  */
-#define CINN_IR_SCHEDULE_END(err_msg_level)              \
-  }                                                      \
-  catch (const utils::ErrorHandler& err_handler) {       \
-    PADDLE_THROW(::common::errors::Fatal(                \
-        err_handler.FormatErrorMessage(err_msg_level))); \
+#define CINN_IR_SCHEDULE_END(err_msg_level)                    \
+  }                                                            \
+  catch (const utils::ErrorHandler& err_hanlder) {             \
+    CINN_THROW(err_hanlder.FormatErrorMessage(err_msg_level)); \
   }
 
 void BaseInliner::operator()(Expr* expr) {
@@ -125,10 +135,7 @@ bool BaseInliner::UpdateAndCheckIndexVars(const std::vector<Expr>& indices,
 }
 
 void BaseInliner::SetIndexSubstitution(const std::vector<Expr>& indices) {
-  PADDLE_ENFORCE_EQ(indices.size(),
-                    idx_vars_.size(),
-                    ::common::errors::InvalidArgument(
-                        "The size of indices should be equal to idx_vars_"));
+  CHECK_EQ(indices.size(), idx_vars_.size());
   int n = idx_vars_.size();
   idx_sub_var_.reserve(n);
   idx_sub_expr_.reserve(n);
@@ -142,10 +149,7 @@ bool ComputeInliner::BodyPatternAllowInline() {
   if (!inlined_store_.defined()) {
     return false;
   }
-  PADDLE_ENFORCE_NOT_NULL(
-      inlined_store_.As<Store>(),
-      phi::errors::NotFound(
-          "Param inlined store should be Store node! Please check."));
+  CHECK(inlined_store_.As<Store>());
   auto find_vars = ir::ir_utils::CollectIRNodesWithoutTensor(
       inlined_store_, [&](const Expr* x) { return x->as_var(); });
   std::set<Var, CompVar> vars_set;
@@ -173,10 +177,7 @@ void ComputeInliner::Visit(const ir::Load* expr, Expr* op) {
 
 //! Replace the 'Load' node on the tensor to 'Load' node of its producers.
 Expr ComputeInliner::ReplaceInlinedTensor(Expr* load) {
-  PADDLE_ENFORCE_NOT_NULL(
-      load->As<ir::Load>(),
-      phi::errors::NotFound(
-          "Param load should be ir::Load node! Please check."));
+  CHECK(load->As<ir::Load>());
   SetIndexSubstitution(load->As<ir::Load>()->indices);
   Expr value_copy = ir::ir_utils::IRCopy(inlined_store_.As<Store>()->value);
   ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
@@ -206,18 +207,9 @@ bool ReverseComputeInliner::BodyPatternAllowInline() {
   if (!target_store_.defined()) {
     return false;
   }
-  PADDLE_ENFORCE_NOT_NULL(
-      inlined_store_.As<Store>(),
-      phi::errors::NotFound(
-          "Param inlined store should be Store node! Please check."));
-  PADDLE_ENFORCE_NOT_NULL(
-      inlined_load_.As<Load>(),
-      phi::errors::NotFound(
-          "Param inlined load should be Load node! Please check."));
-  PADDLE_ENFORCE_NOT_NULL(
-      target_store_.As<Store>(),
-      phi::errors::NotFound(
-          "Param target store should be Store node! Please check."));
+  CHECK(inlined_store_.As<Store>());
+  CHECK(inlined_load_.As<Load>());
+  CHECK(target_store_.As<Store>());
   auto find_vars = ir::ir_utils::CollectIRNodesWithoutTensor(
       inlined_store_, [&](const Expr* x) { return x->as_var(); });
   std::set<Var, CompVar> vars_set;
@@ -247,10 +239,7 @@ void ReverseComputeInliner::Visit(const ir::Store* expr, Expr* op) {
 
 //! Replace the 'Load' node on the tensor to 'Load' node of its producers.
 Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
-  PADDLE_ENFORCE_NOT_NULL(
-      load->As<ir::Load>(),
-      phi::errors::NotFound(
-          "Param load should be ir::Load node! Please check."));
+  CHECK(load->As<ir::Load>());
   SetIndexSubstitution(load->As<ir::Load>()->indices);
   Expr value_copy = ir::ir_utils::IRCopy(inlined_store_.As<Store>()->value);
   return value_copy;
@@ -258,10 +247,7 @@ Expr ReverseComputeInliner::ReplaceInlinedTensor(Expr* load) {
 
 Expr ReverseComputeInliner::ReplaceTargetTensor(Expr* store) {
   auto indices = inlined_load_.As<ir::Load>()->indices;
-  PADDLE_ENFORCE_EQ(indices.size(),
-                    idx_vars_.size(),
-                    ::common::errors::InvalidArgument(
-                        "The size of indices should be equal to idx_vars_"));
+  CHECK_EQ(indices.size(), idx_vars_.size());
   size_t n = idx_vars_.size();
   idx_sub_var_.reserve(n);
   idx_sub_expr_.reserve(n);
@@ -396,11 +382,15 @@ Expr IRSchedule::GetBlock(const std::string& block_name) const {
 
 std::vector<Expr> IRSchedule::Split(const Expr& loop,
                                     const std::vector<int>& factors) {
-  if (IsDynamicShape()) return impl_->Split(loop, factors);
   std::vector<Expr> decision = SamplePerfectTile(
-      loop, factors.size(), loop.As<ir::For>()->extent.as_int64(), factors);
+      loop, factors.size(), loop.As<ir::For>()->extent.as_int32(), factors);
   auto results = Split(loop, decision);
   return results;
+}
+
+std::vector<Expr> IRSchedule::DySplit(const Expr& loop,
+                                      const std::vector<int>& factors) {
+  return impl_->Split(loop, factors);
 }
 
 std::vector<Expr> IRSchedule::Split(const std::string& block_name,
@@ -408,15 +398,9 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name,
                                     const std::vector<int>& factors) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   Expr loop_expr;
-  PADDLE_ENFORCE_LT(loop_index,
-                    (int)all_loops.size(),
-                    ::common::errors::InvalidArgument(
-                        "The loop index in Split should be less than total "
-                        "loop's number."));
-  PADDLE_ENFORCE_GE(loop_index,
-                    0,
-                    ::common::errors::InvalidArgument(
-                        "The loop index in Split should be >= 0."));
+  CHECK_LT(loop_index, (int)all_loops.size())
+      << "The loop index in Split should be less than total loop's number.";
+  CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
   loop_expr = all_loops[loop_index];
 
   return this->Split(loop_expr, factors);
@@ -425,16 +409,11 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name,
 std::vector<Expr> IRSchedule::Split(const Expr& loop,
                                     const std::vector<Expr>& factors) {
   std::vector<int> int_factors;
-  std::vector<Expr> results;
-  std::for_each(factors.begin(), factors.end(), [&int_factors](const Expr& e) {
-    if (e.is_constant()) int_factors.push_back(e.as_int64());
-  });
-  if (int_factors.size() == factors.size()) {
-    results = impl_->Split(loop, int_factors);
-  } else {
-    results = impl_->Split(loop, factors);
-  }
-
+  std::transform(factors.begin(),
+                 factors.end(),
+                 std::back_inserter(int_factors),
+                 [](Expr x) { return x.as_int32(); });
+  auto results = impl_->Split(loop, int_factors);
   trace_.Append(ScheduleDesc::Step(
       "Split",
       {{"loop", std::vector<Expr>({loop})}, {"factors", factors}},
@@ -639,17 +618,12 @@ Expr IRSchedule::Rfactor(const Expr& rf_loop, int rf_axis) {
   return result;
 }
 
-Expr IRSchedule::FactorizeReduction(const Expr& rf_loop,
-                                    int rf_axis,
-                                    bool with_write_back_block_init) {
-  auto result =
-      impl_->FactorizeReduction(rf_loop, rf_axis, with_write_back_block_init);
-  trace_.Append(ScheduleDesc::Step(
-      "FactorizeReduction",
-      {{"rf_loop", std::vector<Expr>({rf_loop})}},
-      {{"rf_axis", rf_axis},
-       {"with_write_back_block_init", with_write_back_block_init}},
-      {result}));
+Expr IRSchedule::FactorizeReduction(const Expr& rf_loop, int rf_axis) {
+  auto result = impl_->FactorizeReduction(rf_loop, rf_axis);
+  trace_.Append(ScheduleDesc::Step("FactorizeReduction",
+                                   {{"rf_loop", std::vector<Expr>({rf_loop})}},
+                                   {{"rf_axis", rf_axis}},
+                                   {result}));
   return result;
 }
 
@@ -673,9 +647,7 @@ void IRSchedule::Annotate(const Expr& block,
   TRACE_ANNOTATE_ITEM(std::string, AnnotateStringAttr)
 #undef TRACE_ANNOTATE_ITEM
 
-  std::stringstream ss;
-  ss << "Value of attribute:" << key << " input unsupported data type";
-  PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+  LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
 }
 
 void IRSchedule::Unannotate(Expr& block, const std::string& key) {

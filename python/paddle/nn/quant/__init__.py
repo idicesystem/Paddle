@@ -26,8 +26,7 @@ from .functional_layers import (  # noqa: F401
     transpose,
 )
 from .quant_layers import QuantStub  # noqa: F401
-from .quantized_linear import (  # noqa: F401
-    apply_per_channel_scale,
+from .quantized_linear import (
     llm_int8_linear,
     weight_dequantize,
     weight_only_linear,

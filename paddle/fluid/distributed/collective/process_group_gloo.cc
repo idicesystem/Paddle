@@ -29,9 +29,11 @@
 #include "paddle/fluid/distributed/collective/common.h"
 #include "paddle/fluid/distributed/collective/process_group_gloo.h"
 #include "paddle/fluid/platform/enforce.h"
+#include "paddle/phi/api/lib/data_transform.h"
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 #ifdef _WIN32
 #define GENERATE_FUNC(type, func, ...)       \
@@ -216,15 +218,14 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Broadcast(
     std::vector<phi::DenseTensor>& outputs,
     const BroadcastOptions& opts,
     bool sync_op) {
-  CheckTensorContiguous(inputs);
-  CheckTensorContiguous(outputs);
-
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(inputs);
   auto root = opts.source_rank;
   std::unique_ptr<BroadcastGlooTask> task;
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
   task = std::make_unique<BroadcastGlooTask>(
-      comm_context, inputs, outputs, rank_, root, tag);
+      comm_context, tensor_tmp, outputs, rank_, root, tag);
   task->Run();
   return task;
 }
@@ -263,12 +264,13 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Send(
 
 std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Send(
     std::vector<phi::DenseTensor>& inputs, int dst_rank) {
-  CheckTensorContiguous(inputs);
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(inputs);
   std::unique_ptr<SendGlooTask> task;
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
   task = std::make_unique<SendGlooTask>(
-      comm_context, &inputs, rank_, dst_rank, tag);
+      comm_context, &tensor_tmp, rank_, dst_rank, tag);
   task->Run();
 
   return task;
@@ -371,14 +373,13 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::AllReduce(
     std::vector<phi::DenseTensor>& outputs,
     const AllreduceOptions& opts,
     bool sync_op) {
-  CheckTensorContiguous(inputs);
-  CheckTensorContiguous(outputs);
-
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(inputs);
   auto tag = next_tag();
   std::shared_ptr<GlooTask> task;
   auto comm_context = this->GetCommContext();
   task = std::make_shared<AllreduceGlooTask>(
-      rank_, comm_context, inputs, outputs, opts.reduce_op, tag);
+      rank_, comm_context, tensor_tmp, outputs, opts.reduce_op, tag);
   task->Run();
   return task;
 }
@@ -455,13 +456,13 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::AllGather(
     std::vector<phi::DenseTensor>& in_tensors,
     std::vector<phi::DenseTensor>& out_tensors,
     bool sync_op) {
-  CheckTensorContiguous(in_tensors);
-  CheckTensorContiguous(out_tensors);
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(in_tensors);
   std::shared_ptr<AllgatherGlooTask> task;
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
   task = std::make_shared<AllgatherGlooTask>(
-      rank_, comm_context, in_tensors, out_tensors, tag);
+      rank_, comm_context, tensor_tmp, out_tensors, tag);
   task->Run();
   return task;
 }
@@ -507,13 +508,12 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Reduce(
     const ReduceOptions& opts,
     bool sync_op  // for compatibility, no use now
 ) {
-  CheckTensorContiguous(in_tensor);
-  CheckTensorContiguous(*out_tensor);
-
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(in_tensor);
   std::shared_ptr<ReduceGlooTask> task;
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
-  std::vector<phi::DenseTensor> in_wrapper{in_tensor};
+  std::vector<phi::DenseTensor> in_wrapper{tensor_tmp};
   std::vector<phi::DenseTensor> out_wrapper{*out_tensor};
   task = std::make_shared<ReduceGlooTask>(rank_,
                                           comm_context,
@@ -572,13 +572,12 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Scatter(
     const phi::DenseTensor& in_tensor,
     const ScatterOptions& opts,
     bool sync_op) {
-  CheckTensorContiguous(in_tensor);
-  CheckTensorContiguous(*out_tensor);
   std::shared_ptr<ScatterGlooTask> task;
-
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(in_tensor);
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
-  std::vector<phi::DenseTensor> in_wrapper{in_tensor};
+  std::vector<phi::DenseTensor> in_wrapper{tensor_tmp};
   std::vector<phi::DenseTensor> out_wrapper{*out_tensor};
   task = std::make_shared<ScatterGlooTask>(
       rank_, comm_context, in_wrapper, out_wrapper, opts.root_rank, size_, tag);
@@ -630,18 +629,17 @@ std::shared_ptr<ProcessGroup::Task> ProcessGroupGloo::Gather(
     const GatherOptions& opts,
     bool sync_op,
     bool use_calc_stream) {
-  CheckTensorContiguous(in_tensor);
-  CheckTensorContiguous(*out_tensor);
-
+  auto tensor_tmp =
+      paddle::experimental::CheckAndTrans2NewContiguousTensor(in_tensor);
   PADDLE_ENFORCE_NE(
       use_calc_stream,
       true,
-      phi::errors::InvalidArgument("Gloo cannot use use_calc_stream."));
+      platform::errors::InvalidArgument("Gloo cannot use use_calc_stream."));
   std::shared_ptr<GatherGlooTask> task;
   auto tag = next_tag();
   auto comm_context = this->GetCommContext();
   task = std::make_shared<GatherGlooTask>(
-      rank_, comm_context, in_tensor, out_tensor, opts.root_rank, tag);
+      rank_, comm_context, tensor_tmp, out_tensor, opts.root_rank, tag);
   task->Run();
   return task;
 }
@@ -667,7 +665,7 @@ ProcessGroupGloo::createDefaultDevice() {
   PADDLE_ENFORCE_EQ(
       ret,
       0,
-      phi::errors::Fatal("Get hostname error for createDefaultDevice."));
+      platform::errors::Fatal("Get hostname error for createDefaultDevice."));
   ::addrinfo* result;
   result = phi::distributed::tcputils::get_addr_info(
       hostname.data(), "", 0, AF_UNSPEC);
@@ -729,4 +727,5 @@ phi::distributed::GlooCommContext* ProcessGroupGloo::GetCommContext() {
   return comm_context;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

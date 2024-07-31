@@ -78,4 +78,7 @@ std::string NameGenerator::New(const std::string& name_hint) {
 
 }  // namespace common
 
+PD_DEFINE_bool(cinn_runtime_display_debug_info,
+               false,
+               "Whether to display debug information in runtime");
 }  // namespace cinn

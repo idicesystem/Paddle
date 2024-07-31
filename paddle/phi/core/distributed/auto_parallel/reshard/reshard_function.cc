@@ -20,7 +20,8 @@
 #include "paddle/phi/core/distributed/auto_parallel/dist_attr.h"
 #include "paddle/phi/core/distributed/auto_parallel/dist_tensor.h"
 
-namespace phi::distributed {
+namespace phi {
+namespace distributed {
 
 using phi::distributed::auto_parallel::str_join;
 
@@ -51,8 +52,6 @@ void ReshardFunction::SetDistProps(DistTensor* tensor,
 
   tensor->global_dims_ = dims;
   tensor->dist_attr_ = dist_attr;
-  tensor->process_mesh_ = dist_attr.process_mesh();
-  tensor->placements_ = ToPlacements(dist_attr);
 }
 
 void ReshardFunction::SetDistProps(DistTensor* tensor,
@@ -65,12 +64,11 @@ void ReshardFunction::SetDistProps(DistTensor* tensor,
                         str_join(vectorize(tensor->dims()))));
 
   tensor->dist_attr_ = dist_attr;
-  tensor->process_mesh_ = dist_attr.process_mesh();
-  tensor->placements_ = ToPlacements(dist_attr);
 }
 
 DenseTensor* ReshardFunction::GetMutableTensor(DistTensor* tensor) {
   return tensor->value_.get();
 }
 
-}  // namespace phi::distributed
+}  // namespace distributed
+}  // namespace phi

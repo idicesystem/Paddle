@@ -12,21 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 __all__ = []
 
-from paddle import _C_ops
-from paddle.base.framework import dygraph_only, in_dynamic_or_pir_mode
+from paddle import _C_ops, in_dynamic_mode
+from paddle.base.framework import dygraph_only
 from paddle.base.layer_helper import LayerHelper
 
-if TYPE_CHECKING:
-    from paddle import Tensor
 
-
-def relu(x: Tensor, name: str | None = None) -> Tensor:
+def relu(x, name=None):
     """
     sparse relu activation, requiring x to be a SparseCooTensor or SparseCsrTensor.
 
@@ -36,7 +29,7 @@ def relu(x: Tensor, name: str | None = None) -> Tensor:
 
     Parameters:
         x (Tensor): The input Sparse Tensor with data type float32, float64.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -55,7 +48,7 @@ def relu(x: Tensor, name: str | None = None) -> Tensor:
                    indices=[[0, 2]],
                    values=[0., 1.])
     """
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         return _C_ops.sparse_relu(x)
     else:
         op_type = 'sparse_relu'
@@ -67,7 +60,7 @@ def relu(x: Tensor, name: str | None = None) -> Tensor:
         return out
 
 
-def softmax(x: Tensor, axis: int = -1, name: str | None = None) -> Tensor:
+def softmax(x, axis=-1, name=None):
     r"""
     sparse softmax activation, requiring x to be a SparseCooTensor or SparseCsrTensor.
 
@@ -85,7 +78,7 @@ def softmax(x: Tensor, axis: int = -1, name: str | None = None) -> Tensor:
     Parameters:
         x (Tensor): The input tensor. It can be SparseCooTensor/SparseCsrTensor. The data type can be float32 or float64.
         axis (int, optional): The axis along which to perform softmax calculations. Only support -1 for SparseCsrTensor.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -98,7 +91,7 @@ def softmax(x: Tensor, axis: int = -1, name: str | None = None) -> Tensor:
             >>> paddle.seed(100)
 
             >>> mask = paddle.rand((3, 4)) < 0.5
-            >>> x = paddle.rand((3, 4)) * mask.astype('float32')
+            >>> x = paddle.rand((3, 4)) * mask
             >>> print(x)
             Tensor(shape=[3, 4], dtype=float32, place=Place(cpu), stop_gradient=True,
             [[0.        , 0.95717543, 0.43864486, 0.        ],
@@ -137,7 +130,7 @@ def softmax(x: Tensor, axis: int = -1, name: str | None = None) -> Tensor:
                    values=[0.62680405, 0.37319589, 0.43255258, 0.29261294, 0.27483445,
                            0.45284092, 0.54715902])
     """
-    if in_dynamic_or_pir_mode():
+    if in_dynamic_mode():
         return _C_ops.sparse_softmax(x, axis)
     else:
         op_type = 'sparse_softmax'
@@ -153,7 +146,7 @@ def softmax(x: Tensor, axis: int = -1, name: str | None = None) -> Tensor:
 
 
 @dygraph_only
-def relu6(x: Tensor, name: str | None = None) -> Tensor:
+def relu6(x, name=None):
     """
     sparse relu6 activation, requiring x to be a SparseCooTensor or SparseCsrTensor.
 
@@ -163,7 +156,7 @@ def relu6(x: Tensor, name: str | None = None) -> Tensor:
 
     Parameters:
         x (Tensor): The input Sparse Tensor with data type float32, float64.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:
@@ -182,9 +175,7 @@ def relu6(x: Tensor, name: str | None = None) -> Tensor:
 
 
 @dygraph_only
-def leaky_relu(
-    x: Tensor, negative_slope: float = 0.01, name: str | None = None
-) -> Tensor:
+def leaky_relu(x, negative_slope=0.01, name=None):
     r"""
     sparse leaky_relu activation, requiring x to be a SparseCooTensor or SparseCsrTensor.
 
@@ -201,7 +192,7 @@ def leaky_relu(
         x (Tensor): The input Sparse Tensor with data type float32, float64.
         negative_slope (float, optional): Slope of the activation function at
             :math:`x < 0` . Default is 0.01.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Returns:

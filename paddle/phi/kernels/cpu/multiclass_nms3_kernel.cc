@@ -20,6 +20,9 @@
 
 namespace phi {
 
+using phi::funcs::gpc_free_polygon;
+using phi::funcs::gpc_polygon_clip;
+
 template <class T>
 class Point_ {
  public:
@@ -74,7 +77,7 @@ void Array2Poly(const T* box,
 template <class T>
 void PointVec2Poly(const std::vector<Point_<T>>& vec,
                    phi::funcs::gpc_polygon* poly) {
-  size_t pts_num = vec.size();
+  int pts_num = vec.size();
   (*poly).num_contours = 1;
   (*poly).hole = reinterpret_cast<int*>(malloc(sizeof(int)));  // NOLINT
   (*poly).hole[0] = 0;

@@ -47,7 +47,8 @@ class RandomDataset(Dataset):
 def simple_fc_net_static():
     startup_prog = base.Program()
     main_prog = base.Program()
-    paddle.seed(1)
+    startup_prog.random_seed = 1
+    main_prog.random_seed = 1
 
     with base.unique_name.guard():
         with base.program_guard(main_prog, startup_prog):
@@ -287,7 +288,7 @@ class TestStaticDataLoaderWithBatchedDataset(TestStaticDataLoader):
             exe = base.Executor(place=places[0])
             exe.run(startup_prog)
 
-            prog = main_prog
+            prog = base.CompiledProgram(main_prog)
 
             step_list = []
             loss_list = []
@@ -324,5 +325,4 @@ class TestStaticDataLoaderWithBatchedDataset(TestStaticDataLoader):
 
 
 if __name__ == '__main__':
-    paddle.enable_static()
     unittest.main()

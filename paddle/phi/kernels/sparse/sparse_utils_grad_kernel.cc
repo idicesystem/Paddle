@@ -16,7 +16,8 @@ limitations under the License. */
 
 #include "paddle/phi/core/kernel_registry.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 template <typename T, typename Context>
 void ValuesCooGradKernel(const Context& dev_ctx UNUSED,
@@ -31,10 +32,11 @@ void CooToDenseGradKernel(const Context& dev_ctx,
                           const SparseCooTensor& x,
                           const DenseTensor& out_grad,
                           SparseCooTensor* x_grad) {
-  MaskAsCooKernel<T, Context>(dev_ctx, out_grad, x, x_grad);
+  MaskCooKernel<T, Context>(dev_ctx, out_grad, x, x_grad);
 }
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(values_coo_grad,
                    CPU,
@@ -47,9 +49,7 @@ PD_REGISTER_KERNEL(values_coo_grad,
                    int16_t,
                    int,
                    int64_t,
-                   bool,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   bool) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 
@@ -64,9 +64,7 @@ PD_REGISTER_KERNEL(coo_to_dense_grad,
                    int16_t,
                    int,
                    int64_t,
-                   bool,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   bool) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 
@@ -76,13 +74,10 @@ PD_REGISTER_KERNEL(sparse_coo_tensor_grad,
                    phi::sparse::SparseCooTensorGradKernel,
                    float,
                    double,
-                   paddle::float16,
                    uint8_t,
                    int16_t,
                    int,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   int64_t) {
   kernel->InputAt(1).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 
@@ -99,9 +94,7 @@ PD_REGISTER_KERNEL(values_coo_grad,
                    int16_t,
                    int,
                    int64_t,
-                   bool,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   bool) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 PD_REGISTER_KERNEL(coo_to_dense_grad,
@@ -116,9 +109,7 @@ PD_REGISTER_KERNEL(coo_to_dense_grad,
                    int16_t,
                    int,
                    int64_t,
-                   bool,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   bool) {
   kernel->InputAt(0).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 PD_REGISTER_KERNEL(sparse_coo_tensor_grad,
@@ -130,9 +121,7 @@ PD_REGISTER_KERNEL(sparse_coo_tensor_grad,
                    uint8_t,
                    int16_t,
                    int,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {
+                   int64_t) {
   kernel->InputAt(1).SetDataLayout(phi::DataLayout::SPARSE_COO);
 }
 #endif

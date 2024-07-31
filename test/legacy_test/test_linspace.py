@@ -19,7 +19,7 @@ from op_test import OpTest, convert_float_to_uint16, paddle_static_guard
 
 import paddle
 from paddle import base
-from paddle.base import core
+from paddle.base import Program, core, program_guard
 
 
 class TestLinspaceOpCommonCase(OpTest):
@@ -32,7 +32,7 @@ class TestLinspaceOpCommonCase(OpTest):
 
     def _set_dtype(self):
         self.dtype = "float32"
-        self.attr_dtype = paddle.float32
+        self.attr_dtype = int(core.VarDesc.VarType.FP32)
 
     def _set_data(self):
         self.outputs = {'Out': np.arange(0, 11).astype(self.dtype)}
@@ -43,7 +43,7 @@ class TestLinspaceOpCommonCase(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_symbol_infer=False)
+        self.check_output(check_pir=True)
 
 
 class TestLinspaceOpReverseCase(TestLinspaceOpCommonCase):
@@ -55,6 +55,9 @@ class TestLinspaceOpReverseCase(TestLinspaceOpCommonCase):
         }
         self.outputs = {'Out': np.arange(10, -1, -1).astype(self.dtype)}
 
+    def test_check_output(self):
+        self.check_output(check_pir=True)
+
 
 class TestLinspaceOpNumOneCase(TestLinspaceOpCommonCase):
     def _set_data(self):
@@ -65,23 +68,26 @@ class TestLinspaceOpNumOneCase(TestLinspaceOpCommonCase):
         }
         self.outputs = {'Out': np.array([10], dtype=self.dtype)}
 
+    def test_check_output(self):
+        self.check_output(check_pir=True)
+
 
 class TestLinspaceOpCommonCaseFP16(TestLinspaceOpCommonCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = paddle.float16
+        self.attr_dtype = int(core.VarDesc.VarType.FP16)
 
 
 class TestLinspaceOpReverseCaseFP16(TestLinspaceOpReverseCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = paddle.float16
+        self.attr_dtype = int(core.VarDesc.VarType.FP16)
 
 
 class TestLinspaceOpNumOneCaseFP16(TestLinspaceOpNumOneCase):
     def _set_dtype(self):
         self.dtype = np.float16
-        self.attr_dtype = paddle.float16
+        self.attr_dtype = int(core.VarDesc.VarType.FP16)
 
 
 @unittest.skipIf(
@@ -92,7 +98,7 @@ class TestLinspaceOpNumOneCaseFP16(TestLinspaceOpNumOneCase):
 class TestLinspaceOpCommonCaseBF16(TestLinspaceOpCommonCaseFP16):
     def _set_dtype(self):
         self.dtype = np.uint16
-        self.attr_dtype = paddle.bfloat16
+        self.attr_dtype = int(core.VarDesc.VarType.BF16)
 
     def _set_data(self):
         self.outputs = {
@@ -105,9 +111,7 @@ class TestLinspaceOpCommonCaseBF16(TestLinspaceOpCommonCaseFP16):
         }
 
     def test_check_output(self):
-        return self.check_output_with_place(
-            core.CUDAPlace(0), check_pir=True, check_symbol_infer=False
-        )
+        return self.check_output_with_place(core.CUDAPlace(0), check_pir=True)
 
 
 class TestLinspaceOpReverseCaseBF16(TestLinspaceOpCommonCaseBF16):
@@ -168,8 +172,6 @@ class TestLinspaceAPI(unittest.TestCase):
             np.testing.assert_array_equal(res_1, res_2)
 
     def test_name(self):
-        if paddle.framework.use_pir_api():
-            return
         with paddle_static_guard():
             with paddle.static.program_guard(paddle.static.Program()):
                 out = paddle.linspace(
@@ -192,9 +194,7 @@ class TestLinspaceAPI(unittest.TestCase):
 class TestLinspaceOpError(unittest.TestCase):
     def test_errors(self):
         with paddle_static_guard():
-            with paddle.base.program_guard(
-                paddle.base.Program(), paddle.base.Program()
-            ):
+            with program_guard(Program(), Program()):
 
                 def test_dtype():
                     paddle.linspace(0, 10, 1, dtype="int8")

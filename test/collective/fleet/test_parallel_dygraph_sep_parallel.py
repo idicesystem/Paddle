@@ -14,14 +14,12 @@
 
 import unittest
 
-from legacy_test.test_parallel_dygraph_dataparallel import (
-    TestMultipleAccelerators,
-)
+from legacy_test.test_parallel_dygraph_dataparallel import TestMultipleGpus
 
 
-class TestHybridParallel(TestMultipleAccelerators):
+class TestHybridParallel(TestMultipleGpus):
     def test_hybrid_parallel_hcg(self):
-        self.run_mnist_2accelerators('hybrid_parallel_sep_model.py')
+        self.run_mnist_2gpu('hybrid_parallel_sep_model.py')
 
 
 if __name__ == "__main__":

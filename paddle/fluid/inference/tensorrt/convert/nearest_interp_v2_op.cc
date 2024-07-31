@@ -44,14 +44,7 @@ class NearestInterpolateV2OpConverter : public OpConverter {
     auto out_w = PADDLE_GET_CONST(int, op_desc.GetAttr("out_w"));
 
     auto layer = TRT_ENGINE_ADD_LAYER(engine_, Resize, *input);
-#if IS_TRT_VERSION_GE(8600)
-    if (align_corners) {
-      layer->setCoordinateTransformation(
-          nvinfer1::ResizeCoordinateTransformation::kALIGN_CORNERS);
-    }
-#else
     layer->setAlignCorners(align_corners);
-#endif
 
     auto in_dim = input->getDimensions();
 
@@ -106,8 +99,8 @@ class NearestInterpolateV2OpConverter : public OpConverter {
       scales.push_back(scale_w);
       scales.push_back(1.f);
     } else {
-      PADDLE_THROW(
-          common::errors::InvalidArgument("Data layout must be NCHW or NHWC."));
+      PADDLE_THROW(platform::errors::InvalidArgument(
+          "Data layout must be NCHW or NHWC."));
     }
 
     if (engine_->with_dynamic_shape()) {
@@ -131,7 +124,7 @@ class NearestInterpolateV2OpConverter : public OpConverter {
       layer->setScales(scales.data(), scales.size());
     }
 
-    ReplenishLayerAndOutput(
+    RreplenishLayerAndOutput(
         layer, "nearest_interp_v2", {output_name}, test_mode);
   }
 };

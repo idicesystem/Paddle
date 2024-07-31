@@ -22,14 +22,12 @@ from functools import lru_cache
 import numpy as np
 
 from paddle import pir
-from paddle.base.framework import in_cinn_mode
-from paddle.base.libpaddle.pir import apply_cinn_pass
 
 from ..pir import (
+    OpResult,
     Program as PirProgram,
     Value,
     translate_to_pir,
-    translate_to_pir_with_param_map,
 )
 from . import compiler, core, framework, unique_name
 from .data_feeder import convert_dtype
@@ -43,7 +41,6 @@ from .framework import (
     get_flags,
     in_pir_mode,
     paddle_type_to_proto_type,
-    process_type_promotion,
     set_flags,
 )
 from .incubate.checkpoint import auto_checkpoint as acp
@@ -270,7 +267,9 @@ def check_feed_shape_type(var, feed, num_places=1):
                 else feed._dtype()
             )
             raise ValueError(
-                f'The data type of fed Variable {var.name!r} must be {var_dtype_format!r}, but received {feed_dtype_format!r}'
+                'The data type of fed Variable {!r} must be {!r}, but received {!r}'.format(
+                    var.name, var_dtype_format, feed_dtype_format
+                )
             )
     return True
 
@@ -301,7 +300,7 @@ def pir_check_feed_shape_type(feed, name, target_shape, dtype, num_places=1):
     """
     diff_shape = core.diff_tensor_shape(feed, target_shape, num_places)
     if diff_shape is not None:
-        warnings.warn(
+        raise ValueError(
             'The fed Variable %r should have dimensions = %d, shape = '
             '%r, but received fed shape %r on each device'
             % (name, len(target_shape), target_shape, diff_shape)
@@ -317,8 +316,10 @@ def pir_check_feed_shape_type(feed, name, target_shape, dtype, num_places=1):
             if isinstance(feed._dtype(), core.VarDesc.VarType)
             else feed._dtype()
         )
-        warnings.warn(
-            f'The data type of fed Variable {name!r} must be {var_dtype_format!r}, but received {feed_dtype_format!r}'
+        raise ValueError(
+            'The data type of fed Variable {!r} must be {!r}, but received {!r}'.format(
+                name, var_dtype_format, feed_dtype_format
+            )
         )
     return True
 
@@ -428,7 +429,6 @@ def has_fetch_operations(
         A boolean value that indicates whether a block has fetch operators
         that match the info contained in fetch_targets.
     """
-    from paddle.autograd.backward_utils import ValueSet
 
     fetch_info = [[], []]
     for op in block.ops:
@@ -443,7 +443,7 @@ def has_fetch_operations(
                 raise Exception(
                     f"Found fetch_target[{i}] is type(str) and doesn't have fetch op."
                 )
-        elif fetch_var not in ValueSet(fetch_info[0]):
+        elif fetch_var not in fetch_info[0]:
             need_fetch_info.append(fetch_var)
 
     return need_fetch_info
@@ -487,7 +487,8 @@ def _add_feed_fetch_ops(
                 )
             else:
                 warnings.warn(
-                    f"The variable {name} is not found in program. It is not declared or is pruned."
+                    "The variable %s is not found in program. It is not declared or is pruned."
+                    % name
                 )
 
     if use_fetch_v2:
@@ -525,26 +526,12 @@ def _add_pir_fetch_ops(program, fetch_list, fetch_var_name):
         with paddle.static.program_guard(program):
             for i, fetch_input in enumerate(need_fetch_info):
                 assert isinstance(
-                    fetch_input, Value
+                    fetch_input, (OpResult, Value)
                 ), f"Wrong type for fetch_list[{i}]: {type(fetch_input)}"
                 out = paddle._pir_ops.fetch(
                     fetch_input, fetch_var_name + str(i), i
                 )
                 out.persistable = True
-
-
-def _add_single_pir_fetch_op(program, fetch_value, fetch_name, fetch_col):
-    import paddle
-
-    global_block = program.global_block()
-    fetch_op = "pd_op.fetch"
-    need_fetch_info = has_fetch_operations(
-        global_block, [fetch_value], fetch_name, fetch_op
-    )
-    if need_fetch_info:
-        with paddle.static.program_guard(program):
-            out = paddle._pir_ops.fetch(fetch_value, fetch_name, fetch_col)
-            out.persistable = True
 
 
 def _merge_tensors(tensor, micro_batch_num):
@@ -619,8 +606,12 @@ def _to_name_str(var):
             return var.desc.name()
         elif isinstance(var, str):
             return var
+        elif isinstance(var, str):
+            return str(var)
         elif isinstance(var, Operator):
             return str(id(var))
+        elif isinstance(var, OpResult):
+            return str(var)
         elif isinstance(var, Value):
             return str(var)
         else:
@@ -735,14 +726,18 @@ def _as_lodtensor(data, place, dtype=None):
         assert (
             dtype is not None
         ), 'The dtype should be given when feed data is not np.ndarray'
-        dtype = convert_dtype(dtype)
+        dtype = (
+            convert_dtype(dtype)
+            if isinstance(dtype, core.VarDesc.VarType)
+            else dtype
+        )
         if np.isscalar(data):
             data = np.array(data).astype(dtype)
         elif isinstance(data, (list, tuple)):
             data = np.array(data)
             if data.dtype == np.object_:
                 raise TypeError(
-                    "\n\tFailed to convert input data to a regular ndarray :\n\t* Usually "
+                    "\n\tFaild to convert input data to a regular ndarray :\n\t* Usually "
                     "this means the input data contains nested lists with different lengths. "
                     "Please consider using 'base.create_lod_tensor' to convert it to a LoD-Tensor."
                 )
@@ -780,7 +775,7 @@ def _can_use_interpreter_core(program, place):
     return True
 
 
-@lru_cache
+@lru_cache()
 def _warning_once(msg):
     logging.warning(msg)
 
@@ -870,7 +865,6 @@ class _ExecutorCache:
             fetch_var_name,
             place,
             scope,
-            plan=None,
         ):
             self.program = program
             self.feed = feed
@@ -879,7 +873,6 @@ class _ExecutorCache:
             self.fetch_var_name = fetch_var_name
             self.place = place
             self.scope = scope
-            self.plan = plan
 
             # NOTE(Ruibiao): Not all changeable item is considered for key at present,
             # ONLY: program, feed, and fetch_list
@@ -951,8 +944,7 @@ class _ExecutorCache:
         )
 
     def _get_program_and_executor(self, cached_data):
-        # do type promotion if necessary
-        program = process_type_promotion(cached_data.program)
+        program = cached_data.program
         inner_program = (
             program._program
             if isinstance(program, compiler.CompiledProgram)
@@ -1062,35 +1054,9 @@ class _ExecutorCache:
             if get_flags("FLAGS_enable_pir_in_executor")[
                 'FLAGS_enable_pir_in_executor'
             ]:
-                # if enables distributed training with prim mechanism (prim is behind of distributed)
-                # step 1: translate program to pir program.
-                # step 2: decompose PHI ops in pir program into prim ops.
-                #         When decomposing backward ops, the grad_var_to_var in distributed context is needed to finding corresponding forward op.
-                if (
-                    os.getenv("FLAGS_enable_prim_after_distribute")
-                    in ['True', 'true', '1']
-                    and new_program._need_decomp
-                ):
-                    (
-                        pir_program,
-                        param_mapping,
-                    ) = translate_to_pir_with_param_map(new_program.desc)
-
-                    from paddle.decomposition import decomp
-
-                    decomp.decompose_pir_program(
-                        pir_program, param_mapping, new_program._grad_var_to_var
-                    )
-
-                    if in_cinn_mode():
-                        apply_cinn_pass(pir_program)
-
-                    type_to_program = {"default": pir_program}
-
-                else:
-                    type_to_program = {
-                        "default": translate_to_pir(new_program.desc)
-                    }
+                type_to_program = {
+                    "default": translate_to_pir(new_program.desc)
+                }
             else:
                 type_to_program = {"default": new_program.desc}
             plan = core.Plan([default_job], type_to_program)
@@ -1102,18 +1068,7 @@ class _ExecutorCache:
         ):
             pm = pir.PassManager()
             for p in new_program._pass_opt['pass_list']:
-                # Temporary implementation, it will be refined when auto_parallel refactored
-                if p == 'eliminate_transpose':
-                    from paddle.distributed.auto_parallel.static.pir_pass import (
-                        eliminate_transpose_by_reshape,
-                    )
-
-                    for job_type in plan.job_types():
-                        ir_program = plan.ir_program(job_type)
-                        eliminate_transpose_by_reshape(ir_program)
-                else:
-                    pm.add_pass(p, {})
-
+                pm.add_pass(p)
             for job_type in plan.job_types():
                 ir_program = plan.ir_program(job_type)
                 pm.run(ir_program)
@@ -1130,17 +1085,7 @@ class _ExecutorCache:
         fetch_var_name,
         place,
         scope,
-        plan,
     ):
-        if plan is None:
-            _add_pir_fetch_ops(
-                program, fetch_list=fetch_list, fetch_var_name=fetch_var_name
-            )
-        else:
-            for i, value in enumerate(fetch_list):
-                _add_single_pir_fetch_op(
-                    value.block.program, value, fetch_var_name + str(i), i
-                )
         return self._get_cached_program_and_executor_pir_mode(
             self._CachedData(
                 program,
@@ -1150,7 +1095,6 @@ class _ExecutorCache:
                 fetch_var_name,
                 place,
                 scope,
-                plan,
             )
         )
 
@@ -1163,37 +1107,16 @@ class _ExecutorCache:
         place = cached_data.place
         scope = cached_data.scope
 
-        if cached_data.plan is None:
-            default_job = core.Job("default")
-            type_to_program = {"default": program}
-            plan = core.Plan([default_job], type_to_program)
-        else:
-            plan = cached_data.plan
+        _add_pir_fetch_ops(
+            program, fetch_list=fetch_list, fetch_var_name=fetch_var_name
+        )
+
+        default_job = core.Job("default")
+        type_to_program = {"default": program}
+        plan = core.Plan([default_job], type_to_program)
 
         new_exe = _StandaloneExecutor(place, plan, scope)
-
-        data_op_infos = []
-        global_block = program.global_block()
-        for op in global_block.ops:
-            if op.name() == 'pd_op.data':
-                feed_target_name = op.attrs()["name"]
-                var_type = paddle_type_to_proto_type[op.attrs()["dtype"]]
-                var_shape = op.attrs()["shape"]
-                tup = (
-                    feed_target_name,
-                    var_type,
-                    var_shape,
-                    op.result(0).persistable,
-                )
-                data_op_infos.append(tup)
-        from paddle.decomposition import decomp
-
-        if core._enable_dist_prim_all():
-            with decomp.prim_guard():
-                decomp.decompose_dist_program(program)
-        if in_cinn_mode():
-            apply_cinn_pass(program)
-        return program, new_exe, data_op_infos
+        return program, new_exe
 
 
 class Executor:
@@ -1279,7 +1202,6 @@ class Executor:
         self._closed = False
         self.pruned_program_scope_caches = {}
         self._prepare_to_run_called = False
-        self.plan = None
 
         self._auto_checkpoint_name = unique_name.generate(
             "__auto_checkpoint_executor__"
@@ -1307,9 +1229,6 @@ class Executor:
         # that brings errors to mkl-dnn unit tests (see ClearMKLDNNCache in interpretercore.cc for why).
         self.close()
         self._executor_cache.clear()
-
-    def _set_plan(self, plan):
-        self.plan = plan
 
     def _get_scope_cache(self, program_cache_key):
         return self.scope_caches.get(program_cache_key, None)
@@ -1414,34 +1333,34 @@ class Executor:
             else:
                 break
 
-    def _pir_feed_data(self, program, feed, scope, data_op_infos):
+    def _pir_feed_data(self, program, feed, scope):
         # feed var to framework
         feed_target_names = set()
-        for data_op_info in data_op_infos:
-            feed_target_name = data_op_info[0]
-            feed_target_names.add(feed_target_name)
-            var_type = data_op_info[1]
-            var_shape = data_op_info[2]
-            is_persistable = data_op_info[3]
-            if feed_target_name not in feed.keys() and is_persistable:
-                # If the feed_target_name is not in feed list, but is persistable, maybe it is a optimizer param
-                # and don't need feed data.
-                continue
-            cur_feed = feed[feed_target_name]
-            if not isinstance(cur_feed, core.LoDTensor):
-                cur_feed = _as_lodtensor(cur_feed, self.place, var_type)
-            pir_check_feed_shape_type(
-                cur_feed, feed_target_name, var_shape, var_type
-            )
-            # the last arg of set_feed_variable has no effect in pir, we pass 0 by default.
-            core.set_feed_variable(scope, cur_feed, feed_target_name, 0)
+        global_block = program.global_block()
+        for op in global_block.ops:
+            if op.name() == 'pd_op.data':
+                feed_target_name = op.attrs()["name"]
+                feed_target_names.add(feed_target_name)
+                var_type = paddle_type_to_proto_type[op.attrs()["dtype"]]
+                var_shape = op.attrs()["shape"]
+                cur_feed = feed[feed_target_name]
+                if not isinstance(cur_feed, core.LoDTensor):
+                    cur_feed = _as_lodtensor(cur_feed, self.place, var_type)
+                pir_check_feed_shape_type(
+                    cur_feed, feed_target_name, var_shape, var_type
+                )
+                # the last arg of set_feed_variable has no effect in pir, we pass 0 by default.
+                core.set_feed_variable(scope, cur_feed, feed_target_name, 0)
+            else:
+                break
 
         # pop variable which is not found in program
         for feed_name in list(feed.keys()):
             if feed_name not in feed_target_names:
                 feed.pop(feed_name)
                 warnings.warn(
-                    f"The value {feed_name} is not found in program. It is not declared or is pruned."
+                    "The value %s is not found in program. It is not declared or is pruned."
+                    % feed_name
                 )
 
     def _fetch_data(self, fetch_list, fetch_var_name, scope):
@@ -1454,7 +1373,7 @@ class Executor:
     @classmethod
     def _split_optimize_ops_in_fetch_list(cls, fetch_list):
         """
-        Split optimize_ops from fetch_list, which provided to specify program pruning.
+        Split optimize_ops from fetch_list, which provided to specify program prunning.
         Args:
             fetch_list(list): The original fetch_list.
             Possible types of fetch_list are:
@@ -1481,7 +1400,8 @@ class Executor:
                 _fetch_list.append(item)
             else:
                 raise TypeError(
-                    f"The item in fetch_list should be str, variable or optimize_op, but received {type(item)}.",
+                    "The item in fetch_list should be str, variable or optimize_op, but received %s.",
+                    type(item),
                 )
 
         for index, item in enumerate(fetch_list):
@@ -1494,7 +1414,9 @@ class Executor:
             elif isinstance(item, tuple):
                 if not isinstance(item[0], (list, tuple)):
                     raise TypeError(
-                        f"Requires fetch_list[{index}][0] shall be one of (list, tuple) when type(fetch_list[{index}]) is `tuple`, but received fetch_list[{index}][0]'s type is `{type(item[0]).__name__}`."
+                        "Requires fetch_list[{}][0] shall be one of (list, tuple) when type(fetch_list[{}]) is `tuple`, but received fetch_list[{}][0]'s type is `{}`.".format(
+                            index, index, index, type(item[0]).__name__
+                        )
                     )
                 for i in item[0]:
                     _get_targets(_optimize_ops, _fetch_list, i)
@@ -1597,7 +1519,8 @@ class Executor:
                 if not global_block.has_var(feed_name):
                     feed.pop(feed_name)
                     warnings.warn(
-                        f"The variable {feed_name} is not found in program. It is not declared or is pruned."
+                        "The variable %s is not found in program. It is not declared or is pruned."
+                        % feed_name
                     )
 
         elif isinstance(feed, (list, tuple)):
@@ -1606,7 +1529,8 @@ class Executor:
                     if not global_block.has_var(feed_name):
                         each.pop(feed_name)
                         warnings.warn(
-                            f"The variable {feed_name} is not found in program. It is not declared or is pruned."
+                            "The variable %s is not found in program. It is not declared or is pruned."
+                            % feed_name
                         )
         return feed
 
@@ -1705,12 +1629,12 @@ class Executor:
                 and fetch_list Tensor) of this interface remains unchanged during running.
                 The default is False.
             use_prune(bool): This parameter indicates whether the input :code:`Program` will be pruned.
-                If the parameter is True, the program will be pruned according to the given feed and fetch_list,
+                If the parameter is True, the program will be pruned accroding to the given feed and fetch_list,
                 which means the operators and variables in program that generate :code:`feed` and are not
                 needed to generate :code:`fetch_list` will be pruned. The default is False, which means the
                 program will not pruned and all the operators and variables will be executed during running.
                 Note that if the tuple returned from :code:`Optimizer.minimize()` is passed to :code:`fetch_list`,
-                :code:`use_prune` will be overridden to True, and the program will be pruned.
+                :code:`use_prune` will be overrided to True, and the program will be pruned.
 
         Returns:
 
@@ -1913,7 +1837,7 @@ class Executor:
         if scope is None:
             scope = global_scope()
 
-        # use_prune can be overridden by putting optimize_ops in fetch_list
+        # use_prune can be overrided by putting optimize_ops in fetch_list
         _origin_fetch_list = fetch_list
         _origin_program = program
         fetch_list, optimize_ops = self._split_optimize_ops_in_fetch_list(
@@ -1962,7 +1886,8 @@ class Executor:
                 feed = feed[0]
             if not isinstance(feed, dict):
                 raise TypeError(
-                    f"feed requires dict as its Parameter. But you passed in {type(feed)}"
+                    "feed requires dict as its Parameter. But you passed in %s"
+                    % (type(feed))
                 )
             feed = self._update_feed(program, feed)
 
@@ -2053,7 +1978,7 @@ class Executor:
                     and varobj.belong_to_optimizer is False
                     and varname not in feed
                 ):
-                    raise ValueError(f'Need feed data for variable {varname}')
+                    raise ValueError('Need feed data for variable %s' % varname)
 
         acp._auto_checkpoint(self, program)
 
@@ -2110,14 +2035,11 @@ class Executor:
             feed = feed[0]
         if not isinstance(feed, dict):
             raise TypeError(
-                f"feed requires dict as its Parameter. But you passed in {type(feed)}"
+                "feed requires dict as its Parameter. But you passed in %s"
+                % (type(feed))
             )
 
-        (
-            program,
-            new_exe,
-            data_op_infos,
-        ) = self._executor_cache.get_pir_program_and_executor(
+        program, new_exe = self._executor_cache.get_pir_program_and_executor(
             program,
             feed,
             fetch_list,
@@ -2125,9 +2047,9 @@ class Executor:
             fetch_var_name,
             self.place,
             scope,
-            self.plan,
         )
-        self._pir_feed_data(program, feed, scope, data_op_infos)
+
+        self._pir_feed_data(program, feed, scope)
 
         if hasattr(program, 'lr_scheduler'):
             from paddle.optimizer.lr import LRScheduler
@@ -2138,10 +2060,12 @@ class Executor:
 
             lr_scheduler = program.lr_scheduler
             lr_value = lr_scheduler()
-            lr_var = program.get_parameter_value_by_name(program.lr_name)
+            lr_var = program.lr_var
 
             data = np.array([lr_value]).astype(convert_dtype(lr_var.dtype))
-            tensor = core.get_variable_tensor(global_scope(), program.lr_name)
+            tensor = core.get_variable_tensor(
+                global_scope(), lr_scheduler._var_name
+            )
             # NOTE(dev): `tensor.set(data, self.place)` always call TensorCopySync that is a blocking behavior. So we use `_copy_from` to replace it.
             cpu_tensor = _as_lodtensor(data, core.CPUPlace())
             if core.is_cuda_graph_capturing():
@@ -2162,7 +2086,9 @@ class Executor:
         return exe.run(feed)
 
     def _check_fetch_list(self, fetch_list):
-        is_fetch_var = lambda var: isinstance(var, (Variable, str, Value))
+        is_fetch_var = lambda var: isinstance(
+            var, (Variable, str, OpResult, Value)
+        )
         is_tuple_list = lambda var: isinstance(var, (tuple, list))
 
         if fetch_list is None:
@@ -2172,8 +2098,8 @@ class Executor:
 
         assert is_tuple_list(fetch_list), (
             "Currently , The fetch_list type only should be list or tuple, \n"
-            f"but the input type is {type(fetch_list)}. For more information please refer to \n"
-            "the executor.run(...)."
+            "but the input type is {}. For more information please refer to \n"
+            "the executor.run(...).".format(type(fetch_list))
         )
 
         res = []
@@ -2188,7 +2114,9 @@ class Executor:
                     res.append(var)
             else:
                 raise TypeError(
-                    f"Require fetch_list[{i}] 's type shall be one of (Value, str), but received {type(var).__name__}."
+                    "Require fetch_list[{}] 's type shall be one of (OpResult, str), but received {}.".format(
+                        i, type(var).__name__
+                    )
                 )
 
         return res
@@ -2553,8 +2481,8 @@ class Executor:
         reused_trainer = program._heter_pipeline_opt is not None or (
             program._fleet_opt is not None
             and program._fleet_opt.get("use_ps_gpu", False)
-            and program._fleet_opt.get("dump_fields_path", "") == ""
         )
+
         if reused_trainer is False:
             trainer_instance = (
                 self._default_executor.init_for_dataset(  # -->InitForDataset
@@ -2990,7 +2918,8 @@ class Executor:
                     )
                 else:
                     warnings.warn(
-                        f"The variable {name} is not found in program. It is not declared or is pruned."
+                        "The variable %s is not found in program. It is not declared or is pruned."
+                        % name
                     )
 
         return tmp_program
@@ -3156,7 +3085,7 @@ class Executor:
                 >>> dataset.set_use_var([x, y])
                 >>> dataset.set_thread(1)
                 >>> # you should set your own filelist, e.g. filelist = ["dataA.txt"]
-                >>> filelist = [] # type: ignore[var-annotated]
+                >>> filelist = []
                 >>> dataset.set_filelist(filelist)
                 >>> exe.run(paddle.static.default_startup_program())
                 >>> exe.infer_from_dataset(program=paddle.static.default_main_program(),
@@ -3278,7 +3207,7 @@ class Executor:
                 >>> dataset.set_use_var([x, y])
                 >>> dataset.set_thread(1)
                 >>> # you should set your own filelist, e.g. filelist = ["dataA.txt"]
-                >>> filelist = [] # type: ignore[var-annotated]
+                >>> filelist = []
                 >>> dataset.set_filelist(filelist)
                 >>> exe.run(paddle.static.default_startup_program())
                 >>> exe.train_from_dataset(program=paddle.static.default_main_program(),

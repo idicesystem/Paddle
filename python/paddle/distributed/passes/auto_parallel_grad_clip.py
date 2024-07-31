@@ -38,7 +38,6 @@ from ..auto_parallel.static.utils import (
     insert_dependencies_for_vars,
     is_gradient_clip_op,
     is_optimize_op,
-    is_reshard_op,
 )
 from .auto_parallel_sharding import ShardingPass
 from .pass_base import PassBase, register_pass
@@ -174,9 +173,9 @@ class ClipHelper:
         self.pure_data_parallel = self._is_pure_data_parallel()
         self.rank_to_params = self._partition_parameters(params)
 
-    def is_calculate_norm(self, name):
+    def is_calcuate_norm(self, name):
         """
-        whether the param_name@GRAD participate in the calculation of global_norm
+        whether the param_name@GRAD paticipate in the calculation of global_norm
         """
         if not self.is_local_param(name):
             return False
@@ -287,7 +286,7 @@ class ClipHelper:
 
 
 @register_pass("auto_parallel_grad_clip")
-class ClipGradByGlobalNormPass(PassBase):
+class ClipGradByGloblNormPass(PassBase):
     """
     1. Remove norm-compute op and grad-scale op when the grad is not in current rank
        or is independent of the calculation of norm.
@@ -355,9 +354,7 @@ class ClipGradByGlobalNormPass(PassBase):
                     # if the param@GRAD in cur_rank does not participate in the calculation of global_norm
                     param_name = input_name[: input_name.find("@GRAD")]
                     is_local = self.clip_helper.is_local_param(param_name)
-                    is_calculate = self.clip_helper.is_calculate_norm(
-                        param_name
-                    )
+                    is_calculate = self.clip_helper.is_calcuate_norm(param_name)
                     if not is_local or not is_calculate:
                         removed_op_idx.add(idx)
                         removed_tmp_var.update(set(op.output_arg_names))
@@ -432,7 +429,7 @@ class ClipGradByGlobalNormPass(PassBase):
                     op.desc.set_input("X", reserved_vars)
 
         for idx, op in reversed(list(enumerate(block.ops))):
-            if not (is_optimize_op(op) or is_reshard_op(op)):
+            if not is_optimize_op(op):
                 break
             if not is_gradient_clip_op(op):
                 continue
@@ -440,7 +437,7 @@ class ClipGradByGlobalNormPass(PassBase):
                 block._remove_op(idx, sync=False)
 
         for idx, op in reversed(list(enumerate(block.ops))):
-            if not (is_optimize_op(op) or is_reshard_op(op)):
+            if not is_optimize_op(op):
                 break
             if not is_gradient_clip_op(op):
                 continue
@@ -458,7 +455,7 @@ class ClipGradByGlobalNormPass(PassBase):
                             inputs={},
                             outputs={'Out': [input_var]},
                             attrs={
-                                'shape': [],
+                                'shape': [1],
                                 'dtype': input_var.dtype,
                                 'value': 0,
                                 'force_cpu': False,

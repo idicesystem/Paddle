@@ -92,7 +92,7 @@ inline const char* xpuGetErrorString(int stat) {
     case XPUERR_INTERRUPTED:
       return "Execution interrupted by user";
     default:
-      return "Unknown error";
+      return "unknown error";
   }
 }
 

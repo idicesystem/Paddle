@@ -126,7 +126,7 @@ class TestCollectiveGlobalGatherAPI(TestCollectiveAPIRunnerBase):
         (global_expert_count,) = exe.run(
             tmp_main_prog,
             feed={"local_expert_count": local_expert_count},
-            fetch_list=[global_expert_count],
+            fetch_list=[global_expert_count.name],
         )
 
         fwd_expert_count = sum(global_expert_count)

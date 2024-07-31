@@ -35,12 +35,10 @@ class TestScaleOp(OpTest):
         self.shape = [10, 10]
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        self.check_output(check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X'], 'Out', check_dygraph=False)
 
 
 class TestScaleOp_ZeroDim(TestScaleOp):
@@ -64,12 +62,10 @@ class TestScaleOpBiasNotAfterScale(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        self.check_output(check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X'], 'Out', check_dygraph=False)
 
 
 class TestScaleOpScaleTensor(OpTest):
@@ -84,12 +80,10 @@ class TestScaleOpScaleTensor(OpTest):
         self.outputs = {'Out': self.inputs['X'] * self.scale}
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        self.check_output(check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X'], 'Out', check_dygraph=False)
 
 
 class TestScaleOpScaleTensorNotBiasAfterScale(OpTest):
@@ -107,12 +101,10 @@ class TestScaleOpScaleTensorNotBiasAfterScale(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(check_dygraph=False, check_pir_onednn=True)
+        self.check_output(check_dygraph=False)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_dygraph=False, check_pir_onednn=True
-        )
+        self.check_grad(['X'], 'Out', check_dygraph=False)
 
 
 if __name__ == "__main__":

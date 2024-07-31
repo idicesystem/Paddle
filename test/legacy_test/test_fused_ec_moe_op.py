@@ -19,10 +19,11 @@ from op_test import OpTest
 
 import paddle
 import paddle.nn.functional as F
+from paddle.base.framework import default_main_program
 from paddle.incubate.nn.functional import fused_ec_moe
 from paddle.nn.layer.common import Linear
 
-paddle.seed(42)
+default_main_program().random_seed = 42
 
 
 class TestFusedEcMoEOp(OpTest):

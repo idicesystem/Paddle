@@ -17,11 +17,13 @@ limitations under the License. */
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/kernels/funcs/softmax_impl.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template class SoftmaxFunctor<phi::CPUContext, float>;
 template class SoftmaxFunctor<phi::CPUContext, double>;
 template class SoftmaxGradFunctor<phi::CPUContext, float>;
 template class SoftmaxGradFunctor<phi::CPUContext, double>;
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

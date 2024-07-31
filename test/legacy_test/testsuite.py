@@ -107,7 +107,7 @@ def append_input_output(
         if name not in np_list:
             assert var_proto.intermediate, f"{name} not found"
         else:
-            # inference the dtype from numpy value.
+            # inferece the dtype from numpy value.
             np_value = np_list[name]
             if isinstance(np_value, tuple):
                 dtype = np_value[0].dtype

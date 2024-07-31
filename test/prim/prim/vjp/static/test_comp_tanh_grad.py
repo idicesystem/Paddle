@@ -29,9 +29,7 @@ import paddle
 def apply_to_static(net, use_cinn):
     build_strategy = paddle.static.BuildStrategy()
     build_strategy.build_cinn_pass = use_cinn
-    return paddle.jit.to_static(
-        net, build_strategy=build_strategy, full_graph=True
-    )
+    return paddle.jit.to_static(net, build_strategy=build_strategy)
 
 
 class PrimeNet(paddle.nn.Layer):
@@ -69,9 +67,21 @@ class TestTanhGradComp(unittest.TestCase):
 
         return res
 
-    def test_tanh_grad_comp(self):
+    def test_cinn(self):
+        paddle.disable_static()
+        dy_res = self.train(use_prim=False, use_cinn=False)
+        comp_st_cinn_res = self.train(use_prim=True, use_cinn=True)
+
+        for i in range(len(dy_res)):
+            np.testing.assert_allclose(
+                comp_st_cinn_res[i].numpy(),
+                dy_res[i].numpy(),
+                rtol=1e-7,
+                atol=1e-7,
+            )
         paddle.enable_static()
 
+    def test_tanh_grad_comp(self):
         def actual(primal, cotangent):
             mp, sp = paddle.static.Program(), paddle.static.Program()
             with paddle.static.program_guard(mp, sp):
@@ -87,7 +97,7 @@ class TestTanhGradComp(unittest.TestCase):
             return exe.run(
                 program=mp,
                 feed={'primal': primal, 'cotangent': cotangent},
-                fetch_list=[x_cotangent[0]],
+                fetch_list=[x_cotangent[0].name],
             )[0]
 
         def desired(primal, cotangent):
@@ -100,7 +110,6 @@ class TestTanhGradComp(unittest.TestCase):
             atol=0,
         )
         core._set_prim_backward_enabled(False)
-        paddle.disable_static()
 
 
 if __name__ == '__main__':

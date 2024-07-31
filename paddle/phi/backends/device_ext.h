@@ -50,7 +50,6 @@ typedef enum {
   NCHW,
   NCDHW,
   NDHWC,
-  STRIDED,
   NUM_DATA_LAYOUTS,
   ALL_LAYOUT = ANY,
 } C_DataLayout;
@@ -547,13 +546,6 @@ struct C_DeviceInterface {
   //////////////
   // ccl api //
   //////////////
-
-  /**
-   * @brief Get comm name.
-   *
-   * @param[char*]         comm_name
-   */
-  C_Status (*xccl_get_comm_name)(C_CCLComm comm, char* comm_name);
 
   /**
    * @brief Get size of unique id

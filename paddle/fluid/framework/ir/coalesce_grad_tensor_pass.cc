@@ -17,15 +17,17 @@
 #include <algorithm>
 #include <string>
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/framework/details/multi_devices_helper.h"
 #include "paddle/fluid/framework/ir/graph_helper.h"
-namespace paddle::framework {
+#include "paddle/fluid/platform/flags.h"
+namespace paddle {
+namespace framework {
 class ProgramDesc;
 class VarDesc;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
-PHI_DEFINE_EXPORTED_double(
+PADDLE_DEFINE_EXPORTED_double(
     fuse_parameter_memory_size,
     -1.0,  // MBytes
     "fuse_parameter_memory_size is up limited memory size(MB)"
@@ -33,7 +35,7 @@ PHI_DEFINE_EXPORTED_double(
     "of communication calling(e.g NCCLAllReduce). "
     "The default value is 0, it means that "
     "not set group according to memory_size.");
-PHI_DEFINE_EXPORTED_int32(
+PADDLE_DEFINE_EXPORTED_int32(
     fuse_parameter_groups_size,
     1,
     "fuse_parameter_groups_size is the up limited size of one group "
@@ -44,7 +46,9 @@ PHI_DEFINE_EXPORTED_int32(
     "-1, it means that there are only one group. The default value is 3, it is "
     "an experimental value.");
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 // unit of the FLAGS_fuse_parameter_memory_size.
 static constexpr double kMB = 1048576.0;
 
@@ -122,7 +126,7 @@ class CoalesceGradTensorPass : public ir::Pass {
     }
     PADDLE_ENFORCE_EQ(p_g_dense_grad.size(),
                       num_of_p_g_dense_grad,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The number of dense grads is not consistent with "
                           "previous. Previous(%d), now(%d).",
                           p_g_dense_grad.size(),
@@ -130,7 +134,7 @@ class CoalesceGradTensorPass : public ir::Pass {
 
     auto &pinned_var_set =
         graph->GetOrInit<details::PinnedVars>(details::kPinnedVars);
-    if (IsUnifiedDtype(p_g_dense_grad, vars_info)) {  // NOLINT
+    if (IsUnifiedDtype(p_g_dense_grad, vars_info)) {
       RecordGradients(p_g_dense_grad, vars_info, &pinned_var_set);
       CoalesceTensors(vars_info, p_g_dense_grad, &result);
     } else {
@@ -139,9 +143,9 @@ class CoalesceGradTensorPass : public ir::Pass {
         PADDLE_ENFORCE_EQ(
             IsUnifiedDtype(sub_param_grad, vars_info),
             true,
-            common::errors::InvalidArgument("All gradient variable in "
-                                            "kGroupParamsAndDenseGrads, must "
-                                            "have same type."));
+            platform::errors::InvalidArgument("All gradient variable in "
+                                              "kGroupParamsAndDenseGrads, must "
+                                              "have same type."));
         CoalesceTensors(vars_info, sub_param_grad, &result);
       }
     }
@@ -156,17 +160,17 @@ class CoalesceGradTensorPass : public ir::Pass {
       auto iter = vars_info.find(p_g.second);
       PADDLE_ENFORCE_EQ(iter != vars_info.end(),
                         true,
-                        common::errors::NotFound(
+                        platform::errors::NotFound(
                             "Parameter@Grad %s is not found.", p_g.second));
       PADDLE_ENFORCE_EQ(
           !iter->second.empty(),
           true,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "Parameter@Grad %s's var node is empty.", p_g.second));
       for (auto it : iter->second) {
         PADDLE_ENFORCE_NOT_NULL(
             it->Var(),
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "A node of Parameter@Grad %s does not hold variable.",
                 p_g.second));
         pinned_var_set->insert(it->Var()->Name());
@@ -174,7 +178,7 @@ class CoalesceGradTensorPass : public ir::Pass {
       PADDLE_ENFORCE_EQ(
           IsLoDTensorType(GetTypeOfVar(vars_info, p_g.second)),
           true,
-          common::errors::InvalidArgument(
+          platform::errors::InvalidArgument(
               "Parameter@Grad %s is not phi::DenseTensor.", p_g.second));
     }
   }
@@ -240,8 +244,8 @@ class CoalesceGradTensorPass : public ir::Pass {
     PADDLE_ENFORCE_EQ(
         fused_var_set.count(fused_grad_var_name),
         0,
-        common::errors::AlreadyExists("Var(%s) is duplicate in FusedVars.",
-                                      fused_grad_var_name));
+        platform::errors::AlreadyExists("Var(%s) is duplicate in FusedVars.",
+                                        fused_grad_var_name));
     fused_var_set.insert({fused_grad_var_name, var_info});
 
     result->Get<details::FusedGrads>(details::kFusedGrads)
@@ -489,15 +493,15 @@ class CoalesceGradTensorPass : public ir::Pass {
     PADDLE_ENFORCE_EQ(
         grad_iter != vars_info.end(),
         true,
-        common::errors::NotFound("Variable %s is not found.", var_name));
+        platform::errors::NotFound("Variable %s is not found.", var_name));
     PADDLE_ENFORCE_EQ(!grad_iter->second.empty(),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Variable %s's node is empty.", var_name));
     PADDLE_ENFORCE_NOT_NULL(
         grad_iter->second.front()->Var(),
-        common::errors::InvalidArgument("A node of %s does not hold variable.",
-                                        var_name));
+        platform::errors::InvalidArgument(
+            "A node of %s does not hold variable.", var_name));
     return grad_iter->second.front()->Var();
   }
 
@@ -540,7 +544,7 @@ class CoalesceGradTensorPass : public ir::Pass {
       auto next_dtype = GetDtypeOfVar(vars_info, p_g.second);
       PADDLE_ENFORCE_EQ(next_dtype,
                         dtype,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "All Parameter@Grad should have same dtype, but "
                             "there are two different type: %s, %s.",
                             DataTypeToString(next_dtype),
@@ -596,7 +600,9 @@ class CoalesceGradTensorPass : public ir::Pass {
     op_desc->SetAttr("persist_output", persistable);
   }
 };
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(coalesce_grad_tensor_pass,
               paddle::framework::ir::CoalesceGradTensorPass)

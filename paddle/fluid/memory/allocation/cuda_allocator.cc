@@ -29,13 +29,15 @@
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::memory::allocation {
+namespace paddle {
+namespace memory {
+namespace allocation {
 bool CUDAAllocator::IsAllocThreadSafe() const { return true; }
 void CUDAAllocator::FreeImpl(phi::Allocation* allocation) {
   PADDLE_ENFORCE_EQ(
       allocation->place(),
       place_,
-      common::errors::PermissionDenied(
+      platform::errors::PermissionDenied(
           "GPU memory is freed in incorrect device. This may be a bug"));
   platform::RecordedGpuFree(
       allocation->ptr(), allocation->size(), place_.device);
@@ -48,7 +50,7 @@ phi::Allocation* CUDAAllocator::AllocateImpl(size_t size) {
   void* ptr;
   auto result = platform::RecordedGpuMalloc(&ptr, size, place_.device);
   if (LIKELY(result == gpuSuccess)) {
-    return new Allocation(ptr, size, phi::Place(place_));
+    return new Allocation(ptr, size, platform::Place(place_));
   }
 
   size_t avail, total, actual_avail, actual_total;
@@ -68,7 +70,7 @@ phi::Allocation* CUDAAllocator::AllocateImpl(size_t size) {
         limit_size);
   }
 
-  PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+  PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
       "\n\nOut of memory error on GPU %d. "
       "Cannot allocate %s memory on GPU %d, %s memory has been allocated and "
       "available memory is only %s.\n\n"
@@ -84,4 +86,6 @@ phi::Allocation* CUDAAllocator::AllocateImpl(size_t size) {
       err_msg));
 }
 
-}  // namespace paddle::memory::allocation
+}  // namespace allocation
+}  // namespace memory
+}  // namespace paddle

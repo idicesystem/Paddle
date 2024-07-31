@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "paddle/pir/include/core/dialect.h"
+#include "paddle/pir/core/dialect.h"
 
 namespace cinn {
 namespace dialect {

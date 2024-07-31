@@ -123,7 +123,7 @@ class EquationGraphTopoWalker final {
     std::unordered_set<VT> queued_variables{};
     std::queue<FT> functions_queue{};
     std::unordered_set<FT> queued_functions{};
-    const auto& TryEnqueueVariable = [&](VT variable) {
+    const auto& TryEnqueueVaraible = [&](VT variable) {
       if (queued_variables.count(variable) == 0) {
         variables_queue.push(variable);
         queued_variables.insert(variable);
@@ -136,14 +136,14 @@ class EquationGraphTopoWalker final {
       }
     };
     for (VarIterT iter = begin; iter != end; ++iter) {
-      TryEnqueueVariable(*iter);
+      TryEnqueueVaraible(*iter);
     }
     while (!functions_queue.empty() || !variables_queue.empty()) {
       if (!functions_queue.empty()) {
         FT function = functions_queue.front();
         functions_queue.pop();
         FunctionVisitor(function);
-        VisitOutputVariables(function, TryEnqueueVariable);
+        VisitOutputVariables(function, TryEnqueueVaraible);
       }
       if (!variables_queue.empty()) {
         VT variable = variables_queue.front();

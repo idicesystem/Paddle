@@ -23,7 +23,8 @@ limitations under the License. */
 #include "paddle/fluid/jit/property.h"
 #include "paddle/phi/core/enforce.h"
 
-namespace paddle::jit {
+namespace paddle {
+namespace jit {
 
 using Variable = paddle::framework::Variable;
 
@@ -98,7 +99,7 @@ std::unordered_map<std::string, std::shared_ptr<Variable>> Property::Values() {
         case ValueProto::STRING:
           *var->GetMutable<paddle::framework::String>() = GetString(n);
           break;
-        case ValueProto::FLOATS:  // NOLINT
+        case ValueProto::FLOATS:
           *var->GetMutable<std::vector<float>>() = GetFloats(n);
           break;
         case ValueProto::INTS:
@@ -208,8 +209,8 @@ std::vector<float> Property::GetFloats(const std::string &name) {
           phi::errors::PreconditionNotMet(
               "JIT::Property GetFloats: idx=%d type is not floats.", i));
 
-      // auto items = e.floats();
-      return std::vector<float>(e.floats().begin(), e.floats().end());
+      auto items = e.floats();
+      return std::vector<float>(items.begin(), items.end());
     }
   }
 
@@ -367,8 +368,8 @@ std::vector<std::string> Property::GetStrings(const std::string &name) {
           phi::errors::PreconditionNotMet(
               "JIT::Property GetStrings: idx=%d type is not strings.", i));
 
-      // auto items = e.strings();
-      return std::vector<std::string>(e.strings().begin(), e.strings().end());
+      auto items = e.strings();
+      return std::vector<std::string>(items.begin(), items.end());
     }
   }
 
@@ -377,4 +378,5 @@ std::vector<std::string> Property::GetStrings(const std::string &name) {
   return {};
 }
 
-}  // namespace paddle::jit
+}  // namespace jit
+}  // namespace paddle

@@ -74,7 +74,7 @@ def rot_four_return_d(
     return d + 1
 
 
-class TestRot(TestCaseBase):
+class TestExecutor(TestCaseBase):
     def test_simple(self):
         a = paddle.to_tensor(1)
         b = paddle.to_tensor(2)

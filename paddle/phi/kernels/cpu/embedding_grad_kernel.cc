@@ -115,7 +115,7 @@ void EmbeddingGradKernel(const Context& ctx,
     functor.template apply<int64_t>();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
-        "embedding input only support int32 and int64"));
+        "emebdding input only support int32 and int64"));
   }
 }
 
@@ -196,7 +196,7 @@ void EmbeddingSparseGradKernel(const Context& ctx,
     functor.template apply<int64_t>();
   } else {
     PADDLE_THROW(phi::errors::Unimplemented(
-        "embedding input only support int32 and int64"));
+        "emebdding input only support int32 and int64"));
   }
 }
 
@@ -209,9 +209,7 @@ PD_REGISTER_KERNEL(embedding_grad,
                    float,
                    double,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::bfloat16) {}
 
 PD_REGISTER_KERNEL(embedding_sparse_grad,
                    CPU,
@@ -219,6 +217,4 @@ PD_REGISTER_KERNEL(embedding_sparse_grad,
                    phi::EmbeddingSparseGradKernel,
                    float,
                    double,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::bfloat16) {}

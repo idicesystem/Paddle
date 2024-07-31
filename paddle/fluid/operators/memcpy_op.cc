@@ -87,9 +87,9 @@ class MemcpyKernel {
     PADDLE_ENFORCE_EQ(
         ctx.HasOutput("Out"),
         true,
-        common::errors::NotFound("Output(Out) of memcpy_op is not found."));
+        platform::errors::NotFound("Output(Out) of memcpy_op is not found."));
     auto *out = ctx.OutputVar("Out");
-    phi::DeviceContextPool &pool = phi::DeviceContextPool::Instance();
+    platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
     auto &dev_ctx = *pool.Get(ctx.GetPlace());
     auto dst_place_type = ctx.Attr<int>("dst_place_type");
     framework::VisitVarType(*x, MemcpyFunctor(out, dev_ctx, dst_place_type));

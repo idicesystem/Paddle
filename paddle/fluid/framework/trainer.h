@@ -34,7 +34,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/trainer_desc.pb.h"
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/operators/reader/blocking_queue.h"
-#include "paddle/phi/common/port.h"
+#include "paddle/phi/backends/dynload/port.h"
 
 namespace paddle {
 namespace framework {
@@ -63,7 +63,7 @@ class TrainerBase {
   virtual void Initialize(const TrainerDesc& trainer_desc,
                           Dataset* data_set) = 0;
   virtual void InitTrainerEnv(const ProgramDesc& main_program,
-                              const phi::Place& place) = 0;
+                              const platform::Place& place) = 0;
   virtual void InitOtherEnv(const ProgramDesc& main_program) = 0;
   virtual void Run() = 0;
   virtual void Finalize() = 0;
@@ -105,7 +105,7 @@ class MultiTrainer : public TrainerBase {
   virtual ~MultiTrainer() {}
   virtual void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set);
   virtual void InitTrainerEnv(const ProgramDesc& main_program,
-                              const phi::Place& place);
+                              const platform::Place& place);
   virtual void InitOtherEnv(const ProgramDesc& main_program);
   virtual void Run();
   virtual void Finalize();
@@ -131,13 +131,11 @@ class MultiTrainer : public TrainerBase {
   std::vector<std::string> need_merge_var_names_;
   std::vector<std::string> trainable_param_;
 #ifdef PADDLE_WITH_HETERPS
-  std::vector<phi::Place> places_;
+  std::vector<platform::Place> places_;
 #endif
   int mpi_rank_;
   int mpi_size_;
   int dump_file_num_;
-  int use_ps_gpu_;
-  int use_gpu_graph_;
 };
 
 class DistMultiTrainer : public MultiTrainer {
@@ -146,7 +144,7 @@ class DistMultiTrainer : public MultiTrainer {
   virtual ~DistMultiTrainer() {}
   virtual void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set);
   virtual void InitTrainerEnv(const ProgramDesc& main_program,
-                              const phi::Place& place);
+                              const platform::Place& place);
   virtual void InitOtherEnv(const ProgramDesc& main_program);
   virtual void Run();
   virtual void Finalize();
@@ -195,7 +193,7 @@ class HeterXpuTrainer : public TrainerBase {
   }
   virtual void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set);
   virtual void InitTrainerEnv(const ProgramDesc& main_program,
-                              const phi::Place& place);
+                              const platform::Place& place);
   virtual void InitOtherEnv(const ProgramDesc& main_program);
   virtual void Run();
   virtual void Finalize();
@@ -212,13 +210,13 @@ class HeterXpuTrainer : public TrainerBase {
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
   void HeterMemCpy(phi::DenseTensor* tensor,
                    phi::DenseTensor* root_tensor,
-                   const phi::Place& thread_place,
+                   const paddle::platform::Place& thread_place,
                    gpuStream_t stream);
 #endif
 #ifdef PADDLE_WITH_XPU
   void HeterMemCpy(phi::DenseTensor* thread_tensor,
                    phi::DenseTensor* root_tensor,
-                   const phi::Place& thread_place);
+                   const paddle::platform::Place& thread_place);
 #endif
   void CreateThreadParam(const ProgramDesc& program, int num);
   template <typename T>
@@ -235,7 +233,7 @@ class HeterXpuTrainer : public TrainerBase {
   int xpu_begin_op_index_;
   int xpu_end_op_index_;
   bool running_;
-  phi::Place place_;
+  paddle::platform::Place place_;
   std::mutex mutex_;
   ProgramDesc program_;
   std::condition_variable cond_;
@@ -246,7 +244,7 @@ class HeterXpuTrainer : public TrainerBase {
   std::vector<std::string> op_names_;
   std::vector<Scope*> place_scopes_;
   BtObjectPool<HeterServiceContext> object_pool_;
-  std::vector<phi::Place> places_;
+  std::vector<platform::Place> places_;
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
   std::vector<gpuStream_t> copy_streams_;
   std::vector<gpuEvent_t> events_;
@@ -264,7 +262,7 @@ class PSGPUTrainer : public TrainerBase {
   virtual ~PSGPUTrainer() {}
   virtual void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set);
   virtual void InitTrainerEnv(const ProgramDesc& main_program,
-                              const phi::Place& place);
+                              const platform::Place& place);
   virtual void InitOtherEnv(const ProgramDesc& main_program);
   virtual void Run();
   virtual void Finalize();
@@ -289,11 +287,11 @@ class PSGPUTrainer : public TrainerBase {
   std::vector<std::string> need_merge_var_names_;
   std::vector<std::string> trainable_param_;
   float scale_datanorm_;
-  phi::Place place_;
+  paddle::platform::Place place_;
   ProgramDesc program_;
   std::shared_ptr<paddle::framework::PullDenseWorker> pull_dense_worker_;
   std::vector<std::shared_ptr<DeviceWorker>> workers_;
-  std::vector<phi::Place> places_;
+  std::vector<platform::Place> places_;
   // ps-gpu
   std::vector<std::thread> threads_;
   int use_ps_gpu_;
@@ -314,7 +312,7 @@ class PipelineTrainer : public TrainerBase {
   ~PipelineTrainer() override {}
   void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set) override;
   void InitTrainerEnv(const ProgramDesc& main_program,
-                      const phi::Place& place) override;
+                      const platform::Place& place) override;
   void InitOtherEnv(const ProgramDesc& main_program) override;
   void Run() override;
   void Finalize() override;
@@ -325,7 +323,7 @@ class PipelineTrainer : public TrainerBase {
 
  protected:
   int num_microbatches_;
-  phi::Place place_;
+  platform::Place place_;
   std::vector<std::string> skip_vars_;
   TrainerDesc trainer_desc_;
 
@@ -337,7 +335,7 @@ class PipelineTrainer : public TrainerBase {
 
   void CopyParameters(int microbatch_id,
                       const ProgramDesc& program,
-                      const phi::Place& place);
+                      const platform::Place& place);
 };
 #endif
 
@@ -348,7 +346,7 @@ class HeterPipelineTrainer : public TrainerBase {
   ~HeterPipelineTrainer() override {}
   void Initialize(const TrainerDesc& trainer_desc, Dataset* data_set) override;
   void InitTrainerEnv(const ProgramDesc& main_program,
-                      const phi::Place& place) override;
+                      const platform::Place& place) override;
   void InitOtherEnv(const ProgramDesc& main_program) override;
   void Run() override;
   void Finalize() override;
@@ -364,7 +362,7 @@ class HeterPipelineTrainer : public TrainerBase {
   std::vector<std::thread> threads_;
 
   int num_microbatches_;
-  phi::Place place_;
+  platform::Place place_;
   TrainerDesc trainer_desc_;
 
   int num_pipeline_stages_;
@@ -378,7 +376,7 @@ class HeterPipelineTrainer : public TrainerBase {
                              std::pair<std::string, int>>>>>
       task_queue_;
 
-  phi::DeviceContext* dev_ctx_ = nullptr;
+  platform::DeviceContext* dev_ctx_ = nullptr;
 
   std::shared_ptr<std::unordered_map<int, Scope*>> mini_scopes_;
   std::shared_ptr<std::unordered_map<int, std::shared_ptr<std::vector<Scope*>>>>

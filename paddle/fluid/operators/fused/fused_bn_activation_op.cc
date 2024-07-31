@@ -21,62 +21,63 @@ limitations under the License. */
 #include "paddle/fluid/framework/convert_utils.h"
 #include "paddle/fluid/framework/op_registry.h"
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 void FusedBatchNormActOp::InferShape(framework::InferShapeContext *ctx) const {
   PADDLE_ENFORCE_EQ(ctx->HasInput("X"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(X) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasInput("Scale"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(Scale) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasInput("Bias"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(Bias) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasInput("Mean"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(Mean) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasInput("Variance"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(Variance) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasOutput("Y"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Output(Y) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasOutput("MeanOut"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Output(MeanOut) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(
       ctx->HasOutput("VarianceOut"),
       true,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Output(VarianceOut) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(
       ctx->HasOutput("SavedMean"),
       true,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Output(SavedMean) of BatchNormOp should not be null."));
   PADDLE_ENFORCE_EQ(
       ctx->HasOutput("SavedVariance"),
       true,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Output(SavedVariance) of BatchNormOp should not be null."));
 
   // make sure Mean/MeanOut and Variance/VarianceOut share memory in Python
   PADDLE_ENFORCE_EQ(ctx->Inputs("Mean")[0],
                     ctx->Outputs("MeanOut")[0],
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "Mean and MeanOut should share the same memory"));
   PADDLE_ENFORCE_EQ(
       ctx->Inputs("Variance")[0],
       ctx->Outputs("VarianceOut")[0],
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Variance and VarianceOut should share the same memory"));
 
   const auto x_dims = ctx->GetInputDim("X");
@@ -84,23 +85,23 @@ void FusedBatchNormActOp::InferShape(framework::InferShapeContext *ctx) const {
   PADDLE_ENFORCE_GE(
       x_dims.size(),
       2,
-      common::errors::PreconditionNotMet("ShapeError: the dimension of input "
-                                         "X must greater than or equal to 2."
-                                         "But received: the shape of input X "
-                                         "= [%s], the dimension of input X ="
-                                         "[%d]",
-                                         x_dims,
-                                         x_dims.size()));
+      platform::errors::PreconditionNotMet("ShapeError: the dimension of input "
+                                           "X must greater than or equal to 2."
+                                           "But received: the shape of input X "
+                                           "= [%s], the dimension of input X ="
+                                           "[%d]",
+                                           x_dims,
+                                           x_dims.size()));
   PADDLE_ENFORCE_LE(
       x_dims.size(),
       5,
-      common::errors::PreconditionNotMet("ShapeError: the dimension of input "
-                                         "X must smaller than or equal to 5."
-                                         "But received: the shape of input X "
-                                         "= [%s], the dimension of input X ="
-                                         "[%d]",
-                                         x_dims,
-                                         x_dims.size()));
+      platform::errors::PreconditionNotMet("ShapeError: the dimension of input "
+                                           "X must smaller than or equal to 5."
+                                           "But received: the shape of input X "
+                                           "= [%s], the dimension of input X ="
+                                           "[%d]",
+                                           x_dims,
+                                           x_dims.size()));
 
   const int64_t C = x_dims[x_dims.size() - 1];
 
@@ -110,7 +111,7 @@ void FusedBatchNormActOp::InferShape(framework::InferShapeContext *ctx) const {
   PADDLE_ENFORCE_EQ(
       scale_dim.size(),
       1UL,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "ShapeError: the dimension of scale must equal to 1."
           "But received: the shape of scale is [%s], the dimension "
           "of scale is [%d]",
@@ -118,7 +119,7 @@ void FusedBatchNormActOp::InferShape(framework::InferShapeContext *ctx) const {
           scale_dim.size()));
   PADDLE_ENFORCE_EQ(bias_dim.size(),
                     1UL,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "ShapeError: the dimension of bias must equal to 1."
                         "But received: the shape of bias is [%s],the dimension "
                         "of bias is [%d]",
@@ -134,14 +135,14 @@ void FusedBatchNormActOp::InferShape(framework::InferShapeContext *ctx) const {
   if (check) {
     PADDLE_ENFORCE_EQ(scale_dim[0],
                       C,
-                      common::errors::PreconditionNotMet(
+                      platform::errors::PreconditionNotMet(
                           "ShapeError: the shape of scale must equal to [%d]"
                           "But received: the shape of scale is [%d]",
                           C,
                           scale_dim[0]));
     PADDLE_ENFORCE_EQ(bias_dim[0],
                       C,
-                      common::errors::PreconditionNotMet(
+                      platform::errors::PreconditionNotMet(
                           "ShapeError: the shape of bias must equal to [%d]"
                           "But received: the shape of bias is [%d]",
                           C,
@@ -168,22 +169,22 @@ phi::KernelKey FusedBatchNormActOp::GetExpectedKernelType(
   PADDLE_ENFORCE_EQ(bn_param_type,
                     framework::TransToProtoVarType(
                         ctx.Input<phi::DenseTensor>("Scale")->dtype()),
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "Scale input should be of float type"));
-  PADDLE_ENFORCE_EQ(
-      bn_param_type,
-      framework::TransToProtoVarType(
-          ctx.Input<phi::DenseTensor>("Bias")->dtype()),
-      common::errors::PreconditionNotMet("Bias input should be of float type"));
-  PADDLE_ENFORCE_EQ(
-      bn_param_type,
-      framework::TransToProtoVarType(
-          ctx.Input<phi::DenseTensor>("Mean")->dtype()),
-      common::errors::PreconditionNotMet("Mean input should be of float type"));
+  PADDLE_ENFORCE_EQ(bn_param_type,
+                    framework::TransToProtoVarType(
+                        ctx.Input<phi::DenseTensor>("Bias")->dtype()),
+                    platform::errors::PreconditionNotMet(
+                        "Bias input should be of float type"));
+  PADDLE_ENFORCE_EQ(bn_param_type,
+                    framework::TransToProtoVarType(
+                        ctx.Input<phi::DenseTensor>("Mean")->dtype()),
+                    platform::errors::PreconditionNotMet(
+                        "Mean input should be of float type"));
   PADDLE_ENFORCE_EQ(bn_param_type,
                     framework::TransToProtoVarType(
                         ctx.Input<phi::DenseTensor>("Variance")->dtype()),
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "Variance input should be of float type"));
 
   return phi::KernelKey(input_data_type, ctx.GetPlace());
@@ -196,7 +197,7 @@ void FusedBatchNormActOpMaker::Make() {
       .AddCustomChecker([](const float &epsilon) {
         PADDLE_ENFORCE_EQ(epsilon >= 0.0f && epsilon <= 0.001f,
                           true,
-                          common::errors::InvalidArgument(
+                          platform::errors::InvalidArgument(
                               "Attr(epsilon) should be between 0.0 and 0.001, "
                               "but received value is %f.",
                               epsilon));
@@ -251,37 +252,37 @@ void FusedBatchNormActGradOp::InferShape(
   PADDLE_ENFORCE_EQ(
       ctx->HasInput("X"),
       true,
-      common::errors::InvalidArgument("Input(X) should not be null."));
+      platform::errors::InvalidArgument("Input(X) should not be null."));
   PADDLE_ENFORCE_EQ(
       ctx->HasInput("Scale"),
       true,
-      common::errors::InvalidArgument("Input(Scale) should not be null."));
+      platform::errors::InvalidArgument("Input(Scale) should not be null."));
   PADDLE_ENFORCE_EQ(
       ctx->HasInput(framework::GradVarName("Y")),
       true,
-      common::errors::InvalidArgument("Input(Y@GRAD) should not be null."));
-  PADDLE_ENFORCE_EQ(
-      ctx->HasInput("SavedMean"),
-      true,
-      common::errors::InvalidArgument("Input(SavedMean) should not be null."));
+      platform::errors::InvalidArgument("Input(Y@GRAD) should not be null."));
+  PADDLE_ENFORCE_EQ(ctx->HasInput("SavedMean"),
+                    true,
+                    platform::errors::InvalidArgument(
+                        "Input(SavedMean) should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasInput("SavedVariance"),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Input(SavedVariance) should not be null"));
 
   // check output
   PADDLE_ENFORCE_EQ(
       ctx->HasOutput(framework::GradVarName("X")),
       true,
-      common::errors::InvalidArgument("Output(X@GRAD) should not be null."));
+      platform::errors::InvalidArgument("Output(X@GRAD) should not be null."));
   PADDLE_ENFORCE_EQ(ctx->HasOutput(framework::GradVarName("Scale")),
                     true,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "Output(Scale@GRAD) should not be null."));
-  PADDLE_ENFORCE_EQ(
-      ctx->HasOutput(framework::GradVarName("Bias")),
-      true,
-      common::errors::InvalidArgument("Output(Bias@GRAD) should not be null."));
+  PADDLE_ENFORCE_EQ(ctx->HasOutput(framework::GradVarName("Bias")),
+                    true,
+                    platform::errors::InvalidArgument(
+                        "Output(Bias@GRAD) should not be null."));
 
   const auto x_dims = ctx->GetInputDim("X");
   const int C = x_dims[x_dims.size() - 1];
@@ -296,7 +297,7 @@ phi::KernelKey FusedBatchNormActGradOp::GetExpectedKernelType(
     const framework::ExecutionContext &ctx) const {
   const auto *var = ctx.InputVar(framework::GradVarName("Y"));
   if (var == nullptr) {
-    PADDLE_THROW(common::errors::NotFound(
+    PADDLE_THROW(platform::errors::NotFound(
         "Can not find Y@GRAD in the execution context."));
   }
   const phi::DenseTensor *t = nullptr;
@@ -305,14 +306,15 @@ phi::KernelKey FusedBatchNormActGradOp::GetExpectedKernelType(
   }
   if (t == nullptr) {
     PADDLE_THROW(
-        common::errors::NotFound("Can not get the tensor value of Y@GRAD."));
+        platform::errors::NotFound("Can not get the tensor value of Y@GRAD."));
   }
 
   return phi::KernelKey(OperatorWithKernel::IndicateVarDataType(ctx, "X"),
                         ctx.GetPlace());
 }
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 REGISTER_OPERATOR(

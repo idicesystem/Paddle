@@ -14,14 +14,17 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/collective/c_allreduce_op.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class OpDesc;
-}  // namespace paddle::framework
-namespace paddle::imperative {
+}  // namespace framework
+namespace imperative {
 class OpBase;
-}  // namespace paddle::imperative
+}  // namespace imperative
+}  // namespace paddle
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 template <typename T>
 class CAllReduceSumOpGradMaker : public framework::SingleGradOpMaker<T> {
@@ -55,9 +58,11 @@ DECLARE_INPLACE_OP_INFERER(AllreduceSumInplaceInferer, {"X", "Out"});
 
 DEFINE_C_ALLREDUCE_CPU_KERNEL(CAllReduceSum, kRedSum)
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_WITHOUT_GRADIENT(c_allreduce_sum,
                              ops::CAllReduceOp,
@@ -72,4 +77,4 @@ PD_REGISTER_STRUCT_KERNEL(c_allreduce_sum,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

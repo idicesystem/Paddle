@@ -12,19 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import numbers
-from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
 
 import paddle
 from paddle.base import framework
 from paddle.distribution import distribution
-
-if TYPE_CHECKING:
-    from paddle import Tensor
 
 
 class Geometric(distribution.Distribution):
@@ -73,13 +67,8 @@ class Geometric(distribution.Distribution):
             1.41421354)
     """
 
-    probs: Tensor
-
-    def __init__(self, probs: float | Tensor) -> None:
-        if isinstance(
-            probs,
-            (numbers.Real, paddle.Tensor, framework.Variable, paddle.pir.Value),
-        ):
+    def __init__(self, probs):
+        if isinstance(probs, (numbers.Real, paddle.Tensor, framework.Variable)):
             if isinstance(probs, numbers.Real):
                 probs = paddle.full(
                     shape=(), fill_value=probs, dtype=paddle.float32
@@ -100,21 +89,29 @@ class Geometric(distribution.Distribution):
 
         else:
             raise TypeError(
-                f"Expected type of probs is Number.Real|Tensor|framework.Variable|Value, but got {type(probs)}"
+                f"Expected type of probs is Number.Real|Tensor|framework.Variable, but got {type(probs)}"
             )
 
-        batch_shape = tuple(probs.shape)
+        if paddle.equal_all(lessthen_0, all_false) and paddle.equal_all(
+            morethen_1, all_false
+        ):
+            batch_shape = tuple(probs.shape)
+        else:
+            raise ValueError(
+                "Expected parameter probs of distribution Geometric to satisfy the"
+                "constraint Interval(lower_bound=0.0, upper_bound=1.0)"
+            )
 
         self.probs = probs
         super().__init__(batch_shape)
 
     @property
-    def mean(self) -> Tensor:
+    def mean(self):
         """Mean of geometric distribution."""
         return 1.0 / self.probs - 1.0
 
     @property
-    def variance(self) -> Tensor:
+    def variance(self):
         """Variance of geometric distribution."""
         return paddle.to_tensor(
             (1.0 / self.probs - 1.0) / self.probs,
@@ -122,12 +119,12 @@ class Geometric(distribution.Distribution):
         )
 
     @property
-    def stddev(self) -> Tensor:
+    def stddev(self):
         """Standard deviation of Geometric distribution."""
         return paddle.sqrt(self.variance)
 
-    def pmf(self, k: int | Tensor) -> Tensor:
-        r"""Probability mass function evaluated at k.
+    def pmf(self, k):
+        r"""Probability mass funciotn evaluated at k.
 
         .. math::
 
@@ -151,16 +148,14 @@ class Geometric(distribution.Distribution):
                 Tensor(shape=[], dtype=float32, place=Place(cpu), stop_gradient=True,
                 0.12500000)
         """
-        if isinstance(
-            k, (numbers.Integral, framework.Variable, paddle.pir.Value)
-        ):
+        if isinstance(k, (numbers.Integral, framework.Variable)):
             return paddle.pow((1.0 - self.probs), k) * self.probs
         else:
             raise TypeError(
-                f"Expected type of k is number.Real|framework.Variable|Value, but got {type(k)}"
+                f"Expected type of k is number.Real|framework.Variable, but got {type(k)}"
             )
 
-    def log_pmf(self, k: int | Tensor) -> Tensor:
+    def log_pmf(self, k):
         r"""Log probability mass function evaluated at k.
 
         .. math::
@@ -184,20 +179,18 @@ class Geometric(distribution.Distribution):
                 Tensor(shape=[], dtype=float32, place=Place(cpu), stop_gradient=True,
                 -2.07944131)
         """
-        if isinstance(
-            k, (numbers.Integral, framework.Variable, paddle.pir.Value)
-        ):
+        if isinstance(k, (numbers.Integral, framework.Variable)):
             return paddle.log(self.pmf(k))
         else:
             raise TypeError(
-                f"Expected type of k is number.Real|framework.Variable|Value, but got {type(k)}"
+                f"Expected type of k is number.Real|framework.Variable, but got {type(k)}"
             )
 
-    def sample(self, shape: Sequence[int] = ()) -> Tensor:
+    def sample(self, shape=()):
         """Sample from Geometric distribution with sample shape.
 
         Args:
-            shape (Sequence[int]): Sample shape.
+            shape (tuple(int)): Sample shape.
 
         Returns:
             Sampled data with shape `sample_shape` + `batch_shape` + `event_shape`.
@@ -219,11 +212,11 @@ class Geometric(distribution.Distribution):
         with paddle.no_grad():
             return self.rsample(shape)
 
-    def rsample(self, shape: Sequence[int] = ()) -> Tensor:
+    def rsample(self, shape=()):
         """Generate samples of the specified shape.
 
         Args:
-            shape(Sequence[int]): The shape of generated samples.
+            shape(tuple(int)): The shape of generated samples.
 
         Returns:
             Tensor: A sample tensor that fits the Geometric distribution.
@@ -256,7 +249,7 @@ class Geometric(distribution.Distribution):
 
         return paddle.floor(paddle.log(uniform) / paddle.log1p(-(self.probs)))
 
-    def entropy(self) -> Tensor:
+    def entropy(self):
         r"""Entropy of dirichlet distribution.
 
         .. math::
@@ -283,7 +276,7 @@ class Geometric(distribution.Distribution):
 
         return -(x + y) / self.probs
 
-    def cdf(self, k: int | Tensor) -> Tensor:
+    def cdf(self, k):
         r"""Cdf of geometric distribution.
 
         .. math::
@@ -308,16 +301,14 @@ class Geometric(distribution.Distribution):
                 Tensor(shape=[], dtype=float32, place=Place(cpu), stop_gradient=True,
                 0.96875000)
         """
-        if isinstance(
-            k, (numbers.Integral, framework.Variable, paddle.pir.Value)
-        ):
+        if isinstance(k, (numbers.Integral, framework.Variable)):
             return 1.0 - paddle.pow((1.0 - self.probs), k + 1)
         else:
             raise TypeError(
-                f"Expected type of k is number.Real|framework.Variable|Value, but got {type(k)}"
+                f"Expected type of k is number.Real|framework.Variable, but got {type(k)}"
             )
 
-    def kl_divergence(self, other: Geometric) -> Tensor:
+    def kl_divergence(self, other):
         r"""Calculate the KL divergence KL(self || other) with two Geometric instances.
 
         .. math::
@@ -350,5 +341,5 @@ class Geometric(distribution.Distribution):
             )
         else:
             raise TypeError(
-                f"Exacted type of other is geometric.Geometric, but got {type(other)}"
+                f"Exected type of other is geometric.Geometric, but got {type(other)}"
             )

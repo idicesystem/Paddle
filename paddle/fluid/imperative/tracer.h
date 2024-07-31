@@ -23,16 +23,17 @@
 #include <vector>
 
 #include "ThreadPool.h"
-#include "paddle/common/macros.h"
 #include "paddle/fluid/framework/garbage_collector.h"
 #include "paddle/fluid/imperative/amp_auto_cast.h"
 #include "paddle/fluid/imperative/basic_engine.h"
+#include "paddle/fluid/imperative/jit/program_desc_tracer.h"
 #include "paddle/fluid/imperative/layer.h"
 #include "paddle/fluid/imperative/layout_autotune.h"
+#include "paddle/fluid/platform/macros.h"
 #include "paddle/phi/core/compat/arg_map_context.h"
 #include "paddle/utils/test_macros.h"
 
-COMMON_DECLARE_bool(use_stride_kernel);
+PHI_DECLARE_bool(use_stride_kernel);
 namespace paddle {
 namespace imperative {
 
@@ -41,7 +42,8 @@ enum class AmpLevel;
 enum class AmpDtype;
 
 using GarbageCollectorMap =
-    std::map<phi::Place, std::unique_ptr<paddle::framework::GarbageCollector>>;
+    std::map<platform::Place,
+             std::unique_ptr<paddle::framework::GarbageCollector>>;
 
 class UniqueNameGenerator {
  public:
@@ -61,8 +63,9 @@ class Tracer {
  public:
   Tracer()
       : basic_engine_(new BasicEngine()),
+        program_desc_tracer_(new jit::ProgramDescTracer()),
         generator_(new UniqueNameGenerator()) {
-    expected_place_ = phi::CPUPlace();
+    expected_place_ = platform::CPUPlace();
   }
 
   ~Tracer() = default;
@@ -72,7 +75,7 @@ class Tracer {
                const NameVarMap<VarType>& ins,
                const NameVarMap<VarType>& outs,
                framework::AttributeMap attrs,
-               const phi::Place& place,
+               const platform::Place& place,
                bool trace_backward,
                const std::map<std::string, std::string>& inplace_map = {},
                paddle::framework::AttributeMap* passed_default_attrs_ = nullptr,
@@ -84,7 +87,7 @@ class Tracer {
       const NameVarMap<VarType>& ins,
       const NameVarMap<VarType>& outs,
       framework::AttributeMap& attrs,  // NOLINT
-      const phi::Place& place,
+      const platform::Place& place,
       bool trace_backward,
       const std::map<std::string, std::string>& inplace_map = {},
       paddle::framework::AttributeMap* passed_default_attrs_ = nullptr,
@@ -111,7 +114,7 @@ class Tracer {
                const NameTensorMap& ins,
                const NameTensorMap& outs,
                paddle::framework::AttributeMap& attrs,  // NOLINT
-               const phi::Place& place,
+               const paddle::platform::Place& place,
                paddle::framework::AttributeMap* default_attrs,
                bool use_default_attr_map,
                const std::map<std::string, std::string>& inplace_map = {});
@@ -122,6 +125,14 @@ class Tracer {
   bool ComputeRequiredGrad(const NameTensorMap& ins,
                            const NameTensorMap& outs,
                            bool trace_backward);
+
+  void SetEnableProgramDescTracing(bool enabled);
+
+  bool IsProgramDescTracingEnabled() const;
+
+  jit::ProgramDescTracer* GetProgramDescTracer() {
+    return program_desc_tracer_.get();
+  }
 
   // Note(Aurelius84): The `tmp` is used as prefix key while naming a temporary
   // intermediate var both in imperative and static graph mode. But the
@@ -136,9 +147,9 @@ class Tracer {
 
   BasicEngine* GetEngine() const { return basic_engine_.get(); }
 
-  phi::Place ExpectedPlace() const { return expected_place_; }
+  platform::Place ExpectedPlace() const { return expected_place_; }
 
-  TEST_API void SetExpectedPlace(phi::Place place);
+  TEST_API void SetExpectedPlace(platform::Place place);
 
   TEST_API bool HasGrad() const;
 
@@ -172,25 +183,29 @@ class Tracer {
       framework::AttributeMap attrs) const;
 
   paddle::framework::GarbageCollector* MutableGarbageCollectorIfNotExists(
-      const phi::Place& place);
+      const platform::Place& place);
 
  private:
   std::unique_ptr<BasicEngine> basic_engine_;
+  std::unique_ptr<jit::ProgramDescTracer> program_desc_tracer_;
   std::unique_ptr<UniqueNameGenerator> generator_;
-  phi::Place expected_place_;
+  platform::Place expected_place_;
   GarbageCollectorMap gcs_;
   static thread_local std::string python_stack_;
   static thread_local bool enable_program_desc_tracing_;
   static thread_local bool use_layout_autotune_;
   static thread_local bool has_grad_;
+  static thread_local bool use_promote_;
+  static thread_local AmpLevel amp_level_;
+  static thread_local phi::DataType amp_dtype_;
 };
 
 // To access static variable current_tracer
 const std::shared_ptr<Tracer>& GetCurrentTracer();
 TEST_API void SetCurrentTracer(const std::shared_ptr<Tracer>& tracer_);
-const std::shared_ptr<AmpAttrs>& GetCurrentAmpAttrs();
 void IncreaseVarbaseReferenceCountUntilCopyComplete(
-    const std::shared_ptr<imperative::VarBase>& var, const phi::Place& place);
+    const std::shared_ptr<imperative::VarBase>& var,
+    const platform::Place& place);
 
 void PassStopGradient(const NameVarBaseMap& outs, bool generate_grad);
 

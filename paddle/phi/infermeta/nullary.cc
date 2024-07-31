@@ -123,18 +123,6 @@ void GaussianInferMeta(const IntArray& shape,
   out->set_layout(DataLayout::NCHW);
 }
 
-void PartialRecvInferMeta(int ring_id,
-                          int peer,
-                          DataType dtype,
-                          const std::vector<int>& out_shape,
-                          bool use_calc_stream,
-                          int num,
-                          int id,
-                          MetaTensor* out) {
-  out->set_dims(common::make_ddim(out_shape));
-  out->set_dtype(dtype);
-}
-
 void RandpermInferMeta(int n, DataType dtype, MetaTensor* out) {
   out->set_dims(common::make_ddim({n}));
   out->set_dtype(dtype);
@@ -231,13 +219,14 @@ void RecvV2InferMeta(const int ring_id,
       errors::InvalidArgument(
           "The ring_id (%d) for recv_v2 op must be non-negative.", ring_id));
 
+  PADDLE_ENFORCE_GE(out_shape.size(),
+                    1,
+                    errors::InvalidArgument(
+                        "The size of the output shape must be greater than 0 "
+                        "but the value given is %d.",
+                        out_shape.size()));
+
   if (!dynamic_shape) {
-    PADDLE_ENFORCE_GE(out_shape.size(),
-                      1,
-                      errors::InvalidArgument(
-                          "The size of the output shape must be greater than 0 "
-                          "but the value given is %d.",
-                          out_shape.size()));
     for (size_t i = 0; i < out_shape.size(); ++i) {
       PADDLE_ENFORCE_GE(out_shape[i],
                         1,
@@ -263,8 +252,6 @@ void TruncatedGaussianRandomInferMeta(const std::vector<int>& shape,
                                       float mean,
                                       float std,
                                       int seed,
-                                      float a,
-                                      float b,
                                       DataType dtype,
                                       MetaTensor* out) {
   auto out_dims = common::make_ddim(shape);
@@ -329,7 +316,6 @@ void TriuIndicesInferMeta(
 void ReadFileInferMeta(const std::string& filename, MetaTensor* out) {
   auto out_dims = std::vector<int>(1, -1);
   out->set_dims(phi::make_ddim(out_dims));
-  out->set_dtype(phi::DataType::UINT8);
 }
 
 }  // namespace phi

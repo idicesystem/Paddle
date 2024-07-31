@@ -23,13 +23,8 @@ void TopPSamplingKernel(const Context& dev_ctx,
                         const DenseTensor& x,
                         const DenseTensor& ps,
                         const paddle::optional<DenseTensor>& threshold,
-                        const paddle::optional<DenseTensor>& topp_seed,
-                        int seed,
-                        int k,
-                        const std::string& mode,
+                        int random_seed,
                         DenseTensor* out,
-                        DenseTensor* ids,
-                        DenseTensor* topk_scores,
-                        DenseTensor* topk_ids);
+                        DenseTensor* ids);
 
 }  // namespace phi

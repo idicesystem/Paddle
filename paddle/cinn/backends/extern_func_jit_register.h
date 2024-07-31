@@ -93,14 +93,15 @@ namespace cinn {
 namespace backends {
 
 static const char* TargetToBackendRepr(Target target) {
-  return target.arch.Match(
-      [&](common::UnknownArch) -> const char* { CINN_NOT_IMPLEMENTED; },
-      [&](common::X86Arch) -> const char* { return backend_llvm_host; },
-      [&](common::ARMArch) -> const char* { CINN_NOT_IMPLEMENTED; },
-      [&](common::NVGPUArch) -> const char* { return backend_nvgpu; },
-      [&](common::HygonDCUArchHIP) -> const char* {
-        return backend_hygondcu_hip;
-      });
+  switch (target.arch) {
+    case Target::Arch::X86:
+      return backend_llvm_host;
+    case Target::Arch::NVGPU:
+      return backend_nvgpu;
+    default:
+      CINN_NOT_IMPLEMENTED
+  }
+  return nullptr;
 }
 
 /**
@@ -166,7 +167,7 @@ struct RegisterExternFunction {
   }
 
   /**
-   * End the register, once end, further modification is disallowed.
+   * End the register, once end, futher modification is disallowed.
    */
   void End();
 

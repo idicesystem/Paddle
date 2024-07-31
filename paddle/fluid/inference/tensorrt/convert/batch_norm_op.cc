@@ -15,7 +15,7 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
 namespace nvinfer1 {
-class IScaleLayer;  // NOLINT
+class IScaleLayer;
 }  // namespace nvinfer1
 
 namespace paddle {
@@ -40,19 +40,19 @@ class BatchNormOpConverter : public OpConverter {
     auto output_name = op_desc.Output("Y").front();
     PADDLE_ENFORCE_NOT_NULL(
         Bias_v,
-        common::errors::NotFound(
+        platform::errors::NotFound(
             "Variable of Bias of batch_norm TRT converter is not found."));
     PADDLE_ENFORCE_NOT_NULL(
         Mean_v,
-        common::errors::NotFound(
+        platform::errors::NotFound(
             "Variable of Mean of batch_norm TRT converter is not found."));
     PADDLE_ENFORCE_NOT_NULL(
         Scale_v,
-        common::errors::NotFound(
+        platform::errors::NotFound(
             "Variable of Scale of batch_norm TRT converter is not found."));
     PADDLE_ENFORCE_NOT_NULL(
         Variance_v,
-        common::errors::NotFound(
+        platform::errors::NotFound(
             "Variable of Variance of batch_norm TRT converter is not found."));
 
     // get tensor
@@ -72,7 +72,7 @@ class BatchNormOpConverter : public OpConverter {
     scale_tensor.Resize(Scale_t->dims());
     variance_tensor.Resize(Variance_t->dims());
 
-    phi::CPUPlace cpu_place;
+    platform::CPUPlace cpu_place;
     // copy data from gpu to cpu
     paddle::framework::TensorCopySync((*Bias_t), cpu_place, &bias_tensor);
     paddle::framework::TensorCopySync((*Mean_t), cpu_place, &mean_tensor);
@@ -80,10 +80,11 @@ class BatchNormOpConverter : public OpConverter {
     paddle::framework::TensorCopySync(
         (*Variance_t), cpu_place, &variance_tensor);
 
-    auto* bias_data = bias_tensor.mutable_data<float>(phi::CPUPlace());
-    auto* mean_data = mean_tensor.mutable_data<float>(phi::CPUPlace());
-    auto* scale_data = scale_tensor.mutable_data<float>(phi::CPUPlace());
-    auto* variance_data = variance_tensor.mutable_data<float>(phi::CPUPlace());
+    auto* bias_data = bias_tensor.mutable_data<float>(platform::CPUPlace());
+    auto* mean_data = mean_tensor.mutable_data<float>(platform::CPUPlace());
+    auto* scale_data = scale_tensor.mutable_data<float>(platform::CPUPlace());
+    auto* variance_data =
+        variance_tensor.mutable_data<float>(platform::CPUPlace());
 
     std::unique_ptr<phi::DenseTensor> combile_scale_tensor(
         new phi::DenseTensor());
@@ -94,9 +95,9 @@ class BatchNormOpConverter : public OpConverter {
     combile_bias_tensor->Resize(bias_tensor.dims());
 
     auto* combile_scale_data =
-        combile_scale_tensor->mutable_data<float>(phi::CPUPlace());
+        combile_scale_tensor->mutable_data<float>(platform::CPUPlace());
     auto* combile_bias_data =
-        combile_bias_tensor->mutable_data<float>(phi::CPUPlace());
+        combile_bias_tensor->mutable_data<float>(platform::CPUPlace());
 
     size_t ele_num = combile_scale_tensor->memory_size() / sizeof(float);
 
@@ -169,10 +170,10 @@ class BatchNormOpConverter : public OpConverter {
       squeeze_layer =
           TRT_ENGINE_ADD_LAYER(engine_, Shuffle, *(layer->getOutput(0)));
       squeeze_layer->setReshapeDimensions(squeeze_shape);
-      ReplenishLayerAndOutput(
+      RreplenishLayerAndOutput(
           squeeze_layer, "batchnorm_add_scale", {output_name}, test_mode);
     } else {
-      ReplenishLayerAndOutput(
+      RreplenishLayerAndOutput(
           layer, "batchnorm_add_scale", {output_name}, test_mode);
     }
   }

@@ -46,7 +46,7 @@ class GroupWiseWeightObserver(ObserverFactory):
 class GroupWiseWeightObserverLayer(BaseObserver):
     def __init__(self, layer, quant_bits=8, group_size=128):
         super().__init__()
-        self._quant_bits = quant_bits
+        self.quant_bits = quant_bits
         self.group_size = group_size
         self._layer = layer
         self._max = None

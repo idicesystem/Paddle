@@ -18,7 +18,7 @@ limitations under the License. */
 namespace paddle {
 namespace operators {
 
-static constexpr char kParallelScopes[] = "parallel_scopes";  // NOLINT
+static constexpr char kParallelScopes[] = "parallel_scopes";
 
 // NCCLinitOp
 class NCCLInitOp : public framework::OperatorBase {
@@ -31,16 +31,16 @@ class NCCLInitOp : public framework::OperatorBase {
 
  private:
   void RunImpl(const framework::Scope &scope,
-               const phi::Place &place) const override {
+               const platform::Place &place) const override {
     PADDLE_ENFORCE_NOT_NULL(
         scope.FindVar(Input(kParallelScopes)),
-        common::errors::NotFound("Can not find variable '%s' in the scope.",
-                                 kParallelScopes));
+        platform::errors::NotFound("Can not find variable '%s' in the scope.",
+                                   kParallelScopes));
     const auto &name = Output("Communicator");
     PADDLE_ENFORCE_NOT_NULL(
         scope.FindVar(name),
-        common::errors::NotFound("Output(%s) is needed for ncclInit operator.",
-                                 name));
+        platform::errors::NotFound(
+            "Output(%s) is needed for ncclInit operator.", name));
     // A parallel do may not use all the gpus. For example, the batch size is 7
     // in the last batch while we have 8 gpu. In this case, parallel_do will
     // create 7 parallel scopes, so should ncclInitOp create 7 gpu peers
@@ -52,7 +52,7 @@ class NCCLInitOp : public framework::OperatorBase {
     }
     PADDLE_ENFORCE_EQ(!gpus.empty(),
                       true,
-                      common::errors::PreconditionNotMet(
+                      platform::errors::PreconditionNotMet(
                           "gpus is empty, NCCL must init with gpus"));
 
     platform::Communicator *comm =
@@ -108,7 +108,7 @@ class NCCLAllReduceOp : public framework::OperatorWithKernel {
         (reduction == "ncclSum" || reduction == "ncclProd" ||
          reduction == "ncclMin" || reduction == "ncclMax"),
         true,
-        common::errors::InvalidArgument("invalid nccl reduction."));
+        platform::errors::InvalidArgument("invalid nccl reduction."));
 
     auto x_dims = ctx->GetInputsDim("X");
     ctx->SetOutputsDim("Out", x_dims);
@@ -154,7 +154,7 @@ class NCCLReduceOp : public framework::OperatorWithKernel {
         (reduction == "ncclSum" || reduction == "ncclProd" ||
          reduction == "ncclMin" || reduction == "ncclMax"),
         true,
-        common::errors::InvalidArgument("invalid nccl reduction."));
+        platform::errors::InvalidArgument("invalid nccl reduction."));
 
     auto x_dims = ctx->GetInputsDim("X");
     ctx->SetOutputsDim("Out", x_dims);
@@ -204,7 +204,7 @@ class NCCLBcastOp : public framework::OperatorWithKernel {
     PADDLE_ENFORCE_EQ(
         root != platform::kInvalidGPUId,
         true,
-        common::errors::InvalidArgument("Bcast root must be set."));
+        platform::errors::InvalidArgument("Bcast root must be set."));
 
     auto x_dims = ctx->GetInputsDim("X");
     ctx->SetOutputsDim("Out", x_dims);

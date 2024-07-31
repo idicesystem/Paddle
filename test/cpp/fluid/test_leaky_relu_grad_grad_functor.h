@@ -19,7 +19,7 @@
 
 #include "gtest/gtest.h"
 #include "paddle/fluid/operators/activation_op.h"
-#include "paddle/phi/kernels/funcs/for_range.h"
+#include "paddle/fluid/platform/for_range.h"
 
 namespace paddle {
 namespace operators {
@@ -27,9 +27,10 @@ namespace operators {
 USE_PHI_DOUBLE_GRAD_FUNCTOR(LeakyRelu)
 
 template <typename T>
-static void InitRandom(phi::DenseTensor *tensor, const phi::Place &place) {
+static void InitRandom(phi::DenseTensor *tensor, const platform::Place &place) {
   phi::DenseTensor cpu_tensor;
-  auto *cpu_ptr = cpu_tensor.mutable_data<T>(tensor->dims(), phi::CPUPlace());
+  auto *cpu_ptr =
+      cpu_tensor.mutable_data<T>(tensor->dims(), platform::CPUPlace());
   int64_t numel = cpu_tensor.numel();
   std::mt19937 engine;
   std::uniform_real_distribution<T> dist(static_cast<T>(-2.0),
@@ -63,12 +64,12 @@ struct LeakyReluGradGradEachElementFunctor {
 };
 
 template <typename T>
-static bool TestLeakyReluGradGradMain(const phi::DDim &dim,
-                                      const phi::Place &place,
+static bool TestLeakyReluGradGradMain(const framework::DDim &dim,
+                                      const platform::Place &place,
                                       float alpha) {
   LeakyReluGradGradFunctor<T> functor;
   functor.alpha = alpha;
-  auto &dev_ctx = *phi::DeviceContextPool::Instance().Get(place);
+  auto &dev_ctx = *platform::DeviceContextPool::Instance().Get(place);
   phi::DenseTensor *out = nullptr;
   phi::DenseTensor *dout = nullptr;
   phi::DenseTensor *dx = nullptr;
@@ -95,16 +96,16 @@ static bool TestLeakyReluGradGradMain(const phi::DDim &dim,
   int64_t limit = x.numel();
 
 #if defined(__NVCC__) || defined(__HIPCC__)
-  if (phi::is_gpu_place(place)) {
+  if (platform::is_gpu_place(place)) {
     auto &cuda_dev_ctx = dynamic_cast<phi::GPUContext &>(dev_ctx);
     functor(cuda_dev_ctx, &x, out, &ddx, &ddout, dout, dx);
-    phi::funcs::ForRange<phi::GPUContext> for_range(cuda_dev_ctx, limit);
+    platform::ForRange<phi::GPUContext> for_range(cuda_dev_ctx, limit);
     for_range(actual_functor);
   } else {
 #endif
     auto &cpu_dev_ctx = dynamic_cast<phi::CPUContext &>(dev_ctx);
     functor(cpu_dev_ctx, &x, out, &ddx, &ddout, dout, dx);
-    phi::funcs::ForRange<phi::CPUContext> for_range(cpu_dev_ctx, limit);
+    platform::ForRange<phi::CPUContext> for_range(cpu_dev_ctx, limit);
     for_range(actual_functor);
 #if defined(__NVCC__) || defined(__HIPCC__)
   }
@@ -113,8 +114,9 @@ static bool TestLeakyReluGradGradMain(const phi::DDim &dim,
   dev_ctx.Wait();
 
   phi::DenseTensor ddout_cpu, ddout_actual_cpu;
-  framework::TensorCopySync(ddout, phi::CPUPlace(), &ddout_cpu);
-  framework::TensorCopySync(ddout_actual, phi::CPUPlace(), &ddout_actual_cpu);
+  framework::TensorCopySync(ddout, platform::CPUPlace(), &ddout_cpu);
+  framework::TensorCopySync(
+      ddout_actual, platform::CPUPlace(), &ddout_actual_cpu);
 
   bool is_equal = std::equal(ddout_cpu.data<T>(),
                              ddout_cpu.data<T>() + limit,

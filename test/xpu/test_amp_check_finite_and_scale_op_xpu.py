@@ -20,7 +20,6 @@ from get_test_cover_info import (
     create_test_class,
     get_xpu_op_support_types,
 )
-from op_test import convert_float_to_uint16
 from op_test_xpu import XPUOpTest
 
 import paddle
@@ -57,15 +56,11 @@ class XPUTestCheckFiniteAndUnscaleOp(XPUOpTestWrapper):
         def setUp(self):
             self.op_type = "check_finite_and_unscale"
             self.init_dtype()
-            x = np.random.random((256, 256))
+            x = np.random.random((256, 256)).astype(self.dtype)
             idx1 = np.random.randint(255)
             idx2 = np.random.randint(255)
             x[idx1][idx2] = np.nan
             x[idx2][idx1] = np.nan
-            if self.dtype == np.uint16:
-                x = convert_float_to_uint16(x)
-            else:
-                x = x.astype(self.dtype)
             scale = np.random.random(1).astype(np.float32)
 
             self.inputs = {'X': [('x0', x)], 'Scale': scale}
@@ -88,16 +83,13 @@ class XPUTestCheckFiniteAndUnscaleOp(XPUOpTestWrapper):
         def setUp(self):
             self.op_type = "check_finite_and_unscale"
             self.init_dtype()
-            x = np.random.random((256, 256))
+            x = np.random.random((256, 256)).astype(self.dtype)
             idx1 = np.random.randint(255)
             idx2 = np.random.randint(255)
             x[idx1][idx2] = np.nan
             x[idx2][idx1] = np.nan
-            if self.dtype == np.uint16:
-                x = convert_float_to_uint16(x)
-            else:
-                x = x.astype(self.dtype)
             scale = np.random.random(1).astype(np.float32)
+            myscale = np.array([0.05]).astype(self.dtype)
             self.inputs = {'X': [('x0', x)], 'Scale': scale}
             self.outputs = {
                 'FoundInfinite': np.array([1]),
@@ -118,16 +110,13 @@ class XPUTestCheckFiniteAndUnscaleOp(XPUOpTestWrapper):
         def setUp(self):
             self.op_type = "check_finite_and_unscale"
             self.init_dtype()
-            x = np.random.random((256, 256))
+            x = np.random.random((256, 256)).astype(self.dtype)
             idx1 = np.random.randint(255)
             idx2 = np.random.randint(255)
             x[idx1][idx2] = np.inf
             x[idx2][idx1] = np.nan
-            if self.dtype == np.uint16:
-                x = convert_float_to_uint16(x)
-            else:
-                x = x.astype(self.dtype)
             scale = np.random.random(1).astype(np.float32)
+            myscale = np.array([0.05]).astype(self.dtype)
             self.inputs = {'X': [('x0', x)], 'Scale': scale}
             self.outputs = {
                 'FoundInfinite': np.array([1]),

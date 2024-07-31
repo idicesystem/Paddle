@@ -24,7 +24,8 @@
 #include "paddle/phi/kernels/funcs/adam_functors.h"
 #include "paddle/phi/kernels/selected_rows/adam_kernel.h"
 
-namespace phi::sr {
+namespace phi {
+namespace sr {
 
 template <typename T, typename Context>
 void AdamwDenseParamSparseGradKernel(
@@ -130,7 +131,8 @@ void AdamwDenseParamSparseGradKernel(
                                              master_param_outs);
 }
 
-}  // namespace phi::sr
+}  // namespace sr
+}  // namespace phi
 
 PD_REGISTER_KERNEL(adamw_dense_param_sparse_grad,
                    CPU,

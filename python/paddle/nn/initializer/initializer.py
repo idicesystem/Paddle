@@ -12,39 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import functools
 import math
-from typing import TYPE_CHECKING, Literal
 
 import numpy as np
-from typing_extensions import TypeAlias
 
-from ...base.framework import (
-    EagerParamBase,
-    default_main_program,
-    in_dygraph_mode,
-)
+from ...base.framework import default_main_program, in_dygraph_mode
 from .lazy_init import lazy_init_helper
-
-if TYPE_CHECKING:
-    import paddle
-
-    _NonLinearity: TypeAlias = Literal[  # noqa: PYI047
-        "sigmoid",
-        "linear",
-        "conv1d",
-        "conv2d",
-        "conv3d",
-        "conv1d_transpose",
-        "conv2d_transpose",
-        "conv3d_transpose",
-        "tanh",
-        "relu",
-        "leaky_relu",
-        "selu",
-    ]
 
 __all__ = []
 
@@ -58,34 +32,26 @@ class Initializer:
     directly, but need to use one of its implementations.
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
-    def __call__(
-        self, param: paddle.Tensor, block: paddle.pir.Block | None = None
-    ):
+    def __call__(self, param, block=None):
         if not lazy_init_helper().state:
             return self.forward(param, block)
 
         return self._lazy_init(param, block)
 
-    def forward(
-        self, param: paddle.Tensor, block: paddle.pir.Block | None = None
-    ) -> paddle.Tensor | None:
+    def forward(self, param, block=None):
         """Add corresponding initialization operations to the network."""
         raise NotImplementedError()
 
-    def _lazy_init(
-        self, param: paddle.Tensor, block: paddle.pir.Block | None = None
-    ):
+    def _lazy_init(self, param, block=None):
         """
         Apply lazy initialization
         """
         assert in_dygraph_mode()
 
-        def init_op_creator(
-            forward, param: paddle.Tensor, block: paddle.pir.Block | None
-        ):
+        def init_op_creator(forward, param, block):
             new_var = param._to_static_var(True, block=block)
             # Record initializer operator
             with lazy_init_helper():
@@ -99,13 +65,13 @@ class Initializer:
 
         return param
 
-    def _check_block(self, block: paddle.pir.Block | None) -> paddle.pir.Block:
+    def _check_block(self, block):
         if block is None:
             block = default_main_program().global_block()
 
         return block
 
-    def _compute_fans(self, var: paddle.Tensor) -> tuple[int, int]:
+    def _compute_fans(self, var):
         """Compute the fan_in and the fan_out for layers
 
         This method computes the fan_in and the fan_out
@@ -120,11 +86,7 @@ class Initializer:
         Returns:
             tuple of two integers (fan_in, fan_out).
         """
-        shape = (
-            var._local_shape
-            if (isinstance(var, EagerParamBase) and var.is_dist())
-            else var.shape
-        )
+        shape = var.shape
         if not shape or len(shape) == 0:
             fan_in = fan_out = 1
         elif len(shape) == 1:
@@ -145,9 +107,7 @@ class Initializer:
         return (fan_in, fan_out)
 
 
-def calculate_gain(
-    nonlinearity: str, param: bool | float | None = None
-) -> float:
+def calculate_gain(nonlinearity, param=None):
     """
     Get the recommended ``gain`` value of some nonlinearity function. ``gain`` value can be used in some
     ``paddle.nn.initializer`` api to adjust the initialization value.
@@ -155,7 +115,7 @@ def calculate_gain(
     Args:
         nonlinearity(str): name of nonlinearity activation function. If it is a linear function, such as:
             `linear/conv1d/conv2d/conv3d/conv1d_transpose/conv2d_transpose/conv3d_transpose` , 1.0 will be returned.
-        param(bool|int|float|None, optional): optional parameter for somme nonlinearity function. Now, it only applies to
+        param(bool|int|float, optional): optional parameter for somme nonlinearity function. Now, it only applies to
             'leaky_relu'. Default: None, it will be calculated as 0.01 in the formula.
 
     Returns:
@@ -200,5 +160,5 @@ def calculate_gain(
         return recommended_gain[nonlinearity]
     else:
         raise ValueError(
-            f"nonlinearity function {nonlinearity} is not supported now."
+            f"nonlinearity function {nonlinearity} is not suppported now."
         )

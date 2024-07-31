@@ -26,7 +26,6 @@ from get_test_cover_info import (
     create_test_class,
     get_xpu_op_support_types,
 )
-from op_test import convert_float_to_uint16
 from op_test_xpu import XPUOpTest
 
 import paddle
@@ -47,10 +46,7 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             self.set_dtype()
             self.set_value()
             self.set_shape()
-            dtype = self.dtype
-            if self.dtype == "bfloat16":
-                dtype = "float32"
-            self.data = np.ones(self.shape).astype(dtype)
+            self.data = np.ones(self.shape).astype(self.dtype)
             self.program = paddle.static.Program()
 
         def set_shape(self):
@@ -63,8 +59,6 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             self.dtype = self.in_type
             if self.in_type == np.bool_:
                 self.dtype = "bool"
-            elif self.in_type == np.uint16:
-                self.dtype = "bfloat16"
 
         def _call_setitem(self, x):
             x[0, 0] = self.value
@@ -100,8 +94,7 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             self._get_answer()
             static_out = self._run_static()
             dynamic_out = self._run_dynamic()
-            if self.dtype == "bfloat16":
-                self.data = convert_float_to_uint16(self.data)
+
             error_msg = (
                 "\nIn {} mode: \nExpected res = \n{}, \n\nbut received : \n{}"
             )
@@ -226,8 +219,6 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
-            elif self.in_type == np.uint16:
-                self.dtype = "bfloat16"
             else:
                 self.dtype = self.in_type
 
@@ -317,9 +308,9 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             self.data[0:, 1:2:2, :] = self.value
 
     # 1.2.3 step < 0
-    class XPUTestSetValueItemSliceNegativeStep(XPUTestSetValueApi):
+    class XPUTestSetValueItemSliceNegetiveStep(XPUTestSetValueApi):
         def set_dtype(self):
-            if self.in_type in [np.float16, np.uint16]:
+            if self.in_type == np.float16:
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
@@ -342,8 +333,8 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
         def _get_answer(self):
             self.data[5:2:-1] = self.value
 
-    class XPUTestSetValueItemSliceNegativeStep2(
-        XPUTestSetValueItemSliceNegativeStep
+    class XPUTestSetValueItemSliceNegetiveStep2(
+        XPUTestSetValueItemSliceNegetiveStep
     ):
         def set_shape(self):
             self.shape = [5]
@@ -362,8 +353,8 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
         def _get_answer(self):
             self.data[1::-1] = self.value
 
-    class XPUTestSetValueItemSliceNegativeStep3(
-        XPUTestSetValueItemSliceNegativeStep
+    class XPUTestSetValueItemSliceNegetiveStep3(
+        XPUTestSetValueItemSliceNegetiveStep
     ):
         def set_shape(self):
             self.shape = [3]
@@ -381,14 +372,12 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
         def _get_answer(self):
             self.data[::-1] = self.value
 
-    class XPUTestSetValueItemSliceNegativeStep4(XPUTestSetValueApi):
+    class XPUTestSetValueItemSliceNegetiveStep4(XPUTestSetValueApi):
         def set_dtype(self):
             if self.in_type == np.float16:
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
-            elif self.in_type == np.uint16:
-                self.dtype = "bfloat16"
             else:
                 self.dtype = self.in_type
 
@@ -411,7 +400,7 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
 
         # 1.2.3 step < 0 and stride < -1
 
-    class XPUTestSetValueItemSliceNegativeStep5(XPUTestSetValueApi):
+    class XPUTestSetValueItemSliceNegetiveStep5(XPUTestSetValueApi):
         def set_dtype(self):
             if self.in_type == np.float16:
                 self.dtype = "float32"
@@ -511,8 +500,6 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
-            elif self.in_type == np.uint16:
-                self.dtype = "bfloat16"
             else:
                 self.dtype = self.in_type
 
@@ -621,7 +608,7 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
     # 1.5 item is None
     class XPUTestSetValueItemNone1(XPUTestSetValueApi):
         def set_dtype(self):
-            if self.in_type in [np.float16, np.uint16]:
+            if self.in_type == np.float16:
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
@@ -974,7 +961,7 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
     # 3. Test different shape of value
     class XPUTestSetValueValueShape1(XPUTestSetValueApi):
         def set_dtype(self):
-            if self.in_type in [np.float16, np.uint16]:
+            if self.in_type == np.float16:
                 self.dtype = "float32"
             elif self.in_type == np.bool_:
                 self.dtype = "bool"
@@ -1183,19 +1170,13 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             exe = paddle.static.Executor(self.place)
             exe.run(startup_program)
 
-            if paddle.framework.use_pir_api():
-                exe.run(
-                    main_program,
-                    feed={"x": x_np, "y": y_np, "label": label_np},
-                    fetch_list=[],
-                )
-            else:
-                var_grad, z_grad = exe.run(
-                    main_program,
-                    feed={"x": x_np, "y": y_np, "label": label_np},
-                    fetch_list=[var.name + "@GRAD", z.name + "@GRAD"],
-                )
-                self.assertTrue((var_grad == z_grad[0, :]).all())
+            var_grad, z_grad = exe.run(
+                main_program,
+                feed={"x": x_np, "y": y_np, "label": label_np},
+                fetch_list=[var.name + "@GRAD", z.name + "@GRAD"],
+            )
+
+            self.assertTrue((var_grad == z_grad[0, :]).all())
             paddle.disable_static()
 
     class XPUTestGradientTruncated(XPUOpTest):
@@ -1249,12 +1230,16 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             np.testing.assert_array_equal(
                 inps.grad.numpy(),
                 input_grad,
-                err_msg=f'The gradient of value should be \n{input_grad},\n but received {inps.grad.numpy()}',
+                err_msg='The gradient of value should be \n{},\n but reveived {}'.format(
+                    input_grad, inps.grad.numpy()
+                ),
             )
             np.testing.assert_array_equal(
                 value.grad.numpy(),
                 value_grad,
-                err_msg=f'The gradient of input should be \n{value_grad},\n but received {value.grad.numpy()}',
+                err_msg='The gradient of input should be \n{},\n but reveived {}'.format(
+                    value_grad, value.grad.numpy()
+                ),
             )
 
             # case 2
@@ -1281,12 +1266,16 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             np.testing.assert_array_equal(
                 inps2.grad.numpy(),
                 input_grad2,
-                err_msg=f'The gradient of value should be \n{input_grad},\n but received {inps2.grad.numpy()}',
+                err_msg='The gradient of value should be \n{},\n but reveived {}'.format(
+                    input_grad, inps2.grad.numpy()
+                ),
             )
             np.testing.assert_array_equal(
                 value2.grad.numpy(),
                 value_grad2,
-                err_msg=f'The gradient of input should be \n{value_grad},\n but received {value2.grad.numpy()}',
+                err_msg='The gradient of input should be \n{},\n but reveived {}'.format(
+                    value_grad, value2.grad.numpy()
+                ),
             )
 
             # case 3
@@ -1335,12 +1324,16 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             np.testing.assert_array_equal(
                 inps.grad.numpy(),
                 input_grad,
-                err_msg=f'The gradient of value should be \n{input_grad},\n but received {inps.grad.numpy()}',
+                err_msg='The gradient of value should be \n{},\n but reveived {}'.format(
+                    input_grad, inps.grad.numpy()
+                ),
             )
             np.testing.assert_array_equal(
                 value.grad.numpy(),
                 value_grad,
-                err_msg=f'The gradient of input should be \n{value_grad},\n but received {value.grad.numpy()}',
+                err_msg='The gradient of input should be \n{},\n but reveived {}'.format(
+                    value_grad, value.grad.numpy()
+                ),
             )
 
             # case 4: step >0
@@ -1379,12 +1372,16 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             np.testing.assert_array_equal(
                 inps.grad.numpy(),
                 input_grad,
-                err_msg=f'The gradient of value should be \n{input_grad},\n but received {inps.grad.numpy()}',
+                err_msg='The gradient of value should be \n{},\n but reveived {}'.format(
+                    input_grad, inps.grad.numpy()
+                ),
             )
             np.testing.assert_array_equal(
                 value.grad.numpy(),
                 value_grad,
-                err_msg=f'The gradient of input should be \n{value_grad},\n but received {value.grad.numpy()}',
+                err_msg='The gradient of input should be \n{},\n but reveived {}'.format(
+                    value_grad, value.grad.numpy()
+                ),
             )
 
             # case 5:a[0].shape==value.shape
@@ -1429,12 +1426,16 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
             np.testing.assert_array_equal(
                 inps.grad.numpy(),
                 input_grad,
-                err_msg=f'The gradient of value should be \n{input_grad},\n but received {inps.grad.numpy()}',
+                err_msg='The gradient of value should be \n{},\n but reveived {}'.format(
+                    input_grad, inps.grad.numpy()
+                ),
             )
             np.testing.assert_array_equal(
                 value.grad.numpy(),
                 value_grad,
-                err_msg=f'The gradient of input should be \n{value_grad},\n but received {value.grad.numpy()}',
+                err_msg='The gradient of input should be \n{},\n but reveived {}'.format(
+                    value_grad, value.grad.numpy()
+                ),
             )
 
             # case 6: pass stop_gradient from value to x
@@ -1451,176 +1452,174 @@ class XPUTestSetValueOp(XPUOpTestWrapper):
 
         def test_static_graph(self):
             paddle.enable_static()
-            with paddle.pir_utils.OldIrGuard():
-                to_string = lambda x, i: x + '_' + str(i)
-                numel = lambda input_shape: reduce(
-                    lambda x, y: x * y, input_shape, 1
+
+            to_string = lambda x, i: x + '_' + str(i)
+            numel = lambda input_shape: reduce(
+                lambda x, y: x * y, input_shape, 1
+            )
+
+            def op1(x):
+                value = paddle.tensor.fill_constant([1], "float32", 1)
+                # test stop_gradient
+                value.stop_gradient = True
+                x.stop_gradient = False
+                start = paddle.tensor.fill_constant(
+                    [1], "int32", 5, force_cpu=True
+                )
+                end = paddle.tensor.fill_constant(
+                    [1], "int32", 0, force_cpu=True
+                )
+                step = paddle.tensor.fill_constant(
+                    [1], "int32", -2, force_cpu=True
                 )
 
-                def op1(x):
-                    value = paddle.tensor.fill_constant([1], "float32", 1)
-                    # test stop_gradient
-                    value.stop_gradient = True
-                    x.stop_gradient = False
-                    start = paddle.tensor.fill_constant(
-                        [1], "int32", 5, force_cpu=True
+                inputs = {
+                    'Input': x,
+                    'ValueTensor': value,
+                    'StartsTensorList': [
+                        start,
+                    ],
+                    'EndsTensorList': [
+                        end,
+                    ],
+                    'StepsTensorList': [
+                        step,
+                    ],
+                }
+
+                helper = LayerHelper("set_value")
+                y = helper.create_variable_for_type_inference(dtype=x.dtype)
+
+                helper.append_op(
+                    type="set_value",
+                    inputs=inputs,
+                    outputs={'Out': y},
+                    attrs={'axes': [0]},
+                )
+
+                return y, value
+
+            def op2(x):
+                value = paddle.tensor.fill_constant([1, 3, 2], "float32", 1)
+                # test stop_gradient
+                value.stop_gradient = False
+                x.stop_gradient = False
+                attrs = {
+                    'axes': [0],
+                    'starts': [6],
+                    'ends': [0],
+                    'steps': [-4],
+                    'decrease_axes': [],
+                    'none_axes': [],
+                    'dtype': paddle.float32,
+                }
+                inputs = {'Input': x, 'ValueTensor': value}
+
+                helper = LayerHelper("set_value")
+                y = helper.create_variable_for_type_inference(dtype=x.dtype)
+
+                helper.append_op(
+                    type="set_value",
+                    inputs=inputs,
+                    outputs={'Out': y},
+                    attrs=attrs,
+                )
+
+                return y, value
+
+            def op3(x):
+                value = paddle.tensor.fill_constant([1], "float32", 1)
+                x.stop_gradient = True
+                value.stop_gradient = False
+                start = paddle.tensor.fill_constant(
+                    [1], "int32", 0, force_cpu=True
+                )
+                end = paddle.tensor.fill_constant(
+                    [1], "int32", 5, force_cpu=True
+                )
+                step = paddle.tensor.fill_constant(
+                    [1], "int32", 3, force_cpu=True
+                )
+
+                inputs = {
+                    'Input': x,
+                    'ValueTensor': value,
+                    'StartsTensorList': [
+                        start,
+                    ],
+                    'EndsTensorList': [
+                        end,
+                    ],
+                    'StepsTensorList': [
+                        step,
+                    ],
+                }
+
+                helper = LayerHelper("set_value")
+                y = helper.create_variable_for_type_inference(dtype=x.dtype)
+
+                helper.append_op(
+                    type="set_value",
+                    inputs=inputs,
+                    outputs={'Out': y},
+                    attrs={'axes': [0]},
+                )
+
+                return y, value
+
+            def set_value(array, i, op):
+                name_x = to_string('x', i)
+                x = paddle.static.data(
+                    name=name_x, shape=array.shape, dtype='float32'
+                )
+
+                # set_value_op in __get/setitem__ is an inplace operation.
+                # When `input.stop_gradient = True` and `value.stop_gradient = False`,
+                # set_value_grad_op will not be run during backward.
+                y, value = op(x)
+                y2 = y + 1
+                loss = paddle.sum(y2)
+                sgd = paddle.optimizer.Adam()
+                sgd.minimize(loss)
+                place = self.place
+
+                prog = paddle.static.default_main_program()
+                exe = paddle.static.Executor(place)
+                exe.run(paddle.static.default_startup_program())
+                fetch_list = []
+                if not x.stop_gradient:
+                    fetch_list.append(x.grad_name)
+                if not value.stop_gradient:
+                    fetch_list.append(value.grad_name)
+                out = exe.run(prog, feed={x.name: array}, fetch_list=fetch_list)
+                return out
+
+            input_shape = [7, 6, 5, 4, 3, 2]
+
+            array = np.arange(0, numel(input_shape), dtype="float32").reshape(
+                input_shape
+            )
+
+            for i in range(len(input_shape)):
+                program = paddle.static.Program()
+                with paddle.static.program_guard(program):
+                    out1 = set_value(array, i, op1)
+                    self.assertTrue((out1[0][5:0:-2] == 0).all())
+
+                if len(array.shape) > 2:
+                    program2 = paddle.static.Program()
+                    with paddle.static.program_guard(program2):
+                        out2 = set_value(array, i, op2)
+                        self.assertTrue((out2[0][6:0:-4] == 0).all())
+
+                program3 = paddle.static.Program()
+                with paddle.static.program_guard(program3):
+                    out3 = set_value(array, i, op3)
+                    self.assertTrue(
+                        (numel(out1[0][0:5:3].shape) == out3[0]).all()
                     )
-                    end = paddle.tensor.fill_constant(
-                        [1], "int32", 0, force_cpu=True
-                    )
-                    step = paddle.tensor.fill_constant(
-                        [1], "int32", -2, force_cpu=True
-                    )
 
-                    inputs = {
-                        'Input': x,
-                        'ValueTensor': value,
-                        'StartsTensorList': [
-                            start,
-                        ],
-                        'EndsTensorList': [
-                            end,
-                        ],
-                        'StepsTensorList': [
-                            step,
-                        ],
-                    }
-
-                    helper = LayerHelper("set_value")
-                    y = helper.create_variable_for_type_inference(dtype=x.dtype)
-
-                    helper.append_op(
-                        type="set_value",
-                        inputs=inputs,
-                        outputs={'Out': y},
-                        attrs={'axes': [0]},
-                    )
-
-                    return y, value
-
-                def op2(x):
-                    value = paddle.tensor.fill_constant([1, 3, 2], "float32", 1)
-                    # test stop_gradient
-                    value.stop_gradient = False
-                    x.stop_gradient = False
-                    attrs = {
-                        'axes': [0],
-                        'starts': [6],
-                        'ends': [0],
-                        'steps': [-4],
-                        'decrease_axes': [],
-                        'none_axes': [],
-                        'dtype': paddle.float32,
-                    }
-                    inputs = {'Input': x, 'ValueTensor': value}
-
-                    helper = LayerHelper("set_value")
-                    y = helper.create_variable_for_type_inference(dtype=x.dtype)
-
-                    helper.append_op(
-                        type="set_value",
-                        inputs=inputs,
-                        outputs={'Out': y},
-                        attrs=attrs,
-                    )
-
-                    return y, value
-
-                def op3(x):
-                    value = paddle.tensor.fill_constant([1], "float32", 1)
-                    x.stop_gradient = True
-                    value.stop_gradient = False
-                    start = paddle.tensor.fill_constant(
-                        [1], "int32", 0, force_cpu=True
-                    )
-                    end = paddle.tensor.fill_constant(
-                        [1], "int32", 5, force_cpu=True
-                    )
-                    step = paddle.tensor.fill_constant(
-                        [1], "int32", 3, force_cpu=True
-                    )
-
-                    inputs = {
-                        'Input': x,
-                        'ValueTensor': value,
-                        'StartsTensorList': [
-                            start,
-                        ],
-                        'EndsTensorList': [
-                            end,
-                        ],
-                        'StepsTensorList': [
-                            step,
-                        ],
-                    }
-
-                    helper = LayerHelper("set_value")
-                    y = helper.create_variable_for_type_inference(dtype=x.dtype)
-
-                    helper.append_op(
-                        type="set_value",
-                        inputs=inputs,
-                        outputs={'Out': y},
-                        attrs={'axes': [0]},
-                    )
-
-                    return y, value
-
-                def set_value(array, i, op):
-                    name_x = to_string('x', i)
-                    x = paddle.static.data(
-                        name=name_x, shape=array.shape, dtype='float32'
-                    )
-
-                    # set_value_op in __get/setitem__ is an inplace operation.
-                    # When `input.stop_gradient = True` and `value.stop_gradient = False`,
-                    # set_value_grad_op will not be run during backward.
-                    y, value = op(x)
-                    y2 = y + 1
-                    loss = paddle.sum(y2)
-                    sgd = paddle.optimizer.Adam()
-                    sgd.minimize(loss)
-                    place = self.place
-
-                    prog = paddle.static.default_main_program()
-                    exe = paddle.static.Executor(place)
-                    exe.run(paddle.static.default_startup_program())
-                    fetch_list = []
-                    if not x.stop_gradient:
-                        fetch_list.append(x.grad_name)
-                    if not value.stop_gradient:
-                        fetch_list.append(value.grad_name)
-                    out = exe.run(
-                        prog, feed={x.name: array}, fetch_list=fetch_list
-                    )
-                    return out
-
-                input_shape = [7, 6, 5, 4, 3, 2]
-
-                array = np.arange(
-                    0, numel(input_shape), dtype="float32"
-                ).reshape(input_shape)
-
-                for i in range(len(input_shape)):
-                    program = paddle.static.Program()
-                    with paddle.static.program_guard(program):
-                        out1 = set_value(array, i, op1)
-                        self.assertTrue((out1[0][5:0:-2] == 0).all())
-
-                    if len(array.shape) > 2:
-                        program2 = paddle.static.Program()
-                        with paddle.static.program_guard(program2):
-                            out2 = set_value(array, i, op2)
-                            self.assertTrue((out2[0][6:0:-4] == 0).all())
-
-                    program3 = paddle.static.Program()
-                    with paddle.static.program_guard(program3):
-                        out3 = set_value(array, i, op3)
-                        self.assertTrue(
-                            (numel(out1[0][0:5:3].shape) == out3[0]).all()
-                        )
-
-                    array = array[0]
+                array = array[0]
             paddle.disable_static()
 
     class XPUTestSetValueInplace(XPUOpTest):

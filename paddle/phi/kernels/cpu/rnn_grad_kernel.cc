@@ -1215,7 +1215,7 @@ void RnnGradFunc(const CPUContext& dev_ctx,
             gate_num_tmp);
     }
 
-    // calculate the dropout gradient for the layer_x_grad_holder
+    // calcluate the dropout gradient for the layer_x_grad_holder
     // dropout_state save in the forward process
     if (i > 0) {
       if ((!is_test) && (dropout_prob != 0)) {
@@ -1311,7 +1311,7 @@ void RnnGradKernel(const Context& dev_ctx,
         pre_state_grad,
         weight_grad_list);
     // run gru
-  } else if (is_rnn_relu(mode)) {  // NOLINT
+  } else if (is_rnn_relu(mode)) {
     gate_num = 1;
     RnnGradFunc<SimpleRNNGradCell<T, funcs::ReluGradFunctor>,
                 SingleGradLayer,

@@ -137,9 +137,7 @@ PD_REGISTER_KERNEL(assign_value,
                    float,
                    double,
                    int8_t,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   int64_t) {}
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 PD_REGISTER_KERNEL_FOR_ALL_DTYPE(assign,
@@ -167,9 +165,7 @@ PD_REGISTER_KERNEL(assign_value,
                    float,
                    double,
                    int8_t,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   int64_t) {}
 #endif
 
 #ifdef PADDLE_WITH_XPU
@@ -196,10 +192,6 @@ PD_REGISTER_KERNEL(assign_value,
                    bool,
                    int,
                    float,
-                   phi::dtype::bfloat16,
-                   phi::dtype::float16,
                    double,
-                   int64_t,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   int64_t) {}
 #endif

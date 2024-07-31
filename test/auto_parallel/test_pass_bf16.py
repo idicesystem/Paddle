@@ -19,6 +19,7 @@ import numpy as np
 
 import paddle
 from paddle import nn
+from paddle.base import core
 from paddle.distributed.fleet import auto
 from paddle.static import InputSpec
 from paddle.static.amp.bf16.amp_utils import _valid_types
@@ -138,7 +139,7 @@ class TestBF16Pass(unittest.TestCase):
                             break
 
                         if op.type in bf16_op_list:
-                            assert var.dtype == paddle.bfloat16
+                            assert var.dtype == core.VarDesc.VarType.BF16
                             if "cast_bf16" in in_var_name:
                                 if "@GRAD" in in_var_name:
                                     tmp_in_var_name = in_var_name[
@@ -154,7 +155,10 @@ class TestBF16Pass(unittest.TestCase):
                                 for in_name in prev_op.input_names:
                                     for in_var_name in prev_op.input(in_name):
                                         var = block.var(in_var_name)
-                                        assert var.dtype == paddle.float32
+                                        assert (
+                                            var.dtype
+                                            == core.VarDesc.VarType.FP32
+                                        )
 
                         elif op.type in fp32_op_list:
                             if (
@@ -162,7 +166,7 @@ class TestBF16Pass(unittest.TestCase):
                                 or op.type == "softmax_with_cross_entropy_grad"
                             ) and in_var_name == "label0":
                                 continue
-                            assert var.dtype == paddle.float32
+                            assert var.dtype == core.VarDesc.VarType.FP32
                             if "cast_fp32" in in_var_name:
                                 prev_op = find_true_prev_op(
                                     block.ops, op, tmp_in_var_name
@@ -172,7 +176,10 @@ class TestBF16Pass(unittest.TestCase):
                                 for in_name in prev_op.input_names:
                                     for in_var_name in prev_op.input(in_name):
                                         var = block.var(in_var_name)
-                                        assert var.dtype == paddle.bfloat16
+                                        assert (
+                                            var.dtype
+                                            == core.VarDesc.VarType.BF16
+                                        )
 
                 for out_name in op.output_names:
                     for out_var_name in op.output(out_name):
@@ -185,9 +192,9 @@ class TestBF16Pass(unittest.TestCase):
                         if var is None or var.type not in _valid_types:
                             break
                         if op.type in bf16_op_list:
-                            assert var.dtype == paddle.bfloat16
+                            assert var.dtype == core.VarDesc.VarType.BF16
                         elif op.type in fp32_op_list:
-                            assert var.dtype == paddle.float32
+                            assert var.dtype == core.VarDesc.VarType.FP32
 
     def test_bf16_pass(self):
         bf16_o1_engine = self.get_engine(True)

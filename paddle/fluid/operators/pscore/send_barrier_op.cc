@@ -15,18 +15,21 @@ limitations under the License. */
 #include "paddle/fluid/distributed/ps/service/communicator/communicator.h"
 #include "paddle/fluid/framework/op_registry.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class InferShapeContext;
 class OpDesc;
 class Scope;
 template <typename T>
 class EmptyGradOpMaker;
-}  // namespace paddle::framework
-namespace paddle::imperative {
+}  // namespace framework
+namespace imperative {
 class OpBase;
-}  // namespace paddle::imperative
+}  // namespace imperative
+}  // namespace paddle
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class SendBarrierOp : public framework::OperatorBase {
  public:
@@ -37,7 +40,7 @@ class SendBarrierOp : public framework::OperatorBase {
       : OperatorBase(type, inputs, outputs, attrs) {}
 
   void RunImpl(const framework::Scope& scope,
-               const phi::Place& place) const override {
+               const platform::Place& place) const override {
     paddle::distributed::Communicator::GetInstance()->Barrier();
   }
 };
@@ -75,7 +78,8 @@ class SendBarrierOpShapeInference : public framework::InferShapeBase {
   void operator()(framework::InferShapeContext* ctx) const override {}
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 

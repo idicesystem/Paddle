@@ -54,7 +54,7 @@ class MishOpConverter : public OpConverter {
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, "mish", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "mish", {output_name}, test_mode);
   }
 };
 

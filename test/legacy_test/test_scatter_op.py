@@ -57,11 +57,7 @@ class TestScatterOp(OpTest):
 
     def test_check_grad(self):
         self.check_grad(
-            ["X", "Updates"],
-            "Out",
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            ["X", "Updates"], "Out", check_prim=True, check_pir=True
         )
 
 
@@ -73,7 +69,7 @@ class TestScatterFP16Op(TestScatterOp):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op(TestScatterOp):
     def _set_dtype(self):
@@ -96,7 +92,6 @@ class TestScatterBF16Op(TestScatterOp):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -133,11 +128,7 @@ class TestScatterOp0(OpTest):
 
     def test_check_grad(self):
         self.check_grad(
-            ["X", "Updates"],
-            "Out",
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            ["X", "Updates"], "Out", check_prim=True, check_pir=True
         )
 
 
@@ -149,7 +140,7 @@ class TestScatterFP16Op0(TestScatterOp0):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op0(TestScatterOp0):
     def _set_dtype(self):
@@ -172,7 +163,6 @@ class TestScatterBF16Op0(TestScatterOp0):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -212,11 +202,7 @@ class TestScatterOp1(OpTest):
 
     def test_check_grad(self):
         self.check_grad(
-            ["X", "Updates"],
-            "Out",
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            ["X", "Updates"], "Out", check_prim=True, check_pir=True
         )
 
 
@@ -228,7 +214,7 @@ class TestScatterFP16Op1(TestScatterOp1):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op1(TestScatterOp1):
     def _set_dtype(self):
@@ -251,7 +237,6 @@ class TestScatterBF16Op1(TestScatterOp1):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -299,7 +284,6 @@ class TestScatterOp2(OpTest):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -314,7 +298,7 @@ class TestScatterFP16Op2(TestScatterOp2):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op2(TestScatterOp2):
     def _set_dtype(self):
@@ -372,7 +356,6 @@ class TestScatterOp3(OpTest):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -387,7 +370,7 @@ class TestScatterFP16Op3(TestScatterOp3):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op3(TestScatterOp3):
     def _set_dtype(self):
@@ -429,11 +412,7 @@ class TestScatterOp4(OpTest):
 
     def test_check_grad(self):
         self.check_grad(
-            ['X', 'Updates'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            ['X', 'Updates'], 'Out', check_prim=True, check_pir=True
         )
 
 
@@ -445,7 +424,7 @@ class TestScatterFP16Op4(TestScatterOp4):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op4(TestScatterOp4):
     def _set_dtype(self):
@@ -468,7 +447,6 @@ class TestScatterBF16Op4(TestScatterOp4):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -516,7 +494,6 @@ class TestScatterOp5(OpTest):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
@@ -531,7 +508,7 @@ class TestScatterFP16Op5(TestScatterOp5):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op5(TestScatterOp5):
     def _set_dtype(self):
@@ -573,11 +550,7 @@ class TestScatterOp6(OpTest):
 
     def test_check_grad(self):
         self.check_grad(
-            ["X", "Updates"],
-            "Out",
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            ["X", "Updates"], "Out", check_prim=True, check_pir=True
         )
 
 
@@ -589,7 +562,7 @@ class TestScatterFP16Op6(TestScatterOp6):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestScatterBF16Op6(TestScatterOp6):
     def if_enable_cinn(self):
@@ -612,19 +585,12 @@ class TestScatterBF16Op6(TestScatterOp6):
                 'Out',
                 check_prim=True,
                 check_pir=True,
-                check_prim_pir=True,
             )
 
 
 class TestScatterAPI(unittest.TestCase):
     def setUp(self):
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
         self.executed_api()
@@ -682,9 +648,9 @@ class TestScatterAPI(unittest.TestCase):
                     [[1, 1], [2, 2], [3, 3], [4, 4]]
                 ).astype(np.float64)
 
-                x = paddle.to_tensor(x_data)
-                index = paddle.to_tensor(index_data)
-                updates = paddle.to_tensor(updates_data)
+                x = base.dygraph.to_variable(x_data)
+                index = base.dygraph.to_variable(index_data)
+                updates = base.dygraph.to_variable(updates_data)
 
                 output1 = self.scatter(x, index, updates, overwrite=False)
                 self.assertEqual(
@@ -717,36 +683,25 @@ class TestScatterAPI(unittest.TestCase):
             with paddle.static.program_guard(
                 paddle.static.Program(), paddle.static.Program()
             ):
-                scope = paddle.static.Scope()
-                with paddle.static.scope_guard(scope):
-                    x_t = paddle.static.data(
-                        name="x", dtype=x.dtype, shape=x.shape
-                    )
-                    index_t = paddle.static.data(
-                        name="index", dtype=index.dtype, shape=index.shape
-                    )
-                    updates_t = paddle.static.data(
-                        name="updates", dtype=updates.dtype, shape=updates.shape
-                    )
-                    out_t = paddle.scatter(x_t, index_t, updates_t)
-                    feed = {
-                        x_t.name: x,
-                        index_t.name: index,
-                        updates_t.name: updates,
-                    }
-                    fetch = [out_t]
-                    gpu_exe = paddle.static.Executor(paddle.CUDAPlace(0))
-                    gpu_value = gpu_exe.run(feed=feed, fetch_list=fetch)[0]
-                    scope._remove_from_pool()
-                    return gpu_value
+                x_t = paddle.static.data(name="x", dtype=x.dtype, shape=x.shape)
+                index_t = paddle.static.data(
+                    name="index", dtype=index.dtype, shape=index.shape
+                )
+                updates_t = paddle.static.data(
+                    name="updates", dtype=updates.dtype, shape=updates.shape
+                )
+                out_t = paddle.scatter(x_t, index_t, updates_t)
+                feed = {
+                    x_t.name: x,
+                    index_t.name: index,
+                    updates_t.name: updates,
+                }
+                fetch = [out_t]
+                gpu_exe = paddle.static.Executor(paddle.CUDAPlace(0))
+                gpu_value = gpu_exe.run(feed=feed, fetch_list=fetch)[0]
+                return gpu_value
 
-        def test_pir_static_graph():
-            with paddle.pir_utils.IrGuard():
-                return test_static_graph()
-
-        dy_out = test_dygraph()
-        np.testing.assert_array_equal(dy_out, test_static_graph())
-        np.testing.assert_array_equal(dy_out, test_pir_static_graph())
+        np.testing.assert_array_equal(test_dygraph(), test_static_graph())
 
 
 @unittest.skipIf(
@@ -756,7 +711,7 @@ class TestScatterOpFp16(OpTest):
     def setUp(self):
         self.__class__.op_type = "scatter"
         self.python_api = paddle.scatter
-        # compute grad in the following code manually.
+        # compute grad in the following code handly.
         self.__class__.no_need_check_grad = True
         self.x_type = 'float16'
         self.x_np = np.ones((3, 3)).astype(self.x_type)

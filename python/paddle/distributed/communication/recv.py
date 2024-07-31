@@ -12,24 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from paddle.distributed.communication import stream
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle.base.core import task
-    from paddle.distributed.communication.group import Group
 
-
-def recv(
-    tensor: Tensor,
-    src: int = 0,
-    group: Group | None = None,
-    sync_op: bool = True,
-) -> task:
+def recv(tensor, src=0, group=None, sync_op=True):
     """
     Receive a tensor to the sender.
 
@@ -65,9 +51,7 @@ def recv(
     )
 
 
-def irecv(
-    tensor: Tensor, src: int | None = None, group: Group | None = None
-) -> task:
+def irecv(tensor, src=None, group=None):
     """
     Receive a tensor to the sender.
 

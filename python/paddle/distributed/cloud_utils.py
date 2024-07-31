@@ -116,7 +116,9 @@ def get_cluster_and_pod(args):
     selected_devices = get_gpus(args.selected_devices)
     trainers_num = _get_trainers_num()
     logger.debug(
-        f"parsed from args trainerss_num:{trainers_num} selected_devices:{selected_devices}"
+        "parsed from args trainerss_num:{} selected_devices:{}".format(
+            trainers_num, selected_devices
+        )
     )
 
     cluster = None

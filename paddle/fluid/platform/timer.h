@@ -15,8 +15,7 @@ limitations under the License. */
 #pragma once
 #include <stdlib.h>
 
-#include "paddle/phi/common/port.h"
-#include "paddle/utils/test_macros.h"
+#include "paddle/phi/backends/dynload/port.h"
 
 #ifdef _WIN32
 static unsigned sleep(unsigned seconds) {
@@ -35,16 +34,16 @@ class Timer {
   // Reset() will be called during initialization
   // all timing variables will be set 0 in Reset()
   Timer() { Reset(); }
-  TEST_API void Reset();
-  TEST_API void Start();
-  TEST_API void Pause();
+  void Reset();
+  void Start();
+  void Pause();
   // Resume will get current system time
   void Resume();
   int Count();
   // return elapsed time in us
   double ElapsedUS();
   // return elapsed time in ms
-  TEST_API double ElapsedMS();
+  double ElapsedMS();
   // return elapsed time in sec
   double ElapsedSec();
 

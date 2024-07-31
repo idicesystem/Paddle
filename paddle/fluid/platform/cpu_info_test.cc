@@ -16,10 +16,11 @@
 #include <sstream>
 
 #include "gtest/gtest.h"
-#include "paddle/common/flags.h"
-#include "paddle/utils/string/printf.h"
+#include "paddle/fluid/string/printf.h"
+#include "paddle/phi/core/flags.h"
+#include "paddle/utils/flags.h"
 
-COMMON_DECLARE_double(fraction_of_cpu_memory_to_use);
+PHI_DECLARE_double(fraction_of_cpu_memory_to_use);
 
 TEST(CpuMemoryUsage, Print) {
   std::stringstream ss;

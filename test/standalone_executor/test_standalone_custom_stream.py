@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import unittest
 
-sys.path.append("../legacy_test")
-sys.path.append("../deprecated/standalone_executor")
 from test_standalone_executor import build_program
-from utils import compare_legacy_with_pt
 
 import paddle
 from paddle.base import core
@@ -77,7 +73,6 @@ class TestCustomStream(unittest.TestCase):
                 )
         return outs
 
-    @compare_legacy_with_pt
     def test_result(self):
         if not core.is_compiled_with_cuda():
             return

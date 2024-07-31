@@ -33,7 +33,8 @@ namespace paddle {
 namespace operators {
 class AssignFunctor {
  public:
-  AssignFunctor(framework::Variable *out, const phi::DeviceContext &dev_ctx)
+  AssignFunctor(framework::Variable *out,
+                const platform::DeviceContext &dev_ctx)
       : out_(out), dev_ctx_(dev_ctx) {}
 
   void operator()(const phi::DenseTensor &lod_tensor) const {
@@ -63,7 +64,7 @@ class AssignFunctor {
     PADDLE_ENFORCE_EQ(
         true,
         false,
-        common::errors::PermissionDenied(
+        platform::errors::PermissionDenied(
             "Not support type for assign op with type %s", typeid(T).name()));
   }
 
@@ -77,7 +78,7 @@ class AssignFunctor {
   }
 
   framework::Variable *out_;
-  const phi::DeviceContext &dev_ctx_;
+  const platform::DeviceContext &dev_ctx_;
 };
 
 }  // namespace operators

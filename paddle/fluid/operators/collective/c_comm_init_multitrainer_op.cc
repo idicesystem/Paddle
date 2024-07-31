@@ -17,7 +17,7 @@ limitations under the License. */
 #if defined(PADDLE_WITH_RCCL)
 #include <rccl.h>
 #endif
-#include <cstdint>
+#include <stdint.h>
 
 #include <ostream>
 #include <string>
@@ -51,10 +51,10 @@ class CCommInitMultiTrainerOp : public framework::OperatorBase {
       : OperatorBase(type, inputs, outputs, attrs) {}
 
   void RunImpl(const framework::Scope& scope,
-               const phi::Place& place) const override {
+               const platform::Place& place) const override {
     auto var = scope.FindVar(Input("X"));
     PADDLE_ENFORCE_NOT_NULL(
-        var, common::errors::InvalidArgument("Input X must be provided."));
+        var, platform::errors::InvalidArgument("Input X must be provided."));
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
     ncclUniqueId* nccl_id = var->GetMutable<ncclUniqueId>();
 
@@ -70,8 +70,8 @@ class CCommInitMultiTrainerOp : public framework::OperatorBase {
     platform::NCCLCommContext::Instance().CreateNCCLCommMultiTrainer(
         devices, nccl_id, ntrainers, train_id, rid);
 #else
-    PADDLE_THROW(
-        common::errors::Unimplemented("PaddlePaddle should compile with GPU."));
+    PADDLE_THROW(platform::errors::Unimplemented(
+        "PaddlePaddle should compile with GPU."));
 #endif
   }
 };
@@ -83,7 +83,7 @@ class CCommInitMultiTrainerOpMaker : public framework::OpProtoAndCheckerMaker {
     AddComment(R"DOC(
 CCommInitMultiTrainer operator
 
-Initialize collective communication context within this trainer
+Initialize collective communicatoin context within this trainer
 )DOC");
     AddAttr<int>("ntrainers",
                  "(int) The number of trainers of distributed trainers");

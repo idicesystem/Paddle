@@ -16,10 +16,9 @@
 
 #include "paddle/phi/backends/cpu/cpu_context.h"
 #include "paddle/phi/common/data_type.h"
-#include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"
+#include "paddle/phi/core/utils/data_type.h"
 #include "paddle/phi/kernels/funcs/embedding_util.h"
-#include "paddle/phi/kernels/p_norm_kernel.h"
 
 namespace phi {
 
@@ -124,6 +123,4 @@ PD_REGISTER_KERNEL(embedding,
                    double,
                    int8_t,
                    phi::dtype::float16,
-                   phi::dtype::bfloat16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::bfloat16) {}

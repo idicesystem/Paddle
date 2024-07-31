@@ -14,7 +14,8 @@
 
 #include "paddle/fluid/distributed/rpc/python_rpc_handler.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 constexpr auto kInternalModule = "paddle.distributed.rpc.internal";
 
 py::object getFunction(const py::object& module, const char* name) {
@@ -62,4 +63,5 @@ std::shared_ptr<PythonRpcHandler> PythonRpcHandler::GetInstance() {
   return python_rpc_handler_;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

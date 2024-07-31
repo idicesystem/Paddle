@@ -17,7 +17,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/fleet/fleet_wrapper.h"
 #include "paddle/fluid/framework/fleet/heter_wrapper.h"
 #include "paddle/fluid/platform/cpu_helper.h"
-#include "paddle/utils/string/string_helper.h"
+#include "paddle/fluid/string/string_helper.h"
 
 #if defined(PADDLE_WITH_PSLIB) && !defined(PADDLE_WITH_HETERPS)
 
@@ -58,7 +58,7 @@ void HeterTask::PackTask(Scope* thread_scope,
         thread_var->GetMutable<phi::DenseTensor>();
     Variable* task_var = scope_->FindVar(use_slots[i]);
     phi::DenseTensor* task_tensor = task_var->GetMutable<phi::DenseTensor>();
-    TensorCopy(*thread_tensor, phi::CPUPlace(), task_tensor);
+    TensorCopy(*thread_tensor, platform::CPUPlace(), task_tensor);
     auto& tensor_lod = thread_tensor->lod()[0];
     LoD thread_lod{tensor_lod};
     task_tensor->set_lod(thread_lod);
@@ -180,7 +180,7 @@ void HeterCpuWorker::Initialize(const TrainerDesc& desc) {
             << dest_table;
     copy_dense_tables_.push_back(std::make_pair(src_table, dest_table));
   }
-  for (auto& m : copy_table_config_.table_dependency_map()) {
+  for (auto& m : copy_table_config_.table_denpendency_map()) {
     if (sparse_key_names_.find(m.key()) != sparse_key_names_.end()) {
       // currently only support one dependency
       for (auto& value : m.values()) {

@@ -23,7 +23,9 @@ limitations under the License. */
 #include "paddle/fluid/inference/tensorrt/helper.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class UnaryOpConverter : public OpConverter {
  public:
@@ -68,7 +70,7 @@ class UnaryOpConverter : public OpConverter {
     }
 
     auto output_name = op_desc.Output("Out")[0];
-    ReplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, op_type_, {output_name}, test_mode);
   }
 
  protected:
@@ -214,7 +216,9 @@ class RoundOpConverter : public UnaryOpConverter {
 };
 #endif
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(exp, ExpOpConverter);
 REGISTER_TRT_OP_CONVERTER(log, LogOpConverter);

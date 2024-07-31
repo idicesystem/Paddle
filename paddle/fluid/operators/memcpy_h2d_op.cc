@@ -18,17 +18,20 @@ limitations under the License. */
 #include "paddle/phi/core/infermeta_utils.h"
 #include "paddle/phi/infermeta/unary.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class OpDesc;
 class InferShapeContext;
 template <typename T>
 class EmptyGradOpMaker;
-}  // namespace paddle::framework
-namespace paddle::imperative {
+}  // namespace framework
+namespace imperative {
 class OpBase;
-}  // namespace paddle::imperative
+}  // namespace imperative
+}  // namespace paddle
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class MemcpyH2DOp : public framework::OperatorWithKernel {
  public:
@@ -65,10 +68,10 @@ class MemcpyH2DKernel {
     if (x == nullptr) {
       return;
     }
-    PADDLE_ENFORCE_EQ(
-        ctx.HasOutput("Out"),
-        true,
-        common::errors::NotFound("Output(Out) of memcpy_d2h_op is not found."));
+    PADDLE_ENFORCE_EQ(ctx.HasOutput("Out"),
+                      true,
+                      platform::errors::NotFound(
+                          "Output(Out) of memcpy_d2h_op is not found."));
     auto *out = ctx.OutputVar("Out");
     // Get dev_ctx from ExecutionContext, it's H2D stream
     auto &dev_ctx = ctx.device_context();
@@ -101,7 +104,8 @@ raise error if the type is not listed above.
   }
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
 
@@ -133,13 +137,13 @@ REGISTER_OP_IPU_KERNEL_FUNCTOR(memcpy_h2d,
                                ops::MemcpyH2DKernel,
                                bool,
                                ops::MemcpyH2DKernel,
-                               phi::dtype::bfloat16,
+                               paddle::platform::bfloat16,
                                ops::MemcpyH2DKernel,
-                               phi::dtype::complex<float>,
+                               paddle::platform::complex<float>,
                                ops::MemcpyH2DKernel,
-                               phi::dtype::complex<double>,
+                               paddle::platform::complex<double>,
                                ops::MemcpyH2DKernel,
-                               phi::dtype::float16,
+                               plat::float16,
                                ops::MemcpyH2DKernel,
                                int16_t,
                                ops::MemcpyH2DKernel);

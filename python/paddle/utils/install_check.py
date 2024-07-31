@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import logging
 
 import numpy as np
@@ -136,7 +134,7 @@ def _run_static_single(use_cuda, use_xpu, use_custom, custom_device_name):
         with paddle.static.program_guard(train_prog, startup_prog):
             input, out, weight = _simple_network()
             param_grads = paddle.static.append_backward(
-                out, parameter_list=[weight]
+                out, parameter_list=[weight.name]
             )[0]
 
         if use_cuda:
@@ -153,7 +151,7 @@ def _run_static_single(use_cuda, use_xpu, use_custom, custom_device_name):
         exe.run(
             train_prog,
             feed={input.name: _prepare_data()},
-            fetch_list=[out, param_grads[1]],
+            fetch_list=[out.name, param_grads[1].name],
         )
     paddle.disable_static()
 
@@ -212,7 +210,7 @@ def _run_parallel(device_list):
     paddle.distributed.spawn(train_for_run_parallel, nprocs=len(device_list))
 
 
-def run_check() -> None:
+def run_check():
     """
     Check whether PaddlePaddle is installed correctly and running successfully
     on your system.
@@ -222,8 +220,8 @@ def run_check() -> None:
 
             >>> import paddle
 
-            >>> # doctest: +SKIP('the output will change in different run')
             >>> paddle.utils.run_check()
+            >>> # doctest: +SKIP('the output will change in different run')
             Running verify PaddlePaddle program ...
             I0818 15:35:08.335391 30540 program_interpreter.cc:173] New Executor is Running.
             I0818 15:35:08.398319 30540 interpreter_util.cc:529] Standalone Executor is Used.
@@ -246,7 +244,9 @@ def run_check() -> None:
         use_custom = True
         if len(paddle.framework.core.get_all_custom_device_type()) > 1:
             logging.warning(
-                f"More than one kind of custom devices detected, but run check would only be executed on {paddle.framework.core.get_all_custom_device_type()[0]}."
+                "More than one kind of custom devices detected, but run check would only be executed on {}.".format(
+                    paddle.framework.core.get_all_custom_device_type()[0]
+                )
             )
 
     if use_cuda:

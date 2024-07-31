@@ -109,7 +109,11 @@ def train(to_static, enable_prim, enable_cinn):
         losses.append(loss.numpy().item())
 
         print(
-            f"step: {step}, loss: {loss.numpy()}, batch_cost: {time.time() - start_time:.5}"
+            "step: {}, loss: {}, batch_cost: {:.5}".format(
+                step,
+                loss.numpy(),
+                time.time() - start_time,
+            )
         )
         if step >= 9:
             break

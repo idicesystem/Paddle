@@ -25,7 +25,8 @@
 #include "paddle/phi/kernels/sparse/impl/unary_grad_kernel_impl.h"
 #include "paddle/phi/kernels/sparse/impl/unary_kernel_impl.h"
 
-namespace phi::sparse {
+namespace phi {
+namespace sparse {
 
 template <typename T, typename IntT, typename Context>
 void ReshapeCooCPUKernel(const Context& dev_ctx,
@@ -97,7 +98,8 @@ void ReshapeCsrKernel(const Context& dev_ctx,
   CooToCsrKernel<T, Context>(dev_ctx, out_coo, out);
 }
 
-}  // namespace phi::sparse
+}  // namespace sparse
+}  // namespace phi
 
 PD_REGISTER_KERNEL(reshape_coo,
                    CPU,

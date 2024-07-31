@@ -52,9 +52,7 @@ class TestRollOp(OpTest):
         self.check_output(check_prim=True, check_pir=True)
 
     def test_check_grad_normal(self):
-        self.check_grad(
-            ['X'], 'Out', check_prim=True, check_pir=True, check_prim_pir=True
-        )
+        self.check_grad(['X'], 'Out', check_prim=True, check_pir=True)
 
 
 class TestRollOpCase2(TestRollOp):
@@ -100,7 +98,7 @@ class TestRollFP16OpCase3(TestRollOp):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestRollBF16OP(TestRollOp):
     def init_dtype_type(self):
@@ -124,7 +122,7 @@ class TestRollBF16OP(TestRollOp):
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestRollBF16OpCase2(TestRollOp):
     def init_dtype_type(self):
@@ -141,19 +139,14 @@ class TestRollBF16OpCase2(TestRollOp):
 
     def test_check_grad_normal(self):
         self.check_grad_with_place(
-            self.place,
-            ['X'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            self.place, ['X'], 'Out', check_prim=True, check_pir=True
         )
 
 
 @unittest.skipIf(
     not core.is_compiled_with_cuda()
     or not core.is_bfloat16_supported(core.CUDAPlace(0)),
-    "core is not compiled with CUDA and not support the bfloat16",
+    "core is not complied with CUDA and not support the bfloat16",
 )
 class TestRollBF16OpCase3(TestRollOp):
     def init_dtype_type(self):
@@ -170,12 +163,7 @@ class TestRollBF16OpCase3(TestRollOp):
 
     def test_check_grad_normal(self):
         self.check_grad_with_place(
-            self.place,
-            ['X'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            self.place, ['X'], 'Out', check_prim=True, check_pir=True
         )
 
 
@@ -237,7 +225,7 @@ class TestRollAPI(unittest.TestCase):
         self.input_data()
         # case 1:
         with base.dygraph.guard():
-            x = paddle.to_tensor(self.data_x)
+            x = base.dygraph.to_variable(self.data_x)
             z = paddle.roll(x, shifts=1)
             np_z = z.numpy()
         expect_out = np.array(
@@ -247,7 +235,7 @@ class TestRollAPI(unittest.TestCase):
 
         # case 2:
         with base.dygraph.guard():
-            x = paddle.to_tensor(self.data_x)
+            x = base.dygraph.to_variable(self.data_x)
             z = paddle.roll(x, shifts=1, axis=0)
             np_z = z.numpy()
         expect_out = np.array(

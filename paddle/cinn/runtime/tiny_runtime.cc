@@ -18,14 +18,14 @@
 #include <algorithm>
 #include <map>
 #include <memory>
-#include <string>
 #include <thread>
 #include <vector>
+
 #include "paddle/cinn/runtime/cinn_runtime.h"
 
 extern "C" {
 int max_num_workers = std::thread::hardware_concurrency();
-// move to standalone file
+// move to standlone file
 struct param_context_t {
   int major_v;
   int minor_v;

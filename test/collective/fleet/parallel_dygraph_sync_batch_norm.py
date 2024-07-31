@@ -19,6 +19,7 @@ from legacy_test.test_dist_base import (
 )
 
 import paddle
+from paddle.base.dygraph.base import to_variable
 from paddle.nn import Conv2D, SyncBatchNorm
 
 
@@ -87,7 +88,7 @@ class TestSyncBatchNorm(TestParallelDyGraphRunnerBase):
         dy_x_data = np.array([x[0].reshape(3, 224, 224) for x in data]).astype(
             'float32'
         )
-        img = paddle.to_tensor(dy_x_data)
+        img = to_variable(dy_x_data)
         img.stop_gradient = False
 
         out = model(img)

@@ -15,8 +15,7 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
-#include "paddle/pir/include/core/op_base.h"
-#include "test/cpp/pir/tools/macros_utils.h"
+#include "paddle/pir/core/op_base.h"
 
 namespace test {
 
@@ -34,5 +33,5 @@ class OneRegionTrait : public pir::OpTraitBase<OneRegionTrait> {
 };
 
 }  // namespace test
-IR_DECLARE_EXPLICIT_TEST_TYPE_ID(test::ReadOnlyTrait)
-IR_DECLARE_EXPLICIT_TEST_TYPE_ID(test::OneRegionTrait)
+IR_DECLARE_EXPLICIT_TYPE_ID(test::ReadOnlyTrait)
+IR_DECLARE_EXPLICIT_TYPE_ID(test::OneRegionTrait)

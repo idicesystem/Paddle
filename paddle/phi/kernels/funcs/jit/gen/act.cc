@@ -74,7 +74,7 @@ void VActJitCode::genCode() {
     } else {
       vmovss(ptr[param2 + offset], xmm_dst);
     }
-    offset += sizeof(float) * block;  // NOLINT
+    offset += sizeof(float) * block;
     rest -= block;
   }
   ret();

@@ -128,9 +128,10 @@ SpmdInfo SqueezeInferSpmd(const DistMetaTensor& x,
     MakeSqueezeDimTransWithoutAxis(x_shape, &out_shape, &trans);
   } else {
     std::vector<int64_t> axis_copy(axis);
-    for (auto& v : axis_copy) {
-      if (v < 0) {
-        v += x_ndim;
+    for (int64_t i = 0, n = static_cast<int64_t>(axis_copy.size()); i < n;
+         i++) {
+      if (axis_copy[i] < 0) {
+        axis_copy[i] += x_ndim;
       }
     }
     MakeSqueezeDimTransWithAxis(x_shape, &out_shape, axis_copy, &trans);
@@ -143,14 +144,14 @@ SpmdInfo SqueezeInferSpmd(const DistMetaTensor& x,
 
   // Step3: Update the dist attributes of input
   // and output with the inferred dims mapping.
-  TensorDistAttr x_dist_attr_dst = CopyTensorDistAttrForOutput(x_dist_attr_src);
+  TensorDistAttr x_dist_attr_dst(x_dist_attr_src);
   x_dist_attr_dst.set_dims_mapping(dims_mapping_vec[0]);
   if (x_dist_attr_dst.dynamic_dims().size() !=
       x_dist_attr_dst.dims_mapping().size()) {
     VLOG(4) << "SqueezeInferSPMD change x dist attr dynamic dims";
     x_dist_attr_dst.set_default_dynamic_dims(x_dist_attr_dst.dims_mapping());
   }
-  TensorDistAttr out_dist_attr = CopyTensorDistAttrForOutput(x_dist_attr_src);
+  TensorDistAttr out_dist_attr(x_dist_attr_src);
   out_dist_attr.set_dims_mapping(dims_mapping_vec[1]);
   if (out_dist_attr.dynamic_dims().size() !=
       out_dist_attr.dims_mapping().size()) {
@@ -202,9 +203,10 @@ SpmdInfo SqueezeInferSpmdReverse(const DistMetaTensor& x,
     MakeSqueezeDimTransReverseWithoutAxis(x_shape, &trans);
   } else {
     std::vector<int64_t> axis_copy(axis);
-    for (auto& v : axis_copy) {
-      if (v < 0) {
-        v += x_ndim;
+    for (int64_t i = 0, n = static_cast<int64_t>(axis_copy.size()); i < n;
+         i++) {
+      if (axis_copy[i] < 0) {
+        axis_copy[i] += x_ndim;
       }
     }
     MakeSqueezeDimTransReverseWithAxis(x_shape, out_shape, axis_copy, &trans);
@@ -217,8 +219,7 @@ SpmdInfo SqueezeInferSpmdReverse(const DistMetaTensor& x,
 
   // Step3: Update the dist attributes of input
   // and output with the inferred dims mapping
-  TensorDistAttr out_dist_attr_dst =
-      CopyTensorDistAttrForOutput(out_dist_attr_src);
+  TensorDistAttr out_dist_attr_dst(out_dist_attr_src);
   out_dist_attr_dst.set_dims_mapping(dims_mapping_vec[0]);
   if (out_dist_attr_dst.dynamic_dims().size() !=
       out_dist_attr_dst.dims_mapping().size()) {
@@ -226,7 +227,7 @@ SpmdInfo SqueezeInferSpmdReverse(const DistMetaTensor& x,
     out_dist_attr_dst.set_default_dynamic_dims(
         out_dist_attr_dst.dims_mapping());
   }
-  TensorDistAttr x_dist_attr = CopyTensorDistAttrForOutput(x.dist_attr());
+  TensorDistAttr x_dist_attr(x.dist_attr());
   x_dist_attr.set_dims_mapping(dims_mapping_vec[1]);
   if (x_dist_attr.dynamic_dims().size() != x_dist_attr.dims_mapping().size()) {
     VLOG(4) << "SqueezeInferSPMD change x dist attr dynamic dims";

@@ -14,7 +14,9 @@
 
 #include "paddle/fluid/framework/ir/memory_optimize_pass/reference_count_pass_helper.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 VarDesc *TryGetLatestVarDesc(const std::vector<details::VarHandle *> &vars) {
   VarDesc *var_desc = nullptr;
@@ -26,4 +28,6 @@ VarDesc *TryGetLatestVarDesc(const std::vector<details::VarHandle *> &vars) {
   return var_desc;
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle

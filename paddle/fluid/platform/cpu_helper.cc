@@ -22,8 +22,6 @@ limitations under the License. */
 
 #ifdef PADDLE_USE_OPENBLAS
 #include <cblas.h>
-#elif PADDLE_USE_ACCELERATE
-#include <Accelerate/Accelerate.h>
 #endif
 
 namespace paddle {
@@ -47,11 +45,8 @@ void SetNumThreads(int num_threads) {
 #elif defined(PADDLE_USE_REFERENCE_CBLAS)
   // cblas not support multi-thread
   return;
-#elif defined(PADDLE_USE_ACCELERATE)
-  // not sure about apple's blas
-  return;
 #else
-  PADDLE_THROW(common::errors::Unimplemented(
+  PADDLE_THROW(platform::errors::Unimplemented(
       "This library (except OPENBLAS, MKLML) is not supported yet, so the"
       "number of threads cannot be set."));
 #endif

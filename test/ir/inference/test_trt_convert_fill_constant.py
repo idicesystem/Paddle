@@ -14,7 +14,7 @@
 
 import unittest
 from functools import partial
-from typing import List
+from typing import Any, Dict, List
 
 import numpy as np
 from program_config import ProgramConfig, TensorConfig
@@ -28,153 +28,101 @@ class TrtConvertFillConstantTest(TrtLayerAutoScanTest):
         return True
 
     def sample_program_configs(self):
-        def generate_value_data():
+        def generate_value_data(attrs: List[Dict[str, Any]]):
             return np.array([1]).astype(np.int32)
 
-        def generate_input_data():
-            return np.random.random([2, 5, 7]).astype(np.float32)
+        def generate_shape_data(attrs: List[Dict[str, Any]]):
+            return np.array([4, 23]).astype(np.int32)
 
-        for dtype in [5, 2, 3]:
-            for str_value in ["2", "23", "-1"]:
-                value = float(str_value)
-                if np.random.choice([False, True]):
-                    str_value = str_value
-                else:
-                    str_value = ""
-                dics = [
-                    {
-                        "str_value": str_value,
-                        "value": value,
-                        "dtype": dtype,
-                    },
-                    {"axis": -1},
-                ]
-                for mode in ["ValueTensor", "ShapeTensor", "ShapeTensorList"]:
-                    self.mode = mode
-                    if mode == "ValueTensor":
-                        dics[0]["shape"] = [2, 3, 4]
+        def generate_shapelist_data(attrs: List[Dict[str, Any]]):
+            return np.array([4]).astype(np.int32)
+
+        for shape in [[2, 3, 4]]:
+            for num_input in [0, 1, 2]:
+                for dtype in [5, 2, 3]:
+                    for str_value in ["2", "23", "-1"]:
+                        self.num_input = num_input
+                        value = float(str_value)
+                        if np.random.choice([False, True]):
+                            str_value = str_value
+                        else:
+                            str_value = ""
+                        dics = [
+                            {
+                                "str_value": str_value,
+                                "value": value,
+                                "shape": shape,
+                                "dtype": dtype,
+                            },
+                            {"axis": -1},
+                        ]
+                        dics_intput = [
+                            {"ValueTensor": ["value_data"]},
+                            {
+                                "ShapeTensor": ["shape_data"],
+                            },
+                            {
+                                "ShapeTensorList": [
+                                    "shapeT1_data",
+                                    "shapeT2_data",
+                                ],
+                            },
+                            {},
+                        ]
                         ops_config = [
                             {
                                 "op_type": "fill_constant",
-                                "op_inputs": {"ValueTensor": ["value_data"]},
+                                "op_inputs": dics_intput[num_input],
                                 "op_outputs": {
                                     "Out": ["out_data"],
                                 },
                                 "op_attrs": dics[0],
                             },
                         ]
-                    elif mode == "ShapeTensor":
-                        ops_config = [
-                            {
-                                "op_type": "shape",
-                                "op_inputs": {
-                                    "Input": ["input_data"],
-                                },
-                                "op_outputs": {"Out": ["shape_data"]},
-                                "op_attrs": {},
-                            },
-                            {
-                                "op_type": "fill_constant",
-                                "op_inputs": {
-                                    "ShapeTensor": ["shape_data"],
-                                },
-                                "op_outputs": {
-                                    "Out": ["out_data"],
-                                },
-                                "op_attrs": dics[0],
-                            },
-                        ]
-                    else:
-                        ops_config = [
-                            {
-                                "op_type": "shape",
-                                "op_inputs": {
-                                    "Input": ["input_data"],
-                                },
-                                "op_outputs": {"Out": ["shape_data"]},
-                                "op_attrs": {},
-                            },
-                            {
-                                "op_type": "split",
-                                "op_inputs": {
-                                    "X": ["shape_data"],
-                                },
-                                "op_outputs": {
-                                    "Out": [
-                                        "split_shape_data_0",
-                                        "split_shape_data_1",
-                                        "split_shape_data_2",
-                                    ]
-                                },
-                                "op_attrs": {
-                                    "axis": 0,
-                                    "num": 3,
-                                },
-                            },
-                            {
-                                "op_type": "fill_constant",
-                                "op_inputs": {
-                                    "ShapeTensorList": [
-                                        "split_shape_data_0",
-                                        "split_shape_data_1",
-                                        "split_shape_data_2",
-                                    ],
-                                },
-                                "op_outputs": {
-                                    "Out": ["out_data"],
-                                },
-                                "op_attrs": dics[0],
-                            },
-                        ]
-                    ops = self.generate_op_config(ops_config)
-                    if mode == "ValueTensor":
+
+                        def generate_input():
+                            return np.random.random([1, 1]).astype(np.float32)
+
+                        ops = self.generate_op_config(ops_config)
                         program_config = ProgramConfig(
                             ops=ops,
                             weights={},
                             inputs={
                                 "value_data": TensorConfig(
-                                    data_gen=partial(generate_value_data)
+                                    data_gen=partial(generate_value_data, dics)
+                                ),
+                                "shape_data": TensorConfig(
+                                    data_gen=partial(generate_shape_data, dics)
+                                ),
+                                "shapeT1_data": TensorConfig(
+                                    data_gen=partial(
+                                        generate_shapelist_data, dics
+                                    )
+                                ),
+                                "shapeT2_data": TensorConfig(
+                                    data_gen=partial(
+                                        generate_shapelist_data, dics
+                                    )
                                 ),
                             },
                             outputs=["out_data"],
                         )
-                    else:
-                        program_config = ProgramConfig(
-                            ops=ops,
-                            weights={},
-                            inputs={
-                                "input_data": TensorConfig(
-                                    data_gen=partial(generate_input_data)
-                                ),
-                            },
-                            outputs=["out_data"],
-                        )
-                    yield program_config
+
+                        yield program_config
 
     def sample_predictor_configs(
         self, program_config
     ) -> (paddle_infer.Config, List[int], float):
         def generate_dynamic_shape(attrs):
-            if self.mode == "ValueTensor":
-                self.input_shape = [1, 1]
-                max_shape = list(self.input_shape)
-                min_shape = list(self.input_shape)
-                opt_shape = list(self.input_shape)
-                for i in range(len(self.input_shape)):
-                    max_shape[i] = max_shape[i] + 1
-                self.dynamic_shape.min_input_shape = {"Y_data": min_shape}
-                self.dynamic_shape.max_input_shape = {"Y_data": max_shape}
-                self.dynamic_shape.opt_input_shape = {"Y_data": opt_shape}
-            else:
-                self.dynamic_shape.min_input_shape = {
-                    "input_data": [2, 3, 7],
-                }
-                self.dynamic_shape.max_input_shape = {
-                    "input_data": [2, 5, 7],
-                }
-                self.dynamic_shape.opt_input_shape = {
-                    "input_data": [2, 4, 7],
-                }
+            self.input_shape = [1, 1]
+            max_shape = list(self.input_shape)
+            min_shape = list(self.input_shape)
+            opt_shape = list(self.input_shape)
+            for i in range(len(self.input_shape)):
+                max_shape[i] = max_shape[i] + 1
+            self.dynamic_shape.min_input_shape = {"Y_data": min_shape}
+            self.dynamic_shape.max_input_shape = {"Y_data": max_shape}
+            self.dynamic_shape.opt_input_shape = {"Y_data": opt_shape}
 
         def clear_dynamic_shape():
             self.dynamic_shape.min_input_shape = {}
@@ -182,14 +130,9 @@ class TrtConvertFillConstantTest(TrtLayerAutoScanTest):
             self.dynamic_shape.opt_input_shape = {}
 
         def generate_trt_nodes_num(attrs, dynamic_shape):
-            if self.mode == "ValueTensor":
-                return 0, 3
-            else:
-                ver = paddle_infer.get_trt_compile_version()
-                if ver[0] * 1000 + ver[1] * 100 + ver[2] * 10 < 8500:
-                    return 1, 3
-                else:
-                    return 1, 2
+            if self.num_input < 3:
+                return 0, 6
+            return 1, 5
 
         attrs = [
             program_config.ops[i].attrs for i in range(len(program_config.ops))

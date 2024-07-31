@@ -12,35 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Callable, Literal, Sequence, overload
-
 import numpy as np
 
 import paddle
-from paddle import _C_ops
+from paddle import _C_ops, _legacy_C_ops
 from paddle.tensor.math import _add_with_axis
 from paddle.utils import convert_to_list
 
 from ..base import core
 from ..base.data_feeder import check_type, check_variable_and_dtype
-from ..base.framework import (
-    Variable,
-    convert_np_dtype_to_dtype_,
-    in_dygraph_mode,
-    in_dynamic_or_pir_mode,
-    in_pir_mode,
-)
+from ..base.framework import Variable, in_dygraph_mode, in_dynamic_or_pir_mode
 from ..base.layer_helper import LayerHelper
 from ..framework import _current_expected_place
 from ..nn import BatchNorm2D, Conv2D, Layer, ReLU, Sequential
 from ..nn.initializer import Normal
-
-if TYPE_CHECKING:
-    from paddle import Tensor, nn
-    from paddle._typing import ParamAttrLike, Size2, Size4
-    from paddle.nn.functional.common import _PaddingSizeMode
 
 __all__ = [
     'yolo_loss',
@@ -65,19 +50,19 @@ __all__ = [
 
 
 def yolo_loss(
-    x: Tensor,
-    gt_box: Tensor,
-    gt_label: Tensor,
-    anchors: Sequence[int],
-    anchor_mask: Sequence[int],
-    class_num: int,
-    ignore_thresh: float,
-    downsample_ratio: int,
-    gt_score: Tensor | None = None,
-    use_label_smooth: bool = True,
-    name: str | None = None,
-    scale_x_y: float = 1.0,
-) -> Tensor:
+    x,
+    gt_box,
+    gt_label,
+    anchors,
+    anchor_mask,
+    class_num,
+    ignore_thresh,
+    downsample_ratio,
+    gt_score=None,
+    use_label_smooth=True,
+    name=None,
+    scale_x_y=1.0,
+):
     r"""
 
     This operator generates YOLOv3 loss based on given predict result and ground
@@ -121,13 +106,13 @@ def yolo_loss(
     box coordinates (w, h), sigmoid cross entropy loss is used for box
     coordinates (x, y), objectness loss and classification loss.
 
-    Each ground truth box finds a best matching anchor box in all anchors.
+    Each groud truth box finds a best matching anchor box in all anchors.
     Prediction of this anchor box will incur all three parts of losses, and
     prediction of anchor boxes with no GT box matched will only incur objectness
     loss.
 
     In order to trade off box coordinate losses between big boxes and small
-    boxes, box coordinate losses will be multiplied by scale weight, which is
+    boxes, box coordinate losses will be mutiplied by scale weight, which is
     calculated as follows.
 
     $$
@@ -143,10 +128,10 @@ def yolo_loss(
     While :attr:`use_label_smooth` is set to be :attr:`True`, the classification
     target will be smoothed when calculating classification loss, target of
     positive samples will be smoothed to :math:`1.0 - 1.0 / class\_num` and target of
-    negative samples will be smoothed to :math:`1.0 / class\_num`.
+    negetive samples will be smoothed to :math:`1.0 / class\_num`.
 
     While :attr:`gt_score` is given, which means the mixup score of ground truth
-    boxes, all losses incurred by a ground truth box will be multiplied by its
+    boxes, all losses incured by a ground truth box will be multiplied by its
     mixup score.
 
     Args:
@@ -155,7 +140,7 @@ def yolo_loss(
                       and the second dimension(C) stores box locations, confidence
                       score and classification one-hot keys of each anchor box.
                       The data type is float32 or float64.
-        gt_box (Tensor): ground truth boxes, should be in shape of [N, B, 4],
+        gt_box (Tensor): groud truth boxes, should be in shape of [N, B, 4],
                           in the third dimension, x, y, w, h should be stored.
                           x,y is the center coordinate of boxes, w, h are the
                           width and height, x, y, w, h should be divided by
@@ -172,11 +157,11 @@ def yolo_loss(
         ignore_thresh (float): The ignore threshold to ignore confidence loss.
         downsample_ratio (int): The downsample ratio from network input to YOLOv3
                                 loss input, so 32, 16, 8 should be set for the
-                                first, second, and third YOLOv3 loss operators.
-        gt_score (Tensor|None, optional): mixup score of ground truth boxes, should be in shape
+                                first, second, and thrid YOLOv3 loss operators.
+        gt_score (Tensor, optional): mixup score of ground truth boxes, should be in shape
                             of [N, B]. Default None.
         use_label_smooth (bool, optional): Whether to use label smooth. Default True.
-        name (str|None, optional): The default value is None. Normally there is no need
+        name (str, optional): The default value is None. Normally there is no need
                        for user to set this property. For more information,
                        please refer to :ref:`api_guide_Name`
         scale_x_y (float, optional): Scale the center point of decoded bounding box.
@@ -273,18 +258,18 @@ def yolo_loss(
 
 
 def yolo_box(
-    x: Tensor,
-    img_size: Tensor,
-    anchors: Sequence[int],
-    class_num: int,
-    conf_thresh: float,
-    downsample_ratio: int,
-    clip_bbox: bool = True,
-    name: str | None = None,
-    scale_x_y: float = 1.0,
-    iou_aware: bool = False,
-    iou_aware_factor: float = 0.5,
-) -> Tensor:
+    x,
+    img_size,
+    anchors,
+    class_num,
+    conf_thresh,
+    downsample_ratio,
+    clip_bbox=True,
+    name=None,
+    scale_x_y=1.0,
+    iou_aware=False,
+    iou_aware_factor=0.5,
+):
     r"""
 
     This operator generates YOLO detection boxes from output of YOLOv3 network.
@@ -322,7 +307,7 @@ def yolo_box(
     The logistic regression value of the 5th channel of each anchor prediction boxes
     represents the confidence score of each prediction box, and the logistic
     regression value of the last :attr:`class_num` channels of each anchor prediction
-    boxes represents the classification scores. Boxes with confidence scores less than
+    boxes represents the classifcation scores. Boxes with confidence scores less than
     :attr:`conf_thresh` should be ignored, and box final scores is the product of
     confidence scores and classification scores.
 
@@ -349,11 +334,11 @@ def yolo_box(
                              be ignored.
         downsample_ratio (int): The downsample ratio from network input to
                                 :attr:`yolo_box` operator input, so 32, 16, 8
-                                should be set for the first, second, and third
+                                should be set for the first, second, and thrid
                                 :attr:`yolo_box` layer.
         clip_bbox (bool, optional): Whether clip output bonding box in :attr:`img_size`
                           boundary. Default true.
-        name (str|None, optional): The default value is None. Normally there is no need
+        name (str, optional): The default value is None. Normally there is no need
                        for user to set this property. For more information,
                        please refer to :ref:`api_guide_Name`.
         scale_x_y (float, optional): Scale the center point of decoded bounding box. Default 1.0
@@ -434,19 +419,19 @@ def yolo_box(
 
 
 def prior_box(
-    input: Tensor,
-    image: Tensor,
-    min_sizes: Sequence[float] | float,
-    max_sizes: Sequence[float] | float | None = None,
-    aspect_ratios: Sequence[float] | float = [1.0],
-    variance: Sequence[float] | float = [0.1, 0.1, 0.2, 0.2],
-    flip: bool = False,
-    clip: bool = False,
-    steps: Sequence[float] | float = [0.0, 0.0],
-    offset: float = 0.5,
-    min_max_aspect_ratios_order: bool = False,
-    name: str | None = None,
-) -> tuple[Tensor, Tensor]:
+    input,
+    image,
+    min_sizes,
+    max_sizes=None,
+    aspect_ratios=[1.0],
+    variance=[0.1, 0.1, 0.2, 0.2],
+    flip=False,
+    clip=False,
+    steps=[0.0, 0.0],
+    offset=0.5,
+    min_max_aspect_ratios_order=False,
+    name=None,
+):
     r"""
 
     This op generates prior boxes for SSD(Single Shot MultiBox Detector) algorithm.
@@ -461,15 +446,15 @@ def prior_box(
        image (Tensor): 4-D tensor(NCHW), the input image data of PriorBoxOp,
             the data type should be float32 or float64.
        min_sizes (list|tuple|float): the min sizes of generated prior boxes.
-       max_sizes (list|tuple|float|None, optional): the max sizes of generated prior boxes.
+       max_sizes (list|tuple|None, optional): the max sizes of generated prior boxes.
             Default: None, means [] and will not be used.
        aspect_ratios (list|tuple|float, optional): the aspect ratios of generated
             prior boxes. Default: [1.0].
-       variance (list|tuple|float, optional): the variances to be encoded in prior boxes.
+       variance (list|tuple, optional): the variances to be encoded in prior boxes.
             Default:[0.1, 0.1, 0.2, 0.2].
        flip (bool): Whether to flip aspect ratios. Default:False.
        clip (bool): Whether to clip out-of-boundary boxes. Default: False.
-       steps (list|tuple|float, optional): Prior boxes steps across width and height, If
+       steps (list|tuple, optional): Prior boxes steps across width and height, If
             steps[0] equals to 0.0 or steps[1] equals to 0.0, the prior boxes steps across
             height or weight of the input will be automatically calculated.
             Default: [0., 0.]
@@ -580,16 +565,14 @@ def prior_box(
 
 
 def box_coder(
-    prior_box: Tensor,
-    prior_box_var: Tensor | Sequence[float],
-    target_box: Tensor,
-    code_type: Literal[
-        "encode_center_size", "decode_center_size"
-    ] = "encode_center_size",
-    box_normalized: bool = True,
-    axis: int = 0,
-    name: str | None = None,
-) -> Tensor:
+    prior_box,
+    prior_box_var,
+    target_box,
+    code_type="encode_center_size",
+    box_normalized=True,
+    axis=0,
+    name=None,
+):
     r"""
     Encode/Decode the target bounding box with the priorbox information.
 
@@ -762,18 +745,18 @@ def box_coder(
 
 
 def deform_conv2d(
-    x: Tensor,
-    offset: Tensor,
-    weight: Tensor,
-    bias: Tensor | None = None,
-    stride: Size2 = 1,
-    padding: Size2 = 0,
-    dilation: Size2 = 1,
-    deformable_groups: int = 1,
-    groups: int = 1,
-    mask: Tensor | None = None,
-    name: str | None = None,
-) -> Tensor:
+    x,
+    offset,
+    weight,
+    bias=None,
+    stride=1,
+    padding=0,
+    dilation=1,
+    deformable_groups=1,
+    groups=1,
+    mask=None,
+    name=None,
+):
     r"""
     Compute 2-D deformable convolution on 4-D input.
     Given input image x, output feature map y, the deformable convolution operation can be expressed as follow:
@@ -837,7 +820,7 @@ def deform_conv2d(
             dilation_H = dilation_W = dilation. Default: 1.
         deformable_groups (int): The number of deformable group partitions.
             Default: 1.
-        groups (int, optional): The groups number of the deformable conv layer. According to
+        groups (int, optonal): The groups number of the deformable conv layer. According to
             grouped convolution in Alex Krizhevsky's Deep CNN paper: when group=2,
             the first half of the filters is only connected to the first half
             of the input channels, while the second half of the filters is only
@@ -845,7 +828,7 @@ def deform_conv2d(
         mask (Tensor, optional): The input mask of deformable convolution layer.
             A Tensor with type float32, float64. It should be None when you use
             deformable convolution v1. Default: None.
-        name(str|None, optional): For details, please refer to :ref:`api_guide_Name`.
+        name(str, optional): For details, please refer to :ref:`api_guide_Name`.
                         Generally, no setting is required. Default: None.
     Returns:
         Tensor: 4-D Tensor storing the deformable convolution result.\
@@ -890,7 +873,7 @@ def deform_conv2d(
 
     use_deform_conv2d_v1 = True if mask is None else False
 
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         pre_bias = _C_ops.deformable_conv(
             x,
             offset,
@@ -1033,12 +1016,12 @@ class DeformConv2D(Layer):
             the first half of the filters is only connected to the first half
             of the input channels, while the second half of the filters is only
             connected to the second half of the input channels. The default value is 1.
-        weight_attr(ParamAttr|None, optional): The parameter attribute for learnable parameters/weights
+        weight_attr(ParamAttr, optional): The parameter attribute for learnable parameters/weights
             of conv2d. If it is set to None or one attribute of ParamAttr, conv2d
             will create ParamAttr as param_attr. If it is set to None, the parameter
             is initialized with :math:`Normal(0.0, std)`, and the :math:`std` is
             :math:`(\frac{2.0 }{filter\_elem\_num})^{0.5}`. The default value is None.
-        bias_attr(ParamAttr|bool|None, optional): The parameter attribute for the bias of conv2d.
+        bias_attr(ParamAttr|bool, optional): The parameter attribute for the bias of conv2d.
             If it is set to False, no bias will be added to the output units.
             If it is set to None or one attribute of ParamAttr, conv2d
             will create ParamAttr as bias_attr. If the Initializer of the bias_attr
@@ -1097,22 +1080,20 @@ class DeformConv2D(Layer):
             >>> print(out.shape)
             [8, 16, 26, 26]
     """
-    weight: Tensor
-    bias: Tensor
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size2,
-        stride: Size2 = 1,
-        padding: Size2 = 0,
-        dilation: Size2 = 1,
-        deformable_groups: int = 1,
-        groups: int = 1,
-        weight_attr: ParamAttrLike | None = None,
-        bias_attr: ParamAttrLike | None = None,
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride=1,
+        padding=0,
+        dilation=1,
+        deformable_groups=1,
+        groups=1,
+        weight_attr=None,
+        bias_attr=None,
+    ):
         super().__init__()
         assert (
             weight_attr is not False
@@ -1150,9 +1131,7 @@ class DeformConv2D(Layer):
             attr=self._bias_attr, shape=[self._out_channels], is_bias=True
         )
 
-    def forward(
-        self, x: Tensor, offset: Tensor, mask: Tensor | None = None
-    ) -> Tensor:
+    def forward(self, x, offset, mask=None):
         out = deform_conv2d(
             x=x,
             offset=offset,
@@ -1166,34 +1145,6 @@ class DeformConv2D(Layer):
             mask=mask,
         )
         return out
-
-
-@overload
-def distribute_fpn_proposals(
-    fpn_rois: Tensor,
-    min_level: int,
-    max_level: int,
-    refer_level: int,
-    refer_scale: int,
-    pixel_offset: bool = ...,
-    rois_num: None = ...,
-    name: str | None = ...,
-) -> tuple[list[Tensor], Tensor, None]:
-    ...
-
-
-@overload
-def distribute_fpn_proposals(
-    fpn_rois: Tensor,
-    min_level: int,
-    max_level: int,
-    refer_level: int,
-    refer_scale: int,
-    pixel_offset: bool = ...,
-    rois_num: Tensor = ...,
-    name: str | None = ...,
-) -> tuple[list[Tensor], Tensor, list[Tensor]]:
-    ...
 
 
 def distribute_fpn_proposals(
@@ -1231,12 +1182,12 @@ def distribute_fpn_proposals(
         refer_scale (int): The referring scale of FPN layer with specified level.
         pixel_offset (bool, optional): Whether there is pixel offset. If True, the offset of
             image shape will be 1. 'False' by default.
-        rois_num (Tensor|None, optional): 1-D Tensor contains the number of RoIs in each image.
+        rois_num (Tensor, optional): 1-D Tensor contains the number of RoIs in each image.
             The shape is [B] and data type is int32. B is the number of images.
             If rois_num not None, it will return a list of 1-D Tensor. Each element
             is the output RoIs' number of each image on the corresponding level
             and the shape is [B]. None by default.
-        name (str|None, optional): For detailed information, please refer
+        name (str, optional): For detailed information, please refer
             to :ref:`api_guide_Name`. Usually name is no need to set and
             None by default.
 
@@ -1275,7 +1226,7 @@ def distribute_fpn_proposals(
         num_lvl < 100
     ), "Only support max to 100 levels, (max_level - min_level + 1 < 100)"
 
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         assert (
             rois_num is not None
         ), "rois_num should not be None in dygraph mode."
@@ -1341,14 +1292,14 @@ def distribute_fpn_proposals(
         return multi_rois, restore_ind, rois_num_per_level
 
 
-def read_file(filename: str, name: str | None = None) -> Tensor:
+def read_file(filename, name=None):
     """
     Reads and outputs the bytes contents of a file as a uint8 Tensor
     with one dimension.
 
     Args:
         filename (str): Path of the file to be read.
-        name (str|None, optional): The default value is None. Normally there is no
+        name (str, optional): The default value is None. Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name`.
 
@@ -1368,9 +1319,8 @@ def read_file(filename: str, name: str | None = None) -> Tensor:
             [142773]
     """
 
-    attr_dtype = convert_np_dtype_to_dtype_('uint8')
-    if in_dynamic_or_pir_mode():
-        return _C_ops.read_file(filename, attr_dtype, paddle.CPUPlace())
+    if in_dygraph_mode():
+        return _legacy_C_ops.read_file('filename', filename)
     else:
         inputs = {}
         attrs = {'filename': filename}
@@ -1384,11 +1334,7 @@ def read_file(filename: str, name: str | None = None) -> Tensor:
         return out
 
 
-def decode_jpeg(
-    x: Tensor,
-    mode: Literal["unchanged", "gray", "rgb"] = "unchanged",
-    name: str | None = None,
-) -> Tensor:
+def decode_jpeg(x, mode='unchanged', name=None):
     """
     Decodes a JPEG image into a 3 dimensional RGB Tensor or 1 dimensional Gray Tensor.
     Optionally converts the image to the desired format.
@@ -1397,13 +1343,13 @@ def decode_jpeg(
     Args:
         x (Tensor): A one dimensional uint8 tensor containing the raw bytes
             of the JPEG image.
-        mode (str, optional): The read mode used for optionally converting the image. Must be one of
-            ["unchanged", "gray", "rgb"]. Default: 'unchanged'.
+        mode (str, optional): The read mode used for optionally converting the image.
+            Default: 'unchanged'.
         name (str, optional): The default value is None. Normally there is no
             need for user to set this property. For more information, please
             refer to :ref:`api_guide_Name`.
     Returns:
-        Tensor: A decoded image tensor with shape (image_channels, image_height, image_width)
+        Tensor: A decoded image tensor with shape (imge_channels, image_height, image_width)
 
     Examples:
         .. code-block:: python
@@ -1422,7 +1368,7 @@ def decode_jpeg(
             >>> print(img.shape)
             [3, 400, 300]
     """
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         return _C_ops.decode_jpeg(x, mode, _current_expected_place())
     else:
         inputs = {'X': x}
@@ -1437,14 +1383,7 @@ def decode_jpeg(
         return out
 
 
-def psroi_pool(
-    x: Tensor,
-    boxes: Tensor,
-    boxes_num: Tensor,
-    output_size: Size2,
-    spatial_scale: float = 1.0,
-    name: str | None = None,
-) -> Tensor:
+def psroi_pool(x, boxes, boxes_num, output_size, spatial_scale=1.0, name=None):
     """
     Position sensitive region of interest pooling (also known as PSROIPooling) is to perform
     position-sensitive average pooling on regions of interest specified by input. It performs
@@ -1463,7 +1402,7 @@ def psroi_pool(
                                is int32. If int, H and W are both equal to output_size.
         spatial_scale (float, optional): Multiplicative spatial scale factor to translate ROI coords from their
                                input scale to the scale used when pooling. Default: 1.0
-        name(str|None, optional): The default value is None.
+        name(str, optional): The default value is None.
                              Normally there is no need for user to set this property.
                              For more information, please refer to :ref:`api_guide_Name`
 
@@ -1491,7 +1430,7 @@ def psroi_pool(
     if pooled_height * pooled_width == 0:
         raise ValueError('output_size should not contain 0.')
     output_channels = int(x.shape[1] / (pooled_height * pooled_width))
-    if in_dynamic_or_pir_mode():
+    if in_dygraph_mode():
         return _C_ops.psroi_pool(
             x,
             boxes,
@@ -1554,28 +1493,18 @@ class PSRoIPool(Layer):
             [3, 10, 7, 7]
     """
 
-    output_size: Size2
-    spatial_scale: float
-
-    def __init__(self, output_size: Size2, spatial_scale: float = 1.0) -> None:
+    def __init__(self, output_size, spatial_scale=1.0):
         super().__init__()
         self.output_size = output_size
         self.spatial_scale = spatial_scale
 
-    def forward(self, x: Tensor, boxes: Tensor, boxes_num: Tensor) -> Tensor:
+    def forward(self, x, boxes, boxes_num):
         return psroi_pool(
             x, boxes, boxes_num, self.output_size, self.spatial_scale
         )
 
 
-def roi_pool(
-    x: Tensor,
-    boxes: Tensor,
-    boxes_num: Tensor,
-    output_size: Size2,
-    spatial_scale: float = 1.0,
-    name: str | None = None,
-) -> Tensor:
+def roi_pool(x, boxes, boxes_num, output_size, spatial_scale=1.0, name=None):
     """
     This operator implements the roi_pooling layer.
     Region of interest pooling (also known as RoI pooling) is to perform max pooling on inputs of nonuniform sizes to obtain fixed-size feature maps (e.g. 7*7).
@@ -1682,12 +1611,12 @@ class RoIPool(Layer):
             [3, 256, 4, 3]
     """
 
-    def __init__(self, output_size: Size2, spatial_scale: float = 1.0) -> None:
+    def __init__(self, output_size, spatial_scale=1.0):
         super().__init__()
         self._output_size = output_size
         self._spatial_scale = spatial_scale
 
-    def forward(self, x: Tensor, boxes: Tensor, boxes_num: Tensor) -> Tensor:
+    def forward(self, x, boxes, boxes_num):
         return roi_pool(
             x=x,
             boxes=boxes,
@@ -1696,21 +1625,21 @@ class RoIPool(Layer):
             spatial_scale=self._spatial_scale,
         )
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         main_str = 'output_size={_output_size}, spatial_scale={_spatial_scale}'
         return main_str.format(**self.__dict__)
 
 
 def roi_align(
-    x: Tensor,
-    boxes: Tensor,
-    boxes_num: Tensor,
-    output_size: Size2,
-    spatial_scale: float = 1.0,
-    sampling_ratio: int = -1,
-    aligned: bool = True,
-    name: str | None = None,
-) -> Tensor:
+    x,
+    boxes,
+    boxes_num,
+    output_size,
+    spatial_scale=1.0,
+    sampling_ratio=-1,
+    aligned=True,
+    name=None,
+):
     """
     Implementing the roi_align layer.
     Region of Interest (RoI) Align operator (also known as RoI Align) is to
@@ -1736,10 +1665,10 @@ def roi_align(
             the batch, the data type is int32.
         output_size (int or Tuple[int, int]): The pooled output size(h, w), data
             type is int32. If int, h and w are both equal to output_size.
-        spatial_scale (float, optional): Multiplicative spatial scale factor to translate
+        spatial_scale (float32, optional): Multiplicative spatial scale factor to translate
             ROI coords from their input scale to the scale used when pooling.
             Default: 1.0.
-        sampling_ratio (int, optional): number of sampling points in the interpolation
+        sampling_ratio (int32, optional): number of sampling points in the interpolation
             grid used to compute the output value of each pooled output bin.
             If > 0, then exactly ``sampling_ratio x sampling_ratio`` sampling
             points per bin are used.
@@ -1750,7 +1679,7 @@ def roi_align(
             shift the box coordinates it by -0.5 for a better alignment with the
             two neighboring pixel indices. This version is used in Detectron2.
             Default: True.
-        name(str|None, optional): For detailed information, please refer to :
+        name(str, optional): For detailed information, please refer to :
             ref:`api_guide_Name`. Usually name is no need to set and None by
             default. Default: None.
 
@@ -1830,7 +1759,7 @@ class RoIAlign(Layer):
     Args:
         output_size (int or tuple[int, int]): The pooled output size(h, w),
             data type is int32. If int, h and w are both equal to output_size.
-        spatial_scale (float, optional): Multiplicative spatial scale factor
+        spatial_scale (float32, optional): Multiplicative spatial scale factor
             to translate ROI coords from their input scale to the scale used
             when pooling. Default: 1.0.
 
@@ -1855,14 +1784,12 @@ class RoIAlign(Layer):
             [3, 256, 4, 3]
     """
 
-    def __init__(self, output_size: Size2, spatial_scale: float = 1.0) -> None:
+    def __init__(self, output_size, spatial_scale=1.0):
         super().__init__()
         self._output_size = output_size
         self._spatial_scale = spatial_scale
 
-    def forward(
-        self, x: Tensor, boxes: Tensor, boxes_num: Tensor, aligned: bool = True
-    ) -> Tensor:
+    def forward(self, x, boxes, boxes_num, aligned=True):
         return roi_align(
             x=x,
             boxes=boxes,
@@ -1875,38 +1802,38 @@ class RoIAlign(Layer):
 
 class ConvNormActivation(Sequential):
     """
-    Configurable block used for Convolution-Normalization-Activation blocks.
+    Configurable block used for Convolution-Normalzation-Activation blocks.
     This code is based on the torchvision code with modifications.
     You can also see at https://github.com/pytorch/vision/blob/main/torchvision/ops/misc.py#L68
     Args:
         in_channels (int): Number of channels in the input image
-        out_channels (int): Number of channels produced by the Convolution-Normalization-Activation block
+        out_channels (int): Number of channels produced by the Convolution-Normalzation-Activation block
         kernel_size: (int|list|tuple, optional): Size of the convolving kernel. Default: 3
         stride (int|list|tuple, optional): Stride of the convolution. Default: 1
         padding (int|str|tuple|list, optional): Padding added to all four sides of the input. Default: None,
-            in which case it will calculated as ``padding = (kernel_size - 1) // 2 * dilation``
+            in wich case it will calculated as ``padding = (kernel_size - 1) // 2 * dilation``
         groups (int, optional): Number of blocked connections from input channels to output channels. Default: 1
-        norm_layer (Callable[..., paddle.nn.Layer], optional): Norm layer that will be stacked on top of the convolution layer.
+        norm_layer (Callable[..., paddle.nn.Layer], optional): Norm layer that will be stacked on top of the convolutiuon layer.
             If ``None`` this layer wont be used. Default: ``paddle.nn.BatchNorm2D``
         activation_layer (Callable[..., paddle.nn.Layer], optional): Activation function which will be stacked on top of the normalization
             layer (if not ``None``), otherwise on top of the conv layer. If ``None`` this layer wont be used. Default: ``paddle.nn.ReLU``
         dilation (int): Spacing between kernel elements. Default: 1
-        bias (bool|None, optional): Whether to use bias in the convolution layer. By default, biases are included if ``norm_layer is None``.
+        bias (bool, optional): Whether to use bias in the convolution layer. By default, biases are included if ``norm_layer is None``.
     """
 
     def __init__(
         self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: Size2 = 3,
-        stride: Size2 = 1,
-        padding: _PaddingSizeMode | Size2 | Size4 | str | None = None,
-        groups: int = 1,
-        norm_layer: Callable[..., nn.Layer] = BatchNorm2D,
-        activation_layer: Callable[..., nn.Layer] = ReLU,
-        dilation: int = 1,
-        bias: bool | None = None,
-    ) -> None:
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        stride=1,
+        padding=None,
+        groups=1,
+        norm_layer=BatchNorm2D,
+        activation_layer=ReLU,
+        dilation=1,
+        bias=None,
+    ):
         if padding is None:
             padding = (kernel_size - 1) // 2 * dilation
         if bias is None:
@@ -1931,13 +1858,13 @@ class ConvNormActivation(Sequential):
 
 
 def nms(
-    boxes: Tensor,
-    iou_threshold: float = 0.3,
-    scores: Tensor | None = None,
-    category_idxs: Tensor | None = None,
-    categories: Sequence[int] | None = None,
-    top_k: int | None = None,
-) -> Tensor:
+    boxes,
+    iou_threshold=0.3,
+    scores=None,
+    category_idxs=None,
+    categories=None,
+    top_k=None,
+):
     r"""
     This operator implements non-maximum suppression. Non-maximum suppression (NMS)
     is used to select one bounding box out of many overlapping bounding boxes in object detection.
@@ -1949,11 +1876,11 @@ def nms(
 
         IoU = \frac{intersection\_area(box1, box2)}{union\_area(box1, box2)}
 
-        If scores are provided, input boxes will be sorted by their scores firstly.
+    If scores are provided, input boxes will be sorted by their scores firstly.
 
     If category_idxs and categories are provided, NMS will be performed with a batched style,
     which means NMS will be applied to each category respectively and results of each category
-    will be concatenated and sorted by scores.
+    will be concated and sorted by scores.
 
     If K is provided, only the first k elements will be returned. Otherwise, all box indices sorted by scores will be returned.
 
@@ -1963,13 +1890,13 @@ def nms(
             Given as [[x1, y1, x2, y2], …],  (x1, y1) is the top left coordinates,
             and (x2, y2) is the bottom right coordinates.
             Their relation should be ``0 <= x1 < x2 && 0 <= y1 < y2``.
-        iou_threshold(float, optional): IoU threshold for determine overlapping boxes. Default value: 0.3.
-        scores(Tensor|None, optional): Scores corresponding to boxes, it's a 1D-Tensor with
+        iou_threshold(float32, optional): IoU threshold for determine overlapping boxes. Default value: 0.3.
+        scores(Tensor, optional): Scores corresponding to boxes, it's a 1D-Tensor with
             shape of [num_boxes]. The data type is float32 or float64. Default: None.
-        category_idxs(Tensor|None, optional): Category indices corresponding to boxes.
+        category_idxs(Tensor, optional): Category indices corresponding to boxes.
             it's a 1D-Tensor with shape of [num_boxes]. The data type is int64. Default: None.
-        categories(list|tuple|None, optional): A list of unique id of all categories. The data type is int64. Default: None.
-        top_k(int|None, optional): The top K boxes who has higher score and kept by NMS preds to
+        categories(List, optional): A list of unique id of all categories. The data type is int64. Default: None.
+        top_k(int64, optional): The top K boxes who has higher score and kept by NMS preds to
             consider. top_k should be smaller equal than num_boxes. Default: None.
 
     Returns:
@@ -2101,63 +2028,6 @@ def nms(
     return keep_boxes_idxs[sorted_sub_indices][:top_k]
 
 
-@overload
-def generate_proposals(
-    scores: Tensor,
-    bbox_deltas: Tensor,
-    img_size: Tensor,
-    anchors: Tensor,
-    variances: Tensor,
-    pre_nms_top_n: float = ...,
-    post_nms_top_n: float = ...,
-    nms_thresh: float = ...,
-    min_size: float = ...,
-    eta: float = ...,
-    pixel_offset: bool = ...,
-    return_rois_num: Literal[True] = ...,
-    name: str | None = ...,
-) -> tuple[Tensor, Tensor, Tensor]:
-    ...
-
-
-@overload
-def generate_proposals(
-    scores: Tensor,
-    bbox_deltas: Tensor,
-    img_size: Tensor,
-    anchors: Tensor,
-    variances: Tensor,
-    pre_nms_top_n: float = ...,
-    post_nms_top_n: float = ...,
-    nms_thresh: float = ...,
-    min_size: float = ...,
-    eta: float = ...,
-    pixel_offset: bool = ...,
-    return_rois_num: Literal[False] = ...,
-    name: str | None = ...,
-) -> tuple[Tensor, Tensor, None]:
-    ...
-
-
-@overload
-def generate_proposals(
-    scores: Tensor,
-    bbox_deltas: Tensor,
-    img_size: Tensor,
-    anchors: Tensor,
-    variances: Tensor,
-    pre_nms_top_n: float = ...,
-    post_nms_top_n: float = ...,
-    nms_thresh: float = ...,
-    min_size: float = ...,
-    eta: float = ...,
-    pixel_offset: bool = ...,
-    return_rois_num: bool = ...,
-    name: str | None = ...,
-) -> tuple[Tensor, Tensor, Tensor | None]:
-    ...
-
-
 def generate_proposals(
     scores,
     bbox_deltas,
@@ -2218,7 +2088,7 @@ def generate_proposals(
         pixel_offset (bool, optional): Whether there is pixel offset. If True, the offset of `img_size` will be 1. 'False' by default.
         return_rois_num (bool, optional): Whether to return `rpn_rois_num` . When setting True, it will return a 1D Tensor with shape [N, ] that includes Rois's
             num of each image in one batch. 'False' by default.
-        name(str|None, optional): For detailed information, please refer
+        name(str, optional): For detailed information, please refer
             to :ref:`api_guide_Name`. Usually name is no need to set and
             None by default.
 
@@ -2268,27 +2138,6 @@ def generate_proposals(
             scores, bbox_deltas, img_size, anchors, variances, *attrs
         )
 
-        return rpn_rois, rpn_roi_probs, rpn_rois_num
-    elif in_pir_mode():
-        assert (
-            return_rois_num
-        ), "return_rois_num should be True in PaddlePaddle inner op mode."
-        rpn_rois, rpn_roi_probs, rpn_rois_num = _C_ops.generate_proposals(
-            scores,
-            bbox_deltas,
-            img_size,
-            anchors,
-            variances,
-            pre_nms_top_n,
-            post_nms_top_n,
-            nms_thresh,
-            min_size,
-            eta,
-            pixel_offset,
-        )
-        rpn_rois.stop_gradient = True
-        rpn_roi_probs.stop_gradient = True
-        rpn_rois_num.stop_gradient = True
         return rpn_rois, rpn_roi_probs, rpn_rois_num
     else:
         helper = LayerHelper('generate_proposals_v2', **locals())
@@ -2356,101 +2205,6 @@ def generate_proposals(
         return rpn_rois, rpn_roi_probs, rpn_rois_num
 
 
-@overload
-def matrix_nms(
-    bboxes: Tensor,
-    scores: Tensor,
-    score_threshold: float,
-    post_threshold: float,
-    nms_top_k: int,
-    keep_top_k: int,
-    use_gaussian: bool = ...,
-    gaussian_sigma: float = ...,
-    background_label: int = ...,
-    normalized: bool = ...,
-    return_index: Literal[True] = ...,
-    return_rois_num: Literal[False] = ...,
-    name: str | None = None,
-) -> tuple[Tensor, None, Tensor]:
-    ...
-
-
-@overload
-def matrix_nms(
-    bboxes: Tensor,
-    scores: Tensor,
-    score_threshold: float,
-    post_threshold: float,
-    nms_top_k: int,
-    keep_top_k: int,
-    use_gaussian: bool = ...,
-    gaussian_sigma: float = ...,
-    background_label: int = ...,
-    normalized: bool = ...,
-    return_index: Literal[True] = ...,
-    return_rois_num: Literal[True] = ...,
-    name: str | None = None,
-) -> tuple[Tensor, Tensor, Tensor]:
-    ...
-
-
-@overload
-def matrix_nms(
-    bboxes: Tensor,
-    scores: Tensor,
-    score_threshold: float,
-    post_threshold: float,
-    nms_top_k: int,
-    keep_top_k: int,
-    use_gaussian: bool = ...,
-    gaussian_sigma: float = ...,
-    background_label: int = ...,
-    normalized: bool = ...,
-    return_index: Literal[False] = ...,
-    return_rois_num: Literal[True] = ...,
-    name: str | None = None,
-) -> tuple[Tensor, Tensor, None]:
-    ...
-
-
-@overload
-def matrix_nms(
-    bboxes: Tensor,
-    scores: Tensor,
-    score_threshold: float,
-    post_threshold: float,
-    nms_top_k: int,
-    keep_top_k: int,
-    use_gaussian: bool = ...,
-    gaussian_sigma: float = ...,
-    background_label: int = ...,
-    normalized: bool = ...,
-    return_index: Literal[False] = ...,
-    return_rois_num: Literal[False] = ...,
-    name: str | None = None,
-) -> tuple[Tensor, None, None]:
-    ...
-
-
-@overload
-def matrix_nms(
-    bboxes: Tensor,
-    scores: Tensor,
-    score_threshold: float,
-    post_threshold: float,
-    nms_top_k: int,
-    keep_top_k: int,
-    use_gaussian: bool = ...,
-    gaussian_sigma: float = ...,
-    background_label: int = ...,
-    normalized: bool = ...,
-    return_index: bool = ...,
-    return_rois_num: bool = ...,
-    name: str | None = None,
-) -> tuple[Tensor, Tensor | None, Tensor | None]:
-    ...
-
-
 def matrix_nms(
     bboxes,
     scores,
@@ -2473,7 +2227,7 @@ def matrix_nms(
     than score_threshold (if provided), then the top k candidate is selected if
     nms_top_k is larger than -1. Score of the remaining candidate are then
     decayed according to the Matrix NMS scheme.
-    After NMS step, at most keep_top_k number of total bboxes are to be kept
+    Aftern NMS step, at most keep_top_k number of total bboxes are to be kept
     per image if keep_top_k is larger than -1.
 
     Args:
@@ -2507,7 +2261,7 @@ def matrix_nms(
         normalized (bool, optional): Whether detections are normalized. Default: True
         return_index(bool, optional): Whether return selected index. Default: False
         return_rois_num(bool, optional): whether return rois_num. Default: True
-        name(str|None, optional): Name of the matrix nms op. Default: None.
+        name(str, optional): Name of the matrix nms op. Default: None.
     Returns:
         - A tuple with three Tensor, (Out, Index, RoisNum) if return_index is True,
           otherwise, a tuple with two Tensor (Out, RoisNum) is returned.

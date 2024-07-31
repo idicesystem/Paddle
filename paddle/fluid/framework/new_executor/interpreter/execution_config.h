@@ -17,8 +17,7 @@
 #include <set>
 #include <string>
 
-#include "paddle/fluid/platform/enforce.h"
-#include "paddle/phi/common/place.h"
+#include "paddle/fluid/platform/place.h"
 
 namespace paddle {
 namespace framework {

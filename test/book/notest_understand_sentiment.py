@@ -31,9 +31,9 @@ from paddle import base
 def convolution_net(
     data, label, input_dim, class_dim=2, emb_dim=32, hid_dim=32
 ):
-    emb = paddle.nn.Embedding(
-        num_embeddings=input_dim, embedding_dim=emb_dim, sparse=True
-    )(data)
+    emb = paddle.static.nn.embedding(
+        input=data, size=[input_dim, emb_dim], is_sparse=True
+    )
     conv_3 = nets.sequence_conv_pool(
         input=emb,
         num_filters=hid_dim,

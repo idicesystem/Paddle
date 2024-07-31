@@ -16,7 +16,9 @@
 
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 TransposeFlattenConcatFusePass::TransposeFlattenConcatFusePass() {
   AddOpCompat(OpCompat("transpose2"))
@@ -97,22 +99,23 @@ void TransposeFlattenConcatFusePass::RunTransposeFlattenConcatFuse(
     for (int i = 0; i < times; i++) {
       PADDLE_ENFORCE_NOT_NULL(
           subgraph.at(pattern.GetPDNode("transpose" + std::to_string(i))),
-          common::errors::NotFound("Can not find transpose%d in subgraph.", i));
+          platform::errors::NotFound("Can not find transpose%d in subgraph.",
+                                     i));
       PADDLE_ENFORCE_NOT_NULL(
           subgraph.at(pattern.GetPDNode("transpose_out" + std::to_string(i))),
-          common::errors::NotFound("Can not find transpose_out%d in subgraph.",
-                                   i));
+          platform::errors::NotFound(
+              "Can not find transpose_out%d in subgraph.", i));
       PADDLE_ENFORCE_NOT_NULL(
           subgraph.at(pattern.GetPDNode("flatten" + std::to_string(i))),
-          common::errors::NotFound("Can not find flatten%d in subgraph.", i));
+          platform::errors::NotFound("Can not find flatten%d in subgraph.", i));
       PADDLE_ENFORCE_NOT_NULL(
           subgraph.at(pattern.GetPDNode("flatten_out" + std::to_string(i))),
-          common::errors::NotFound("Can not find flatten_out%d in subgraph.",
-                                   i));
+          platform::errors::NotFound("Can not find flatten_out%d in subgraph.",
+                                     i));
       PADDLE_ENFORCE_NOT_NULL(
           subgraph.at(input_nodes[i]),
-          common::errors::NotFound("Can not find %s in subgraph.",
-                                   input_nodes[i]->name()));
+          platform::errors::NotFound("Can not find %s in subgraph.",
+                                     input_nodes[i]->name()));
 
       if (i == 0) {
         trans_axis0 = PADDLE_GET_CONST(
@@ -212,7 +215,9 @@ void TransposeFlattenConcatFusePass::ApplyImpl(ir::Graph *graph) const {
   }
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(transpose_flatten_concat_fuse_pass,
               paddle::framework::ir::TransposeFlattenConcatFusePass);

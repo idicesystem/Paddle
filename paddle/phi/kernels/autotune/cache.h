@@ -61,9 +61,7 @@ enum class AlgorithmType {
   kDgradDreluBnBwdWeight = 16,
   kDbnApply = 17,
   kBnActWgrad = 18,
-  kPoolingForwardV8 = 19,
-  kPoolingBackwardV8 = 20,
-  kAlgorithmCount = 21
+  kAlgorithmCount = 19
 #endif
 };
 

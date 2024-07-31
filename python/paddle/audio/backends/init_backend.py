@@ -49,7 +49,7 @@ def list_available_backends() -> List[str]:
             >>> wav_duration = 0.5
             >>> num_channels = 1
             >>> num_frames = sample_rate * wav_duration
-            >>> wav_data = paddle.linspace(-1.0, 1.0, int(num_frames)) * 0.1
+            >>> wav_data = paddle.linspace(-1.0, 1.0, num_frames) * 0.1
             >>> waveform = wav_data.tile([num_channels, 1])
             >>> wav_path = "./test.wav"
 
@@ -72,11 +72,11 @@ def list_available_backends() -> List[str]:
     except ImportError:
         package = "paddleaudio"
         warn_msg = (
-            f"Failed importing {package}. \n"
-            "only wave_backend(only can deal with PCM16 WAV) supported.\n"
-            "if want soundfile_backend(more audio type supported),\n"
-            f"please manually installed (usually with `pip install {package} >= 1.0.2`). "
-        )
+            "Failed importing {}. \n"
+            "only wave_banckend(only can deal with PCM16 WAV) supportted.\n"
+            "if want soundfile_backend(more audio type suppported),\n"
+            "please manually installed (usually with `pip install {} >= 1.0.2`). "
+        ).format(package, package)
         warnings.warn(warn_msg)
 
     if "paddleaudio" in sys.modules:
@@ -108,7 +108,7 @@ def get_current_backend() -> str:
             >>> wav_duration = 0.5
             >>> num_channels = 1
             >>> num_frames = sample_rate * wav_duration
-            >>> wav_data = paddle.linspace(-1.0, 1.0, int(num_frames)) * 0.1
+            >>> wav_data = paddle.linspace(-1.0, 1.0, num_frames) * 0.1
             >>> waveform = wav_data.tile([num_channels, 1])
             >>> wav_path = "./test.wav"
 
@@ -154,7 +154,7 @@ def set_backend(backend_name: str):
             >>> wav_duration = 0.5
             >>> num_channels = 1
             >>> num_frames = sample_rate * wav_duration
-            >>> wav_data = paddle.linspace(-1.0, 1.0, int(num_frames)) * 0.1
+            >>> wav_data = paddle.linspace(-1.0, 1.0, num_frames) * 0.1
             >>> waveform = wav_data.tile([num_channels, 1])
             >>> wav_path = "./test.wav"
 

@@ -14,10 +14,6 @@
 
 #include "paddle/fluid/memory/allocation/buffered_allocator.h"
 
-#include "paddle/common/macros.h"
-
-REGISTER_FILE_SYMBOLS(buffered_allocator);
-
 namespace paddle {
 namespace memory {
 namespace allocation {
@@ -26,7 +22,7 @@ BufferedAllocator::BufferedAllocator(std::shared_ptr<Allocator> allocator)
     : underlying_allocator_(std::move(allocator)) {
   PADDLE_ENFORCE_NOT_NULL(
       underlying_allocator_,
-      common::errors::InvalidArgument(
+      platform::errors::InvalidArgument(
           "Underlying allocator of BufferedAllocator is NULL"));
   if (underlying_allocator_->IsAllocThreadSafe()) {
     mtx_ = std::make_unique<std::mutex>();

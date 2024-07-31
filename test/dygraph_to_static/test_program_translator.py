@@ -20,9 +20,10 @@ import astor
 import numpy as np
 from dygraph_to_static_utils import (
     Dy2StTestBase,
-    enable_to_static_guard,
+    IrMode,
+    ToStaticMode,
+    disable_test_case,
     test_ast_only,
-    test_legacy_and_pt_and_pir,
 )
 from ifelse_simple_func import (
     dyfunc_with_if_else_early_return1,
@@ -31,27 +32,30 @@ from ifelse_simple_func import (
 
 import paddle
 import paddle.jit.dy2static as _jst
+from paddle import base
+from paddle.jit.api import to_static
 from paddle.jit.dy2static.utils import func_to_source_code
 from paddle.utils import gast
 
 np.random.seed(0)
 
 
-# TODO(Aurelius): Currently, `to_static` don't support decorate the function
+# TODO(Aurelius): Currently, `declarative` don't support decorate the function
 # that contains layers with initialized operation, like `fc = linear(10, 3)`.
 # Because initialized ops will be added into program and be executed many times.
 # The parameters are assumed to initialized outside of the function.
 def simple_func(x, weight_numpy):
-    x = paddle.to_tensor(x)
-    w = paddle.to_tensor(weight_numpy)
+    x = base.dygraph.to_variable(x)
+    w = base.dygraph.to_variable(weight_numpy)
     y = paddle.matmul(x, w)
     z = paddle.mean(y)
     return z
 
 
+@to_static
 def decorated_simple_func(x, weight_numpy):
-    x = paddle.to_tensor(x)
-    w = paddle.to_tensor(weight_numpy)
+    x = base.dygraph.to_variable(x)
+    w = base.dygraph.to_variable(weight_numpy)
     y = paddle.matmul(x, w)
     z = paddle.mean(y)
     return z
@@ -207,8 +211,7 @@ class StaticCode2:
 
 
 class NetWithError(paddle.nn.Layer):
-    __name__ = 'NetWithError'
-
+    @to_static(full_graph=True)
     def forward(self, x):
         linear = paddle.nn.Linear(32, 64)
         y = linear(x)
@@ -221,22 +224,21 @@ class TestEnableDeclarative(Dy2StTestBase):
         self.weight = np.random.randn(32, 64).astype('float32')
 
     @test_ast_only
-    @test_legacy_and_pt_and_pir
     def test_raise_error(self):
-        net = paddle.jit.to_static(full_graph=True)(NetWithError())
-        with self.assertRaises(ValueError):
-            net(paddle.to_tensor(self.x))
+        with base.dygraph.guard():
+            paddle.jit.enable_to_static(True)
+            net = NetWithError()
+            with self.assertRaises(ValueError):
+                net(base.dygraph.to_variable(self.x))
 
-    @test_legacy_and_pt_and_pir
-    def test_enable_disable_to_static(self):
-        static_output = paddle.jit.to_static(decorated_simple_func)(
-            self.x, self.weight
-        )
+    def test_enable_disable_declarative(self):
+        paddle.jit.enable_to_static(True)
+        with base.dygraph.guard():
+            static_output = decorated_simple_func(self.x, self.weight)
 
-        with enable_to_static_guard(False):
-            dygraph_output = paddle.jit.to_static(decorated_simple_func)(
-                self.x, self.weight
-            )
+        paddle.jit.enable_to_static(False)
+        with base.dygraph.guard():
+            dygraph_output = decorated_simple_func(self.x, self.weight)
             np.testing.assert_allclose(
                 static_output.numpy(),
                 dygraph_output.numpy(),
@@ -257,26 +259,24 @@ class SwitchModeNet(paddle.nn.Layer):
     def __init__(self):
         super().__init__()
 
+    @paddle.jit.to_static
     def forward(self, x):
         return x + 1
 
+    @paddle.jit.to_static
     def foo(self):
         return True
 
 
+@paddle.jit.to_static(full_graph=True)
 def switch_mode_function():
     return True
 
 
-switch_mode_function = paddle.jit.to_static(full_graph=True)(
-    switch_mode_function
-)
-
-
 class TestFunctionTrainEvalMode(Dy2StTestBase):
     @test_ast_only
-    @test_legacy_and_pt_and_pir
     def test_switch_mode(self):
+        paddle.disable_static()
         switch_mode_function.eval()
         switch_mode_function()
         self.assertEqual(switch_mode_function._training, False)
@@ -289,9 +289,9 @@ class TestFunctionTrainEvalMode(Dy2StTestBase):
         _, partial_layer = switch_mode_function.program_cache.last()[-1]
         self.assertEqual(partial_layer.training, True)
 
-    @test_legacy_and_pt_and_pir
     def test_raise_error(self):
-        net = paddle.jit.to_static(SwitchModeNet())
+        paddle.disable_static()
+        net = SwitchModeNet()
 
         self.assertEqual(net.training, True)
         with self.assertRaises(RuntimeError):
@@ -300,33 +300,22 @@ class TestFunctionTrainEvalMode(Dy2StTestBase):
         net.eval()
         self.assertEqual(net.training, False)
         with self.assertRaises(RuntimeError):
-            paddle.jit.to_static(net.foo).train()
+            net.foo.train()
 
 
 class TestIfElseEarlyReturn(Dy2StTestBase):
-    @test_legacy_and_pt_and_pir
     def test_ifelse_early_return1(self):
         answer = np.zeros([2, 2]) + 1
         static_func = paddle.jit.to_static(dyfunc_with_if_else_early_return1)
         out = static_func()
-        if isinstance(out, paddle.Tensor):
-            np.testing.assert_allclose(
-                paddle.to_tensor(answer), out, rtol=1e-05
-            )
-        elif isinstance(out, tuple):
-            np.testing.assert_allclose(answer, out[0].numpy(), rtol=1e-05)
+        np.testing.assert_allclose(answer, out[0].numpy(), rtol=1e-05)
 
-    @test_legacy_and_pt_and_pir
+    @disable_test_case((ToStaticMode.AST, IrMode.PT))
     def test_ifelse_early_return2(self):
         answer = np.zeros([2, 2]) + 3
         static_func = paddle.jit.to_static(dyfunc_with_if_else_early_return2)
         out = static_func()
-        if isinstance(out, paddle.Tensor):
-            np.testing.assert_allclose(
-                paddle.to_tensor(answer), out, rtol=1e-05
-            )
-        elif isinstance(out, tuple):
-            np.testing.assert_allclose(answer, out[0].numpy(), rtol=1e-05)
+        np.testing.assert_allclose(answer, out[0].numpy(), rtol=1e-05)
 
 
 class TestRemoveCommentInDy2St(Dy2StTestBase):
@@ -337,7 +326,6 @@ class TestRemoveCommentInDy2St(Dy2StTestBase):
         # Comment3
         y = paddle.to_tensor([4, 5, 6])
 
-    @test_legacy_and_pt_and_pir
     def test_remove_comment(self):
         code_string = func_to_source_code(self.func_with_comment)
         self.assertEqual('#' not in code_string, True)
@@ -360,18 +348,18 @@ class Net2:
         self.layer1 = paddle.nn.Linear(10, 10)
 
     def forward(self, data):
+        @paddle.jit.to_static
         def func(ins, x, loss_fn):
             x = ins.layer1(x)
             return loss_fn(x)
 
         def func1(x):
-            return paddle.jit.to_static(func)(self, x, obj.func)
+            return func(self, x, obj.func)
 
         return func1(data)
 
 
 class TestParameterRecorder(Dy2StTestBase):
-    @test_legacy_and_pt_and_pir
     def test_recorder(self):
         """function calls nn.Layer case."""
         net = Net()

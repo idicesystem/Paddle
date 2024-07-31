@@ -20,7 +20,7 @@ from op_test import OpTest, skip_check_grad_ci
 
 import paddle
 import paddle.nn.functional as F
-from paddle.pir_utils import test_with_pir_api
+from paddle import base
 
 paddle.enable_static()
 np.random.seed(100)
@@ -218,14 +218,13 @@ class TestHSigmoidOp(OpTest):
         self.user_grads = hsigmoid_grad(x, w, label, bias, num_classes)
 
     def test_check_output(self):
-        self.check_output(check_pir=True)
+        self.check_output()
 
     def test_check_grad(self):
         self.check_grad(
             ['X', 'W', 'Bias'],
             ['Out'],
             user_defined_grads=self.user_grads,
-            check_pir=True,
         )
 
 
@@ -279,7 +278,90 @@ class TestHSigmoidOpSparse(OpTest):
         self.outputs = {'PreOut': pre_output, 'Out': out}
 
     def test_check_output(self):
-        self.check_output(check_pir=True)
+        self.check_output()
+
+
+class TestHSigmoidOpWithSparseGrad(unittest.TestCase):
+    def hs_net_conf(self, is_sparse):
+        input_word = paddle.static.data(name="x", shape=[-1, 1], dtype='int64')
+        path_table = paddle.static.data(
+            name='path_table', shape=[-1, 3], dtype='int64'
+        )
+        path_code = paddle.static.data(
+            name='path_code', shape=[-1, 3], dtype='int64'
+        )
+        label = paddle.static.data(name='label', shape=[-1, 1], dtype='int64')
+
+        data_list = [input_word, path_table, path_code, label]
+
+        emb = paddle.static.nn.embedding(
+            input=input_word,
+            is_sparse=is_sparse,
+            size=[3, 3],
+            param_attr=base.ParamAttr(
+                initializer=paddle.nn.initializer.Normal(std=1 / math.sqrt(3))
+            ),
+        )
+
+        loss = paddle.nn.HSigmoidLoss(
+            feature_size=emb.shape[1],
+            num_classes=3,
+            bias_attr=True,
+            is_custom=True,
+            is_sparse=is_sparse,
+        )
+
+        cost = loss(
+            input=emb,
+            label=label,
+            path_table=path_table,
+            path_code=path_code,
+        )
+
+        avg_cost = paddle.mean(cost)
+
+        return avg_cost, data_list
+
+    def training_test(self, is_sparse):
+        with base.program_guard(base.Program(), base.Program()):
+            paddle.seed(1)
+            start_up = base.default_startup_program()
+            x = np.arange(6).reshape(6)
+            path_table = np.array([(1, 2, -1), (1, 2, -1)]).astype('int64')
+            path_code = np.array([(1, 0, -1), (0, 0, -1)]).astype('int64')
+            label = np.array([1, 4]).astype('int64')
+
+            loss, data_list = self.hs_net_conf(is_sparse)
+            optimizer = paddle.optimizer.SGD(learning_rate=1e-3)
+            optimizer.minimize(loss)
+
+            main_program = base.default_main_program()
+            place = base.CPUPlace()
+            feeder = base.DataFeeder(feed_list=data_list, place=place)
+            exe = base.Executor(place)
+
+            exe.run(start_up)
+            result = []
+            for i in range(10):
+                data = [
+                    (
+                        [[x[i % 2]]],
+                        [list(path_table[i % 2])],
+                        [list(path_code[i % 2])],
+                        [label[i % 2]],
+                    )
+                ]
+
+                loss_val = exe.run(
+                    main_program, feed=feeder.feed(data), fetch_list=[loss]
+                )
+                result.append(loss_val)
+        return result
+
+    def test_hs_grad_with_sparse(self):
+        dense_result = self.training_test(is_sparse=False)
+        sparse_result = self.training_test(is_sparse=True)
+        assert dense_result == sparse_result
 
 
 @skip_check_grad_ci(
@@ -332,14 +414,13 @@ class TestHSigmoidOpWithCostumTree(OpTest):
         self.outputs = {'PreOut': pre_output, 'Out': out}
 
     def test_check_output(self):
-        self.check_output(check_pir=True)
+        self.check_output()
 
     def test_check_grad(self):
         self.check_grad(
             ['Bias', 'X', 'W'],
             ['Out'],
             no_grad_set=set('Label'),
-            check_pir=True,
         )
 
 
@@ -398,12 +479,10 @@ class TestHSigmoidOpWithCostumTreeWithoutBias(OpTest):
         self.outputs = {'PreOut': pre_output, 'Out': out}
 
     def test_check_output(self):
-        self.check_output(check_pir=True)
+        self.check_output()
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X', 'W'], ['Out'], no_grad_set=set('Label'), check_pir=True
-        )
+        self.check_grad(['X', 'W'], ['Out'], no_grad_set=set('Label'))
 
 
 class TestHSigmoidLossAPI(unittest.TestCase):
@@ -485,7 +564,6 @@ class TestHSigmoidLossAPI(unittest.TestCase):
             np.testing.assert_allclose(self.out_np, out.numpy(), rtol=1e-05)
         paddle.enable_static()
 
-    @test_with_pir_api
     def test_static_api(self):
         train_program = paddle.static.Program()
         startup_program = paddle.static.Program()
@@ -541,11 +619,10 @@ class TestHSigmoidLossAPI(unittest.TestCase):
             for ret in [ret1, ret2]:
                 np.testing.assert_allclose(self.out_np, ret, rtol=1e-05)
 
-    @test_with_pir_api
     def test_base_api(self):
-        train_program = paddle.static.Program()
-        startup_program = paddle.static.Program()
-        with paddle.static.program_guard(train_program, startup_program):
+        train_program = base.Program()
+        startup_program = base.Program()
+        with base.program_guard(train_program, startup_program):
             x = paddle.static.data('x', [-1, self.feature_size])
             labels = paddle.static.data('labels', [-1, 1], 'int64')
             path_table = None
@@ -570,7 +647,7 @@ class TestHSigmoidLossAPI(unittest.TestCase):
                 path_code=path_code,
             )
 
-            exe = paddle.static.Executor(self.place)
+            exe = base.Executor(self.place)
             exe.run(startup_program)
             feed_dict = {'x': self.x_np, 'labels': self.labels_np}
             if self.is_custom:
@@ -580,8 +657,7 @@ class TestHSigmoidLossAPI(unittest.TestCase):
 
             np.testing.assert_allclose(ret, self.out_np, rtol=1e-05)
 
-    @test_with_pir_api
-    def test_static_errors(self):
+    def test_errors(self):
         with paddle.static.program_guard(
             paddle.static.Program(), paddle.static.Program()
         ):
@@ -642,7 +718,6 @@ class TestHSigmoidLossAPI(unittest.TestCase):
                 path_code=path_code_int32,
             )
 
-    def test_dygraph_errors(self):
         # test paddle.nn.HSigmoidLoss
         paddle.disable_static(self.place)
         x_arr = np.array([], dtype=np.float32)
@@ -683,10 +758,7 @@ class TestHSigmoidLossAPICustom(TestHSigmoidLossAPI):
             ]
         ).astype(np.int64)
 
-    def test_static_errors(self):
-        pass
-
-    def test_dygraph_errors(self):
+    def test_errors(self):
         pass
 
 

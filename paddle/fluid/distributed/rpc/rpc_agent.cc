@@ -21,7 +21,8 @@
 
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 const int kTimeoutMs = 500000;
 const int kConnectTimeoutMs = 10000;
@@ -31,7 +32,7 @@ std::shared_ptr<RpcAgent> RpcAgent::rpc_agent_instance_ = nullptr;
 
 RpcAgent::RpcAgent(std::string name, std::vector<WorkerInfo> infos) {
   name_ = std::move(name);
-  for (const auto &info : infos) {
+  for (auto info : infos) {
     name_to_infos_.insert({info.name_, info});
     id_to_infos_.insert({info.id_, info});
   }
@@ -42,7 +43,7 @@ RpcAgent::RpcAgent(std::string name, std::vector<WorkerInfo> infos) {
   PADDLE_ENFORCE_EQ(
       server_.AddService(rpc_service_.get(), brpc::SERVER_DOESNT_OWN_SERVICE),
       0,
-      phi::errors::Fatal("Fail to add service: %s", name_));
+      platform::errors::Fatal("Fail to add service: %s", name_));
 }
 
 int RpcAgent::StartWorker() {
@@ -52,7 +53,7 @@ int RpcAgent::StartWorker() {
   brpc::ServerOptions options;
   PADDLE_ENFORCE_EQ(server_.Start(port, &options),
                     0,
-                    phi::errors::Fatal("Fail to start worker: %s", name_));
+                    platform::errors::Fatal("Fail to start worker: %s", name_));
   VLOG(0) << "Start worker : " << name_;
   return 0;
 }
@@ -73,10 +74,11 @@ int RpcAgent::StartClient() {
     PADDLE_ENFORCE_EQ(
         channels_[i]->Init(info.ip_.c_str(), info.port_, &channel_options),
         0,
-        phi::errors::Fatal("Fail to initialize channel: %d, ip: %s, port: %d",
-                           i,
-                           info.ip_,
-                           info.port_));
+        platform::errors::Fatal(
+            "Fail to initialize channel: %d, ip: %s, port: %d",
+            i,
+            info.ip_,
+            info.port_));
   }
   VLOG(0) << "Init Channels: " << name_;
   return 0;
@@ -94,7 +96,7 @@ void OnRpcDone::Run() {
   // delete this after Run
   std::unique_ptr<OnRpcDone> self_guard(this);
   PADDLE_ENFORCE_EQ(
-      cntl_.Failed(), false, phi::errors::Fatal(cntl_.ErrorText()));
+      cntl_.Failed(), false, platform::errors::Fatal(cntl_.ErrorText()));
   promise_->set_value(response_.message());
   VLOG(2) << "Received response from " << cntl_.remote_side() << " to "
           << cntl_.local_side() << " (attached=" << cntl_.response_attachment()
@@ -106,9 +108,10 @@ std::future<std::string> RpcAgent::InvokeRpc(const std::string &py_func,
                                              const std::string &to,
                                              int timeout_ms = kTimeoutMs) {
   auto it = name_to_infos_.find(to);
-  PADDLE_ENFORCE_NE(it,
-                    name_to_infos_.end(),
-                    phi::errors::OutOfRange("Worker %s doesn't exist!", to));
+  PADDLE_ENFORCE_NE(
+      it,
+      name_to_infos_.end(),
+      platform::errors::OutOfRange("Worker %s doesn't exist!", to));
   uint32_t id = it->second.id_;
   auto channel = channels_[id];
   // `done` must be allocated on the heap because its life cycle is after
@@ -125,7 +128,7 @@ std::future<std::string> RpcAgent::InvokeRpc(const std::string &py_func,
 std::shared_ptr<RpcAgent> RpcAgent::RpcAgentInstance() {
   PADDLE_ENFORCE_NE(rpc_agent_instance_,
                     nullptr,
-                    phi::errors::Fatal(
+                    platform::errors::Fatal(
                         "RpcAgent is not set, please calling "
                         "paddle.distributed.rpc.int_rpc() to init rpc agent."));
   return rpc_agent_instance_;
@@ -134,8 +137,9 @@ void RpcAgent::SetAgentInstance(std::shared_ptr<RpcAgent> agent) {
   PADDLE_ENFORCE_EQ(
       rpc_agent_instance_,
       nullptr,
-      phi::errors::Fatal(
-          "RpcAgent has been set, please don't set rpc agent repeatedly."));
+      platform::errors::Fatal(
+          "RpcAgent has been set, please don't set rpc agent repeatly."));
   rpc_agent_instance_ = agent;
 }
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

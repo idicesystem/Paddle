@@ -18,8 +18,9 @@ import numpy as np
 from op_test import OpTest
 
 import paddle
+from paddle import base
 from paddle.base import core
-from paddle.pir_utils import test_with_pir_api
+from paddle.static import Program, program_guard
 
 paddle.enable_static()
 
@@ -53,11 +54,8 @@ class TestRandintOp(OpTest):
 
 
 class TestRandintOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_errors(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with program_guard(Program(), Program()):
             self.assertRaises(TypeError, paddle.randint, 5, shape=np.array([2]))
             self.assertRaises(TypeError, paddle.randint, 5, dtype='float32')
             self.assertRaises(ValueError, paddle.randint, 5, 5)
@@ -68,6 +66,10 @@ class TestRandintOpError(unittest.TestCase):
             self.assertRaises(
                 TypeError, paddle.randint, 5, shape=[shape_tensor]
             )
+
+    def test_pir_error(self):
+        with paddle.pir_utils.IrGuard():
+            self.assertRaises(TypeError, paddle.randint, 5, dtype='float32')
 
 
 class TestRandintOp_attr_tensorlist(OpTest):
@@ -119,9 +121,7 @@ class TestRandint_attr_tensor(OpTest):
 # Test python API
 class TestRandintAPI(unittest.TestCase):
     def test_api(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with program_guard(Program(), Program()):
             # results are from [0, 5).
             out1 = paddle.randint(5)
             # shape is a list and dtype is 'int32'
@@ -225,20 +225,17 @@ class TestRandintAPI_ZeroDim(unittest.TestCase):
         self.assertEqual(x.shape, [])
         paddle.enable_static()
 
-    @test_with_pir_api
     def test_static(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with base.program_guard(base.Program(), base.Program()):
             x = paddle.randint(-10, 10, [])
 
             # Test compile shape
-            self.assertEqual(tuple(x.shape), ())
+            self.assertEqual(x.shape, ())
 
             # Test runtime shape
-            exe = paddle.static.Executor()
+            exe = base.Executor()
             result = exe.run(fetch_list=[x])
-            self.assertEqual(tuple(result[0].shape), ())
+            self.assertEqual(result[0].shape, ())
 
         paddle.enable_static()
 

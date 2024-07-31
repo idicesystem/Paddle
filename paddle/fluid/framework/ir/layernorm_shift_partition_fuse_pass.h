@@ -29,7 +29,7 @@ namespace ir {
 //  reshape2
 //     |
 //  reshape2                            |
-//     |           fuse       layernorm_shift_partition
+//     |           fuse       layernorm_shift_patition
 // transpose2       ->                  |
 //     |                             other_op
 //  reshape2
@@ -48,7 +48,7 @@ namespace ir {
 //    roll
 //     |
 //  reshape2                            |
-//     |           fuse       layernorm_shift_partition
+//     |           fuse       layernorm_shift_patition
 // transpose2       ->                  |
 //     |                             other_op
 //  reshape2

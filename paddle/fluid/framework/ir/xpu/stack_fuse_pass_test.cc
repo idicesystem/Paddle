@@ -40,7 +40,7 @@ TEST(StackFusePass, basic) {
   auto stack_num = GetNumOpNodes(graph, "stack");
   PADDLE_ENFORCE_EQ(stack_num,
                     0,
-                    common::errors::PreconditionNotMet(
+                    platform::errors::PreconditionNotMet(
                         "stack op should be removed from graph, but graph "
                         "still has %d stack op.",
                         stack_num));

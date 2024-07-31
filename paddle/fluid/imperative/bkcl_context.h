@@ -28,7 +28,7 @@ namespace imperative {
 class BKCLParallelContext : public ParallelContext {
  public:
   explicit BKCLParallelContext(const ParallelStrategy& strategy,
-                               const phi::Place& place)
+                               const platform::Place& place)
       : ParallelContext(strategy, place) {}
 
   ~BKCLParallelContext() override = default;
@@ -46,7 +46,7 @@ class BKCLParallelContext : public ParallelContext {
 
   void Broadcast(framework::Variable* src, int ring_id) override;
 
-  phi::DeviceContext* GetDeviceContext(int ring_id) override;
+  paddle::platform::DeviceContext* GetDeviceContext(int ring_id) override;
 
   void WaitCompute(int ring_id) override;
 

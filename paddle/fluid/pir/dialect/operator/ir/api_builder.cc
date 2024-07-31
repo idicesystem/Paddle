@@ -14,7 +14,7 @@
 
 #include "paddle/fluid/pir/dialect/operator/ir/api_builder.h"
 #include "paddle/common/enforce.h"
-#include "paddle/pir/include/core/ir_context.h"
+#include "paddle/pir/core/ir_context.h"
 
 namespace paddle {
 namespace dialect {
@@ -22,18 +22,16 @@ namespace dialect {
 ApiBuilder::ApiBuilder()
     : ctx_(pir::IrContext::Instance()),
       builder_(std::make_shared<pir::Builder>(ctx_)) {
-  PADDLE_ENFORCE_NE(
-      builder_,
-      nullptr,
-      phi::errors::InvalidArgument("api builder construct error!"));
+  IR_ENFORCE(builder_ != nullptr, "api builder construct error!");
 }
 
 void ApiBuilder::SetProgram(pir::Program* program) {
-  PADDLE_ENFORCE_NE(
-      program,
-      nullptr,
-      phi::errors::InvalidArgument("argument of program is nullptr"));
-  builder_->SetInsertionPointToBlockEnd(program->block());
+  IR_ENFORCE(program != nullptr, "argument of program is nullptr");
+  builder_->SetInsertionPointToEnd(program->block());
+}
+
+void ApiBuilder::set_insertion_point(pir::Operation* op) {
+  builder_->set_insertion_point(op);
 }
 
 void ApiBuilder::ResetInsertionPointToStart() {
@@ -41,7 +39,7 @@ void ApiBuilder::ResetInsertionPointToStart() {
 }
 
 void ApiBuilder::ResetInsertionPointToEnd() {
-  builder_->SetInsertionPointToBlockEnd(builder_->block());
+  builder_->SetInsertionPointToEnd(builder_->block());
 }
 
 pir::Parameter* ApiBuilder::GetParameter(const std::string& name) const {
@@ -55,12 +53,16 @@ void ApiBuilder::SetParameter(const std::string& name,
   program->SetParameter(name, std::move(parameter));
 }
 
-void ApiBuilder::LoadInsertionPoint() {
-  PADDLE_ENFORCE_EQ(
-      !insertion_point_stack_.empty(),
-      true,
-      phi::errors::InvalidArgument("insertion_point_stack_ is empty."));
-  builder_->set_insertion_point(insertion_point_stack_.top());
+void ApiBuilder::PushInsertionPoint(
+    const pir::InsertionPoint& insertion_point) {
+  insertion_point_stack_.push(this->insertion_point());
+  set_insertion_point(insertion_point);
+}
+
+void ApiBuilder::PopInsertionPoint() {
+  IR_ENFORCE(!insertion_point_stack_.empty(),
+             "insertion_point_stack_ is empty.");
+  set_insertion_point(insertion_point_stack_.top());
   insertion_point_stack_.pop();
 }
 

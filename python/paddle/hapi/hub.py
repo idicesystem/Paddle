@@ -12,29 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import os
 import shutil
 import sys
 import zipfile
-from typing import TYPE_CHECKING, Any, List, Literal
-
-from typing_extensions import TypeAlias
 
 from paddle.utils.download import get_path_from_url
 
-if TYPE_CHECKING:
-    import paddle
-
 __all__ = []
 
-_Source: TypeAlias = Literal["github", "gitee", "local"]
-
-DEFAULT_CACHE_DIR: str = '~/.cache'
-VAR_DEPENDENCY: str = 'dependencies'
-MODULE_HUBCONF: str = 'hubconf.py'
-HUB_DIR: str = os.path.expanduser(os.path.join('~', '.cache', 'paddle', 'hub'))
+DEFAULT_CACHE_DIR = '~/.cache'
+VAR_DEPENDENCY = 'dependencies'
+MODULE_HUBCONF = 'hubconf.py'
+HUB_DIR = os.path.expanduser(os.path.join('~', '.cache', 'paddle', 'hub'))
 
 
 def _remove_if_exists(path):
@@ -67,7 +57,9 @@ def _git_archive_link(repo_owner, repo_name, branch, source):
             f'https://github.com/{repo_owner}/{repo_name}/archive/{branch}.zip'
         )
     elif source == 'gitee':
-        return f'https://gitee.com/{repo_owner}/{repo_name}/repository/archive/{branch}.zip'
+        return 'https://gitee.com/{}/{}/repository/archive/{}.zip'.format(
+            repo_owner, repo_name, branch
+        )
 
 
 def _parse_repo_info(repo, source):
@@ -129,8 +121,8 @@ def _get_cache_or_reload(repo, force_reload, verbose=True, source='github'):
         shutil.move(fpath, cached_file)
 
         with zipfile.ZipFile(cached_file) as cached_zipfile:
-            extracted_repo_name = cached_zipfile.infolist()[0].filename
-            extracted_repo = os.path.join(hub_dir, extracted_repo_name)
+            extraced_repo_name = cached_zipfile.infolist()[0].filename
+            extracted_repo = os.path.join(hub_dir, extraced_repo_name)
             _remove_if_exists(extracted_repo)
             # Unzip the code and rename the base folder
             cached_zipfile.extractall(hub_dir)
@@ -179,11 +171,7 @@ def _check_dependencies(m):
             )
 
 
-def list(
-    repo_dir: str,
-    source: _Source = 'github',
-    force_reload: bool = False,
-) -> List[str]:  # noqa: UP006
+def list(repo_dir, source='github', force_reload=False):
     r"""
     List all entrypoints available in `github` hubconf.
 
@@ -229,12 +217,7 @@ def list(
     return entrypoints
 
 
-def help(
-    repo_dir: str,
-    model,
-    source: _Source = 'github',
-    force_reload: bool = False,
-) -> str:
+def help(repo_dir, model, source='github', force_reload=False):
     """
     Show help information of model
 
@@ -277,13 +260,7 @@ def help(
     return entry.__doc__
 
 
-def load(
-    repo_dir: str,
-    model: str,
-    source: _Source = 'github',
-    force_reload: bool = False,
-    **kwargs: Any,
-) -> paddle.nn.Layer:
+def load(repo_dir, model, source='github', force_reload=False, **kwargs):
     """
     Load model
 

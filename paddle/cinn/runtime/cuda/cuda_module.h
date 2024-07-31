@@ -53,9 +53,6 @@ class CUDAModule {
   //! Get a function.
   CUfunction GetFunction(int device_id, const std::string& func_name);
 
-  //! Get a function by CudaGetDevice
-  CUfunction GetFunction(const std::string& func_name);
-
   //! Get a global variable.
   CUdeviceptr GetGlobal(int device_id, const std::string& name, size_t nbytes);
 

@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-import paddle
 from paddle import _C_ops, pir
 
 from ...base import core, framework, unique_name
@@ -46,14 +43,8 @@ class UniformInitializer(Initializer):
     """
 
     def __init__(
-        self,
-        low: float = -1.0,
-        high: float = 1.0,
-        seed: int = 0,
-        diag_num: int = 0,
-        diag_step: int = 0,
-        diag_val: float = 1.0,
-    ) -> None:
+        self, low=-1.0, high=1.0, seed=0, diag_num=0, diag_step=0, diag_val=1.0
+    ):
         assert low is not None
         assert high is not None
         assert high >= low
@@ -71,22 +62,17 @@ class UniformInitializer(Initializer):
         self._diag_step = diag_step
         self._diag_val = diag_val
 
-    def forward(
-        self, var: paddle.Tensor, block: pir.Block | None = None
-    ) -> paddle.Tensor | None:
+    def forward(self, var, block=None):
         """Initialize the input tensor with Uniform distribution.
 
         Args:
             var(Tensor): Tensor that needs to be initialized.
-            block(Block|None, optional): The block in which initialization ops
+            block(Block, optional): The block in which initialization ops
                    should be added. Used in static graph only, default None.
 
         Returns:
             The initialization op
         """
-        assert not (
-            isinstance(var, framework.EagerParamBase) and var.is_dist()
-        ), "Currently, uniform initializer not support lazy init for dist param."
         block = self._check_block(block)
 
         assert isinstance(block, (framework.Block, pir.Block))
@@ -187,7 +173,7 @@ class Uniform(UniformInitializer):
     Args:
         low (float, optional): Lower boundary of the uniform distribution. Default is :math:`-1.0`.
         high (float, optional): Upper boundary of the uniform distribution. Default is :math:`1.0`.
-        name (str|None, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
+        name (str, optional): For details, please refer to :ref:`api_guide_Name`. Generally, no setting is required. Default: None.
 
     Returns:
         A parameter initialized by uniform distribution.
@@ -224,9 +210,7 @@ class Uniform(UniformInitializer):
              [[-0.41843393,  0.27575102]]])
     """
 
-    def __init__(
-        self, low: float = -1.0, high: float = 1.0, name: str | None = None
-    ) -> None:
+    def __init__(self, low=-1.0, high=1.0, name=None):
         assert low is not None, 'low should not be None'
         assert high is not None, 'high should not be None'
         assert high >= low, 'high should greater or equal than low'

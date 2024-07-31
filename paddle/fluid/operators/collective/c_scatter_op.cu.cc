@@ -16,11 +16,11 @@ limitations under the License. */
 #include "paddle/phi/core/distributed/comm_context_manager.h"
 
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
-#include "paddle/common/flags.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/fluid/platform/device/gpu/nccl_helper.h"
 #include "paddle/phi/core/distributed/nccl_comm_context.h"
-COMMON_DECLARE_bool(dynamic_static_unified_comm);
+#include "paddle/phi/core/flags.h"
+PHI_DECLARE_bool(dynamic_static_unified_comm);
 #endif
 
 namespace paddle {
@@ -34,7 +34,8 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
     auto x = ctx.Input<phi::DenseTensor>("X");
     auto out = ctx.Output<phi::DenseTensor>("Out");
     int numel = x->numel();
-    ncclDataType_t dtype = phi::ToNCCLDataType(x->dtype());
+    ncclDataType_t dtype =
+        platform::ToNCCLDataType(framework::TransToProtoVarType(x->dtype()));
 
     int nranks = ctx.Attr<int>("nranks");
     int root_id = ctx.Attr<int>("root");
@@ -46,13 +47,13 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_GE(
         root_id,
         0,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The root_id (%d) for c_scatter_op must be non-negative.",
             root_id));
     PADDLE_ENFORCE_GE(
         ring_id,
         0,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "The ring_id (%d) for c_scatter_op must be non-negative.",
             ring_id));
 
@@ -61,7 +62,7 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
     if (FLAGS_dynamic_static_unified_comm) {
       PADDLE_ENFORCE_EQ(comm_context_manager.Has(std::to_string(ring_id)),
                         true,
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "You choose to use new communication library by "
                             "setting environment "
                             "variable FLAGS_dynamic_static_unified_comm True. "
@@ -72,12 +73,12 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
           comm_context_manager.Get(std::to_string(ring_id)));
       PADDLE_ENFORCE_NE(comm_ctx,
                         nullptr,
-                        common::errors::Unavailable(
+                        platform::errors::Unavailable(
                             "NCCLCommContext is nullptr, collective op should "
                             "has ring_id attr."));
       PADDLE_ENFORCE_EQ(nranks,
                         comm_ctx->GetSize(),
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "The number of ranks (%d) you set of must "
                             "be equal to comm_ctx->GetSize() (%d).",
                             nranks,
@@ -89,7 +90,7 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
       comm = platform::NCCLCommContext::Instance().Get(ring_id, place);
       PADDLE_ENFORCE_EQ(nranks,
                         comm->nranks(),
-                        common::errors::InvalidArgument(
+                        platform::errors::InvalidArgument(
                             "The number of ranks (%d) you set of must "
                             "be equal to comm->nranks (%d).",
                             nranks,
@@ -103,8 +104,8 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
       stream = ctx.cuda_device_context().stream();
     }
 
-    phi::DDim x_dims = x->dims();
-    phi::DDim out_dims(x_dims);
+    framework::DDim x_dims = x->dims();
+    framework::DDim out_dims(x_dims);
     phi::DenseTensor temp;
     auto out_ptr = temp.mutable_data<T>(out_dims, place);
 
@@ -112,16 +113,17 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
       if (root_id == comm_ctx->GetRank()) {
         comm_ctx->Broadcast(
             const_cast<phi::DenseTensor*>(x), *x, root_id, stream);
-        framework::TensorCopy(*static_cast<const phi::DenseTensor*>(x),
-                              place,
-                              *phi::DeviceContextPool::Instance().Get(place),
-                              static_cast<phi::DenseTensor*>(&temp));
+        framework::TensorCopy(
+            *static_cast<const phi::DenseTensor*>(x),
+            place,
+            *platform::DeviceContextPool::Instance().Get(place),
+            static_cast<phi::DenseTensor*>(&temp));
       } else {
         comm_ctx->Broadcast(&temp, temp, root_id, stream);
       }
     } else {
       if (root_id == comm->rank()) {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclBcast(
+        PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::ncclBcast(
             reinterpret_cast<void*>(const_cast<T*>(x->data<T>())),
             numel,
             dtype,
@@ -129,12 +131,13 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
             comm->comm(),
             stream));
 
-        framework::TensorCopy(*static_cast<const phi::DenseTensor*>(x),
-                              place,
-                              *phi::DeviceContextPool::Instance().Get(place),
-                              static_cast<phi::DenseTensor*>(&temp));
+        framework::TensorCopy(
+            *static_cast<const phi::DenseTensor*>(x),
+            place,
+            *platform::DeviceContextPool::Instance().Get(place),
+            static_cast<phi::DenseTensor*>(&temp));
       } else {
-        PADDLE_ENFORCE_GPU_SUCCESS(phi::dynload::ncclBcast(
+        PADDLE_ENFORCE_GPU_SUCCESS(platform::dynload::ncclBcast(
             out_ptr, numel, dtype, root_id, comm->comm(), stream));
       }
     }
@@ -155,7 +158,7 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
     PADDLE_ENFORCE_EQ(
         true,
         false,
-        common::errors::Unavailable("PaddlePaddle should compile with GPU."));
+        platform::errors::Unavailable("PaddlePaddle should compile with GPU."));
 #endif
   }
 };
@@ -164,6 +167,7 @@ class CScatterOpCUDAKernel : public framework::OpKernel<T> {
 }  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 PD_REGISTER_STRUCT_KERNEL(c_scatter,
                           GPU,
@@ -173,4 +177,4 @@ PD_REGISTER_STRUCT_KERNEL(c_scatter,
                           double,
                           int,
                           int64_t,
-                          phi::dtype::float16) {}
+                          plat::float16) {}

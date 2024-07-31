@@ -113,8 +113,7 @@ void CEmbeddingKernel(const Context& ctx,
 }
 }  // namespace phi
 
-#if (NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000) || \
-    defined(PADDLE_WITH_HIP)
+#if NCCL_VERSION_CODE >= 21000 && CUDA_VERSION >= 11000
 PD_REGISTER_KERNEL(c_embedding,
                    GPU,
                    ALL_LAYOUT,
@@ -122,9 +121,7 @@ PD_REGISTER_KERNEL(c_embedding,
                    float,
                    double,
                    phi::dtype::bfloat16,
-                   phi::dtype::float16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::float16) {}
 #else
 PD_REGISTER_KERNEL(c_embedding,
                    GPU,
@@ -132,7 +129,5 @@ PD_REGISTER_KERNEL(c_embedding,
                    phi::CEmbeddingKernel,
                    float,
                    double,
-                   phi::dtype::float16,
-                   phi::dtype::complex<float>,
-                   phi::dtype::complex<double>) {}
+                   phi::dtype::float16) {}
 #endif

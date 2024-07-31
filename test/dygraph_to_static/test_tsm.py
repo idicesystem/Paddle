@@ -21,8 +21,7 @@ import unittest
 import numpy as np
 from dygraph_to_static_utils import (
     Dy2StTestBase,
-    enable_to_static_guard,
-    test_default_and_pir,
+    test_default_mode_only,
 )
 from tsm_config_utils import merge_configs, parse_config, print_configs
 
@@ -293,7 +292,9 @@ def create_optimizer(cfg, params):
     return optimizer
 
 
-def train(args, fake_data_reader):
+def train(args, fake_data_reader, to_static):
+    paddle.jit.enable_to_static(to_static)
+
     config = parse_config(args.config)
     train_config = merge_configs(config, 'train', vars(args))
     valid_config = merge_configs(config, 'valid', vars(args))
@@ -346,7 +347,13 @@ def train(args, fake_data_reader):
             total_sample += 1
 
             print(
-                f'TRAIN Epoch {epoch}, iter {batch_id}, loss = {float(avg_loss)}, acc1 {float(acc_top1)}, acc5 {float(acc_top5)}'
+                'TRAIN Epoch {}, iter {}, loss = {}, acc1 {}, acc5 {}'.format(
+                    epoch,
+                    batch_id,
+                    float(avg_loss),
+                    float(acc_top1),
+                    float(acc_top5),
+                )
             )
             ret.extend(
                 [
@@ -357,22 +364,25 @@ def train(args, fake_data_reader):
             )
 
         print(
-            f'TRAIN End, Epoch {epoch}, avg_loss= {total_loss / total_sample}, avg_acc1= {total_acc1 / total_sample}, avg_acc5= {total_acc5 / total_sample}'
+            'TRAIN End, Epoch {}, avg_loss= {}, avg_acc1= {}, avg_acc5= {}'.format(
+                epoch,
+                total_loss / total_sample,
+                total_acc1 / total_sample,
+                total_acc5 / total_sample,
+            )
         )
     return ret
 
 
 class TestTsm(Dy2StTestBase):
-    @test_default_and_pir
+    @test_default_mode_only
     def test_dygraph_static_same_loss(self):
         if paddle.is_compiled_with_cuda():
             paddle.set_flags({"FLAGS_cudnn_deterministic": True})
         args = parse_args()
         fake_data_reader = FakeDataReader("train", parse_config(args.config))
-        with enable_to_static_guard(False):
-            dygraph_loss = train(args, fake_data_reader)
-
-        static_loss = train(args, fake_data_reader)
+        dygraph_loss = train(args, fake_data_reader, to_static=False)
+        static_loss = train(args, fake_data_reader, to_static=True)
         np.testing.assert_allclose(dygraph_loss, static_loss, rtol=1e-05)
 
 

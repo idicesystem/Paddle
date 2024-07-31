@@ -58,7 +58,8 @@ void SqueezeExcitationKernelImpl(const Context& ctx,
   int max_ptr_size = 6;
   const float* w1_maxptr = filter_max.data<float>();
   const float* w2_maxptr = w1_maxptr + max_ptr_size;
-  auto* out_data = reinterpret_cast<XPUTypeX*>(ctx.template Alloc<T>(out));
+  auto* out_data =
+      reinterpret_cast<XPUTypeX*>(ctx.template Alloc<XPUTypeX>(out));
 
   std::vector<xpu::Activation_t> act;
   for (size_t i = 0; i < 3; i++) {
@@ -70,7 +71,7 @@ void SqueezeExcitationKernelImpl(const Context& ctx,
     }
     act.push_back(cur_act);
   }
-  int r = xpu::squeeze_excitation_block<XPUTypeX, XPUTypeW, XPUTypeW>(
+  int r = xpu::squeeze_excitation_block<T, int16_t, int16_t>(
       /* baidu::xpu::api::Context* ctx */ ctx.x_context(),
       /* const T* x */ input_data,
       /* const TW* weight1 */ reinterpret_cast<const XPUTypeW*>(weight1_ptr),
@@ -92,18 +93,6 @@ void SqueezeExcitationKernelImpl(const Context& ctx,
   PADDLE_ENFORCE_XDNN_SUCCESS(r, "squeeze_excitation_block");
 }
 
-#define SQUEEZE_EXCITATION_KERNEL_IMPL(t_dtype_, tw_dtype_)              \
-  SqueezeExcitationKernelImpl<t_dtype_, tw_dtype_, Context>(ctx,         \
-                                                            x,           \
-                                                            filter,      \
-                                                            filter_max,  \
-                                                            bias,        \
-                                                            branch,      \
-                                                            act_type,    \
-                                                            act_param,   \
-                                                            filter_dims, \
-                                                            out);
-
 template <typename T, typename Context>
 void SqueezeExcitationKernel(const Context& ctx,
                              const DenseTensor& x,
@@ -115,19 +104,16 @@ void SqueezeExcitationKernel(const Context& ctx,
                              const std::vector<float>& act_param,
                              const std::vector<int>& filter_dims,
                              DenseTensor* out) {
-  if (x.dtype() == DataType::FLOAT16 && filter.dtype() == DataType::INT16) {
-    // float16 kernel
-    SQUEEZE_EXCITATION_KERNEL_IMPL(phi::dtype::float16, int16_t);
-  } else if (x.dtype() == DataType::FLOAT32 &&
-             filter.dtype() == DataType::INT16) {
-    // float32 kernel
-    SQUEEZE_EXCITATION_KERNEL_IMPL(float, int16_t);
-  } else {
-    PADDLE_ENFORCE(true,
-                   errors::InvalidArgument("Not support x_dtype is %s ",
-                                           DataTypeToString(x.dtype())));
-  }
-  return;
+  SqueezeExcitationKernelImpl<T, int16_t, Context>(ctx,
+                                                   x,
+                                                   filter,
+                                                   filter_max,
+                                                   bias,
+                                                   branch,
+                                                   act_type,
+                                                   act_param,
+                                                   filter_dims,
+                                                   out);
 }
 
 }  // namespace fusion
@@ -137,5 +123,4 @@ PD_REGISTER_KERNEL(squeeze_excitation_block,
                    XPU,
                    ALL_LAYOUT,
                    phi::fusion::SqueezeExcitationKernel,
-                   phi::dtype::float16,
                    float) {}

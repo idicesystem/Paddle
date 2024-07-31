@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "paddle/cinn/backends/codegen_c_x86.h"
-#include "paddle/common/enforce.h"
+
 namespace cinn {
 namespace backends {
 
@@ -53,11 +53,7 @@ void CodeGenCX86::Visit(const ir::Load *op) {
 }
 
 void CodeGenCX86::Visit(const ir::Broadcast *op) {
-  PADDLE_ENFORCE_GT(
-      op->type().lanes(),
-      1,
-      ::common::errors::InvalidArgument(
-          "The lanes of the broadcast op should be greater than 1."));
+  CHECK_GT(op->type().lanes(), 1);
   int bits = op->type().bits() * op->type().lanes();
 
   if (SupportsAVX512() && bits == 512) {

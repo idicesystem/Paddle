@@ -21,7 +21,7 @@ import subprocess
 
 def crepr(v):
     if isinstance(v, str):
-        return f'"{v}"'
+        return '"%s"' % v
     return str(v)
 
 
@@ -255,7 +255,7 @@ class GraphPreviewGenerator:
             highlight = kwargs['highlight']
             del kwargs['highlight']
         return self.graph.node(
-            f"<<B>{opType}</B>>",
+            "<<B>%s</B>>" % opType,
             prefix="op",
             description=opType,
             shape="box",

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -60,7 +59,8 @@ class RandomIterableDataset(IterableDataset):
 
 class TestTensorDataset(unittest.TestCase):
     def run_main(self, num_workers, places):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
         place = paddle.CPUPlace()
         with base.dygraph.guard(place):
             input_np = np.random.random([16, 3, 4]).astype('float32')
@@ -89,13 +89,7 @@ class TestTensorDataset(unittest.TestCase):
                 np.testing.assert_allclose(label.numpy(), label_np[i])
 
     def test_main(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for p in places:
@@ -104,7 +98,8 @@ class TestTensorDataset(unittest.TestCase):
 
 class TestComposeDataset(unittest.TestCase):
     def test_main(self):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
         dataset1 = RandomDataset(10)
         dataset2 = RandomDataset(10)
@@ -123,7 +118,8 @@ class TestComposeDataset(unittest.TestCase):
 
 class TestRandomSplitApi(unittest.TestCase):
     def test_main(self):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
         dataset1, dataset2 = paddle.io.random_split(range(5), [1, 4])
 
@@ -143,7 +139,8 @@ class TestRandomSplitApi(unittest.TestCase):
 
 class TestRandomSplitError(unittest.TestCase):
     def test_errors(self):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
         self.assertRaises(ValueError, paddle.io.random_split, range(5), [3, 8])
         self.assertRaises(ValueError, paddle.io.random_split, range(5), [8])
@@ -152,7 +149,8 @@ class TestRandomSplitError(unittest.TestCase):
 
 class TestSubsetDataset(unittest.TestCase):
     def run_main(self, num_workers, places):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
         input_np = np.random.random([5, 3, 4]).astype('float32')
         input = paddle.to_tensor(input_np)
@@ -203,15 +201,10 @@ class TestSubsetDataset(unittest.TestCase):
         self.assertEqual(odd_list, elements_list)
 
     def test_main(self):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for p in places:
@@ -220,7 +213,8 @@ class TestSubsetDataset(unittest.TestCase):
 
 class TestChainDataset(unittest.TestCase):
     def run_main(self, num_workers, places):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
 
         dataset1 = RandomIterableDataset(10)
         dataset2 = RandomIterableDataset(10)
@@ -242,13 +236,7 @@ class TestChainDataset(unittest.TestCase):
             idx += 1
 
     def test_main(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for p in places:
@@ -271,7 +259,8 @@ class NumpyMixTensorDataset(Dataset):
 
 class TestNumpyMixTensorDataset(TestTensorDataset):
     def run_main(self, num_workers, places):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
         place = paddle.CPUPlace()
         with base.dygraph.guard(place):
             dataset = NumpyMixTensorDataset(16)
@@ -293,7 +282,7 @@ class TestNumpyMixTensorDataset(TestTensorDataset):
                 assert isinstance(label, base.core.eager.Tensor)
 
 
-class ComplexDataset(Dataset):
+class ComplextDataset(Dataset):
     def __init__(self, sample_num):
         self.sample_num = sample_num
 
@@ -313,12 +302,13 @@ class ComplexDataset(Dataset):
         )
 
 
-class TestComplexDataset(unittest.TestCase):
+class TestComplextDataset(unittest.TestCase):
     def run_main(self, num_workers):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
         place = paddle.CPUPlace()
         with base.dygraph.guard(place):
-            dataset = ComplexDataset(16)
+            dataset = ComplextDataset(16)
             assert len(dataset) == 16
             dataloader = DataLoader(
                 dataset,
@@ -370,7 +360,8 @@ class TestSingleFieldDataset(unittest.TestCase):
         self.dataset = SingleFieldDataset(self.sample_num)
 
     def run_main(self, num_workers):
-        paddle.seed(1)
+        paddle.static.default_startup_program().random_seed = 1
+        paddle.static.default_main_program().random_seed = 1
         place = paddle.CPUPlace()
         with base.dygraph.guard(place):
             self.init_dataset()
@@ -472,13 +463,7 @@ class TestConcatDataset(unittest.TestCase):
             result[11]
 
     def test_main(self):
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not paddle.is_compiled_with_cuda()
-        ):
-            places.append(paddle.CPUPlace())
+        places = [paddle.CPUPlace()]
         if paddle.is_compiled_with_cuda():
             places.append(paddle.CUDAPlace(0))
         for p in places:

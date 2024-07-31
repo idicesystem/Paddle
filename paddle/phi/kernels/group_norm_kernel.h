@@ -58,17 +58,15 @@ class GroupNormDirectCUDAFunctor {
 #endif
 
 template <typename T>
-struct GroupNormNDHWCParams {
-  // The output buffer. Layout NDHWC.
+struct GroupNormNHWCParams {
+  // The output buffer. Layout NHWC.
   T* dst;
-  // The output buffer. Layout NDHWC.
+  // The output buffer. Layout NHWC.
   T* eleOut;
-  // The input buffer. Layout NDHWC.
+  // The input buffer. Layout NHWC.
   T const* srcX;
-  // The input buffer. Layout NDHWC.
+  // The input buffer. Layout NHWC.
   T const* srcY;
-  // The input buffer. Layout NDHWC.
-  T const* srcR = nullptr;
   // The gamma scaling factor.
   void const* gamma;
   // The beta term to add in GN.
@@ -81,48 +79,47 @@ struct GroupNormNDHWCParams {
 
   // The number of instances in the batch.
   int32_t n;
-  // The depth, height and width of each activation map.
-  int32_t d, h, w;
+  // The height and width of each activation map.
+  int32_t h, w;
   // The number of channels.
   int32_t c;
   // The number of groups.
   int32_t groups;
   // Do we apply the Silu activation function?
   bool withSilu;
-  //
-  bool y_same_with_x = false;
+
   // Precomputed values and parameters to control the execution of the kernels.
 
-  // The number of activations per instance (d * h * w) and the number of
+  // The number of activations per instance (h * w) and the number of
   // activations per block.
-  int32_t dhw, dhwPerBlock;
+  int32_t hw, hwPerBlock;
   // The number of channels per group and blocks per activation in the C
   // dimension.
   int32_t cPerBlock, cPerGroup;
 
   // The precomputed stride between instances.
-  int32_t dhwc;
-  // The inverse of dhwc in floats (to compute mean/var).
-  float invDHWC;
+  int32_t hwc;
+  // The inverse of hwc in floats (to compute mean/var).
+  float invHWC;
   // The precomputed number of groups per block.
   int32_t groupsPerBlock;
   // epsilon, Constant for numerical stability
   float eps;
-  // for NCDHW32 int8 use
+  // for NCHW32 int8 use
   float dqScaleIn;
   float inv_qScale;
 };
 
 template <typename T>
-class groupNormNDHWCSum {
+class groupNormNHWCSum {
  public:
-  void operator()(GroupNormNDHWCParams<T>* params, const gpuStream_t stream);
+  void operator()(GroupNormNHWCParams<T>* params, const gpuStream_t stream);
 };
 
 template <typename T>
-class groupNormNDHWCScale {
+class groupNormNHWCScale {
  public:
-  void operator()(const GroupNormNDHWCParams<T>& params,
+  void operator()(const GroupNormNHWCParams<T>& params,
                   const gpuStream_t stream);
 };
 

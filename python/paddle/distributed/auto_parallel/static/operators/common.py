@@ -14,9 +14,7 @@
 
 import abc
 import logging
-import warnings
 
-import paddle
 from paddle.base.log_helper import get_logger
 from paddle.distributed.fleet.meta_optimizers.common import OP_ROLE_KEY, OpRole
 
@@ -67,17 +65,17 @@ class ParallelMode:
 
     DataParallel = "auto_parallel/data_parallel"
     TensorParallel = "auto_parallel/tensor_parallel"
-    PipelineParallel = "auto_parallel/pipeline_parallel"
+    PipelineParalel = "auto_parallel/pipeline_paralel"
     MoEParallel = "auto_parallel/moe_parallel"
 
 
 class SyncMode:
     """
-    the synchronization mode for communication or auxiliary operator
+    the synchorization mode for communication or auxiliary operator
     """
 
-    AmpFlagSync = "auto_parallel/amp_flag_synchronization"
-    GlobalNormSync = "auto_parallel/global_norm_synchronization"
+    AmpFlagSync = "auto_parallel/amp_flag_synchorization"
+    GlobalNormSync = "auto_parallel/global_norm_synchorization"
 
 
 def is_elementwise_op(op_type):
@@ -138,7 +136,7 @@ class DistributedOperatorImplContainer(abc.ABC):
         return compatible_impls
 
     # (NOTE) Currently, both DistributedOperatorImplContainer and DistributedOperatorImpl have update_dims_mapping method.
-    # But this method is supposed to be maintained by DistributedOperatorImplContainer, and we are ongoing adding method
+    # But this method is supposed to be maitained by DistributedOperatorImplContainer, and we are ongoing adding method
     # to DistributedOperatorImplContainer and removing those in DistributedOperatorImpl.
     # @abc.abstractmethod
     def update_dims_mapping(self, dist_op):
@@ -337,7 +335,9 @@ def find_distributed_operator_impl_container(dist_op):
             )
 
     _logger.debug(
-        f"Op [{op_type}] Complete DistAttr using {type(dist_op_impl_container).__name__}"
+        "Op [{}] Complete DistAttr using {}".format(
+            op_type, type(dist_op_impl_container).__name__
+        )
     )
     return dist_op_impl_container
 
@@ -363,20 +363,12 @@ def is_parameter_related(varname, block, dist_context=None):
         var = serial_program.global_block()._find_var_recursive(varname)
         if var is None:
             return False
-    # NOTE(liym27): when Y_var is not a parameter, but Y_var is resharded by a parameter.
-    elif "reshard_api" in varname:
-        for op in block.ops:
-            if op.type == "assign" and varname in op.output("Out"):
-                in_varname = op.input("X")[0]
-                var = block._find_var_recursive(in_varname)
-                if var is not None and var.is_parameter:
-                    return True
     return var.is_parameter
 
 
 def infer_shape(block, src_var, src_var_dist_attr, op_input_dist_attr):
     var_shape = block._var_recursive(src_var.name).shape
-    var_topology = src_var_dist_attr.process_mesh.shape
+    var_topoloy = src_var_dist_attr.process_mesh.shape
     var_dims_mapping = src_var_dist_attr.dims_mapping
 
     complete_shape = []
@@ -384,7 +376,7 @@ def infer_shape(block, src_var, src_var_dist_attr, op_input_dist_attr):
         if var_dims_mapping[idx] == -1:
             complete_shape.append(shape)
         else:
-            new_shape = shape * var_topology[var_dims_mapping[idx]]
+            new_shape = shape * var_topoloy[var_dims_mapping[idx]]
             complete_shape.append(new_shape)
 
     exact_shape = []
@@ -495,7 +487,7 @@ def get_data_parallel_group(dist_ctx, op, act_grad_names, rank):
 
 def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
     """
-    insert the allreduce and scale ops for gradients of model
+    insert the allreudce and scale ops for gradients of model
     parameters for operator in data parallelism.
 
     Args:
@@ -510,19 +502,6 @@ def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
     dist_op_context = dist_ctx.dist_op_context
     main_block = dist_op_context.work_block
 
-    allreduce_type = "c_allreduce_sum"
-    need_scale = dist_ctx.gradient_scale
-    scale_using_allreduce_avg = dist_ctx.gradient_scale_using_allreduce_avg
-
-    # With nccl_version > 2.10.00, we can use c_allreduce_avg to replace c_allreduce_sum and eliminate the scale op.
-    if (
-        need_scale
-        and scale_using_allreduce_avg
-        and int(paddle.version.nccl()) > 21000
-    ):
-        allreduce_type = "c_allreduce_avg"
-        need_scale = False
-
     for group in groups:
         group_size = len(group.ranks)
 
@@ -530,7 +509,7 @@ def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
             added_ops = []
             grad_var = main_block.var(var_name)
             allreduce_op = main_block.append_op(
-                type=allreduce_type,
+                type='c_allreduce_sum',
                 inputs={'X': [grad_var]},
                 outputs={'Out': [grad_var]},
                 attrs={
@@ -544,7 +523,7 @@ def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
             )
             added_ops.append(allreduce_op)
 
-            if need_scale:
+            if dist_ctx.gradient_scale:
                 scale_op = main_block.append_op(
                     type='scale',
                     inputs={'X': grad_var},
@@ -562,7 +541,9 @@ def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
             dims_mapping = op_dist_attr.get_output_dims_mapping(grad_var.name)
             assert (
                 dims_mapping is not None
-            ), f"Unexpected: dims_mapping of output [{grad_var.name}] of op [{op_dist_attr.op_type}] is None"
+            ), "Unexpected: dims_mapping of output [{}] of op [{}] is None".format(
+                grad_var.name, op_dist_attr.op_type
+            )
             # NOTE auxiliary op's dist attr should follow dist_op not dist_tensor
             for new_op in added_ops:
                 new_op_attr = OperatorDistAttr()
@@ -575,7 +556,7 @@ def sync_and_scale_gradients(dist_ctx, op, groups, allreduce_var_names):
 
 def get_partial_groups(dist_ctx, op, out_grad_names, rank):
     """
-    deduce the partial communication group for current operator output vars.
+    deduce the partial comminication group for current operator output vars.
 
     Args:
         dist_ctx (DistributedContext): dist context.
@@ -597,7 +578,9 @@ def get_partial_groups(dist_ctx, op, out_grad_names, rank):
         else:
             assert (
                 partial_dims == var_dist_attr._partial_dims()
-            ), f"Partial dims of outputs {out_grad_names} of op [{op.type}] is not consistent"
+            ), "Partial dims of outputs {} of op [{}] is not consistent".format(
+                out_grad_names, op.type
+            )
 
     partial_dims = list(partial_dims)
     partial_dims.sort()
@@ -624,7 +607,7 @@ def gradient_synchronization(
     dist_ctx, op, act_grad_names, out_grad_names, rank
 ):
     """
-    conduct the allreduce and scaling for gradients of model
+    conduct the allreudce and scaling for gradients of model
     parameters for operator in parallelism train.
 
     Args:
@@ -670,13 +653,7 @@ def is_data_parallel_scale_op(op):
 
 def is_data_parallel_reduce_op(op):
     return (
-        op.type
-        in [
-            "c_allreduce_sum",
-            "c_allreduce_avg",
-            "c_reduce_sum",
-            "c_reduce_avg",
-        ]
+        op.type in ["c_reduce_sum", "c_allreduce_sum"]
         and op.desc.has_attr("op_namescope")
         and ParallelMode.DataParallel in op.desc.attr("op_namescope")
     )
@@ -708,30 +685,20 @@ def is_in_backward_phase(dist_ctx):
 
 
 def merge_forward_backward_dims_mapping(fw_results, bw_results):
-    flatten_fw_inputs = paddle.utils.flatten(fw_results[0])
-    flatten_fw_outputs = paddle.utils.flatten(fw_results[1])
-    flatten_bw_inputs = paddle.utils.flatten(bw_results[0])
-    flatten_bw_outputs = paddle.utils.flatten(bw_results[1])
-    ninputs = len(flatten_fw_inputs)
-    noutputs = len(flatten_fw_outputs)
+    ninputs = len(fw_results[0])
+    noutputs = len(fw_results[1])
     infered_input_dims_mappings = []
     infered_output_dims_mappings = []
 
     for i in range(ninputs):
         compatible_dims_mapping = compute_compatible_dims_mapping(
-            [
-                flatten_fw_inputs[i].dims_mapping,
-                flatten_bw_inputs[i].dims_mapping,
-            ]
+            [fw_results[0][i].dims_mapping, bw_results[0][i].dims_mapping]
         )
         infered_input_dims_mappings.append(compatible_dims_mapping)
 
     for i in range(noutputs):
         compatible_dims_mapping = compute_compatible_dims_mapping(
-            [
-                flatten_fw_outputs[i].dims_mapping,
-                flatten_bw_outputs[i].dims_mapping,
-            ]
+            [fw_results[1][i].dims_mapping, bw_results[1][i].dims_mapping]
         )
         infered_output_dims_mappings.append(compatible_dims_mapping)
     return infered_input_dims_mappings, infered_output_dims_mappings
@@ -747,14 +714,16 @@ def update_op_dims_mapping(
 
     op_dist_attr = dist_op.dist_attr
     changed = False
-    if len(input_arg_names) != len(infered_input_dims_mappings):
-        warnings.warn(
-            f"dims mapping is NOT Match, infered [{len(infered_input_dims_mappings)}], original: [{len(input_arg_names)}]; dist op: [{dist_op}]"
-        )
-    if len(output_arg_names) != len(infered_output_dims_mappings):
-        warnings.warn(
-            f"dims mapping is NOT Match, infered [{len(infered_output_dims_mappings)}], original: [{len(output_arg_names)}]; dist op: [{dist_op}]"
-        )
+    assert len(input_arg_names) == len(
+        infered_input_dims_mappings
+    ), "dims mapping is NOT Match, infered [{}], orignal: [{}]; dist op: [{}]".format(
+        len(infered_input_dims_mappings), len(input_arg_names), str(dist_op)
+    )
+    assert len(output_arg_names) == len(
+        infered_output_dims_mappings
+    ), "dims mapping is NOT Match, infered [{}], orignal: [{}]; dist op: [{}]".format(
+        len(infered_output_dims_mappings), len(output_arg_names), str(dist_op)
+    )
 
     for i in range(len(input_arg_names)):
         original_dims_mapping = op_dist_attr.get_input_dims_mapping(
@@ -765,7 +734,12 @@ def update_op_dims_mapping(
             original_dims_mapping != infered_dims_mapping
         ):
             _logger.debug(
-                f"Changed: Op [{dist_op.serial_op.type}], name [{input_arg_names[i]}], Original [{original_dims_mapping}], Infered [{infered_dims_mapping}]"
+                "Changed: Op [{}], name [{}], Original [{}], Infered [{}]".format(
+                    dist_op.serial_op.type,
+                    input_arg_names[i],
+                    original_dims_mapping,
+                    infered_dims_mapping,
+                )
             )
             changed = True
             op_dist_attr.set_input_dims_mapping(
@@ -782,7 +756,12 @@ def update_op_dims_mapping(
             original_dims_mapping != infered_dims_mapping
         ):
             _logger.debug(
-                f"Changed: Op [{dist_op.serial_op.type}], name [{output_arg_names[i]}], Original [{original_dims_mapping}], Infered [{infered_dims_mapping}]"
+                "Changed: Op [{}], name [{}], Original [{}], Infered [{}]".format(
+                    dist_op.serial_op.type,
+                    output_arg_names[i],
+                    original_dims_mapping,
+                    infered_dims_mapping,
+                )
             )
             changed = True
             op_dist_attr.set_output_dims_mapping(
@@ -798,14 +777,14 @@ def update_op_dims_mapping(
             fw_results[1][output_idx]._partial_dims()
             != output_dist_attr._partial_dims()
         ):
-            # _logger.info(
-            #     "Changed: Op [{}], tensor name [{}], Original partial on [{}], Infered partial on [{}]".format(
-            #         dist_op.serial_op.type,
-            #         output_arg_names[i],
-            #         output_dist_attr._partial_dims(),
-            #         fw_results[1][output_idx]._partial_dims(),
-            #     )
-            # )
+            _logger.info(
+                "Changed: Op [{}], tensor name [{}], Original partial on [{}], Infered partial on [{}]".format(
+                    dist_op.serial_op.type,
+                    output_arg_names[i],
+                    output_dist_attr._partial_dims(),
+                    fw_results[1][output_idx]._partial_dims(),
+                )
+            )
             output_dist_attr._clean_partial_status()
             output_dist_attr._set_partial_dims(
                 list(fw_results[1][0]._partial_dims())

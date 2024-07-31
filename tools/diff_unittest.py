@@ -48,4 +48,4 @@ please ask for approval of one RD below for passing CI:
 '''
 if error:
     for each_diff in diffs:
-        print(f"- {each_diff}")
+        print("- %s" % each_diff)

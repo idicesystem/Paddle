@@ -31,10 +31,9 @@ paddle.enable_static()
         ('one-dim', parameterize.xrand((2,)), parameterize.xrand((2,))),
         ('multi-dim', parameterize.xrand((5, 5)), parameterize.xrand((5, 5))),
     ],
-    test_pir=True,
 )
 class TestLaplace(unittest.TestCase):
-    def build_program(self):
+    def setUp(self):
         startup_program = paddle.static.Program()
         main_program = paddle.static.Program()
         executor = paddle.static.Executor(self.place)
@@ -61,13 +60,6 @@ class TestLaplace(unittest.TestCase):
             self.entropy,
             self.samples,
         ] = executor.run(main_program, feed=self.feeds, fetch_list=fetch_list)
-
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.build_program()
-        else:
-            self.build_program()
 
     def test_mean(self):
         self.assertEqual(str(self.mean.dtype).split('.')[-1], self.scale.dtype)
@@ -163,10 +155,9 @@ class TestLaplace(unittest.TestCase):
             np.array([[4.0, 6], [8, 2]]),
         ),
     ],
-    test_pir=True,
 )
 class TestLaplacePDF(unittest.TestCase):
-    def build_program(self):
+    def setUp(self):
         startup_program = paddle.static.Program()
         main_program = paddle.static.Program()
         executor = paddle.static.Executor(self.place)
@@ -191,13 +182,6 @@ class TestLaplacePDF(unittest.TestCase):
         [self.prob, self.log_prob, self.cdf, self.icdf] = executor.run(
             main_program, feed=self.feeds, fetch_list=fetch_list
         )
-
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.build_program()
-        else:
-            self.build_program()
 
     def test_prob(self):
         np.testing.assert_allclose(
@@ -244,10 +228,9 @@ class TestLaplacePDF(unittest.TestCase):
             np.array([0.5]),
         )
     ],
-    test_pir=True,
 )
 class TestLaplaceAndLaplaceKL(unittest.TestCase):
-    def build_program(self):
+    def setUp(self):
         self.mp = paddle.static.Program()
         self.sp = paddle.static.Program()
         self.executor = paddle.static.Executor(self.place)
@@ -270,14 +253,7 @@ class TestLaplaceAndLaplaceKL(unittest.TestCase):
                 'scale2': self.scale2,
             }
 
-    def setUp(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.build_program()
-        else:
-            self.build_program()
-
-    def add_kl_divergence(self):
+    def test_kl_divergence(self):
         with paddle.static.program_guard(self.mp, self.sp):
             out = paddle.distribution.kl_divergence(self._dist_1, self._dist_2)
             self.executor.run(self.sp)
@@ -285,13 +261,6 @@ class TestLaplaceAndLaplaceKL(unittest.TestCase):
                 self.mp, feed=self.feeds, fetch_list=[out]
             )
             np.testing.assert_allclose(out, self._np_kl(), atol=0, rtol=0.50)
-
-    def test_kl_divergence(self):
-        if self.test_pir:
-            with paddle.pir_utils.IrGuard():
-                self.add_kl_divergence()
-        else:
-            self.add_kl_divergence()
 
     def _np_kl(self):
         x = np.linspace(

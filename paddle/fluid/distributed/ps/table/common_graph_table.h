@@ -43,8 +43,8 @@
 #include "paddle/fluid/distributed/ps/table/graph/class_macro.h"
 #include "paddle/fluid/distributed/ps/table/graph/graph_node.h"
 #include "paddle/fluid/distributed/ps/thirdparty/round_robin.h"
+#include "paddle/fluid/string/string_helper.h"
 #include "paddle/phi/core/utils/rw_lock.h"
-#include "paddle/utils/string/string_helper.h"
 
 #ifdef PADDLE_WITH_HETERPS
 #include "paddle/fluid/distributed/ps/table/depends/rocksdb_warpper.h"
@@ -654,7 +654,7 @@ class GraphTable : public Table {
                        const std::string &converter UNUSED) {
     return 0;
   }
-#if defined(PADDLE_WITH_HETERPS) && defined(PADDLE_WITH_PSCORE)
+#ifdef PADDLE_WITH_GPU_GRAPH
   virtual int32_t Save_v2(const std::string &path,
                           const std::string &converter) {
     return 0;
@@ -790,7 +790,7 @@ class GraphTable : public Table {
   std::vector<std::string> node_types_;
   robin_hood::unordered_set<uint64_t> unique_all_edge_keys_;
   // node 2 rank
-  GraphNodeRank edge_node_rank_;
+  GraphNodeRank egde_node_rank_;
   std::unordered_map<int, int> type_to_neighbor_limit_;
 
   std::vector<std::vector<GraphShard *>> edge_shards, feature_shards,

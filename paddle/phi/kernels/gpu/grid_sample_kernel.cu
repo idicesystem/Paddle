@@ -27,13 +27,16 @@ template <typename T>
 static __forceinline__ __device__ T Unnormalize(T coord,
                                                 int size,
                                                 bool align_corners) {
-  return align_corners ? ((coord + 1.f) / 2) * (size - 1)
-                       : ((coord + 1.f) * size - 1) / 2;
+  if (align_corners) {
+    return ((coord + 1.f) / 2) * (size - 1);
+  } else {
+    return ((coord + 1.f) * size - 1) / 2;
+  }
 }
 
 template <typename T>
 static __forceinline__ __device__ T ClipIndexes(T in, int max_value) {
-  return min(static_cast<T>(max_value - 1), max(in, static_cast<T>(0)));
+  return min(static_cast<T>(max_value), max(in, static_cast<T>(0)));
 }
 
 template <typename T>
@@ -48,7 +51,11 @@ static __forceinline__ __device__ T ReflectIndexes(T in,
   in = fabs(in - min);
   T extra = fmod(in, span);
   int flips = static_cast<int>(floor(in / span));
-  return (flips & 1) ? span - extra + min : extra + min;  // cond ? odd : even
+  if (flips % 2 == 0) {
+    return extra + min;
+  } else {
+    return span - extra + min;
+  }
 }
 
 template <typename T>
@@ -58,13 +65,16 @@ static __forceinline__ __device__ T ComputePositions(T coord,
                                                      bool align_corners) {
   coord = Unnormalize<T>(coord, size, align_corners);
   if (padding_mode == PaddingMode::border) {
-    coord = ClipIndexes(coord, size);
+    coord = ClipIndexes(coord, size - 1);
   } else if (padding_mode == PaddingMode::reflect) {
-    coord = align_corners ? ReflectIndexes(coord, 0, 2 * (size - 1))
-                          : ReflectIndexes(coord, -1, 2 * size - 1);
-    coord = ClipIndexes(coord, size);
+    if (align_corners) {
+      coord = ReflectIndexes(coord, 0, 2 * (size - 1));
+    } else {
+      coord = ReflectIndexes(coord, -1, 2 * size - 1);
+    }
+    coord = ClipIndexes(coord, size - 1);
   }
-  return SafeDownGradeToIntRange(coord);
+  return coord;
 }
 
 template <typename T>

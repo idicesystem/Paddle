@@ -27,7 +27,6 @@ limitations under the License. */
 #if CUDA_VERSION >= 11060
 
 #include "glog/logging.h"
-#include "paddle/common/flags.h"
 #include "paddle/phi/backends/all_context.h"
 #include "paddle/phi/backends/dynload/cublasLt.h"
 #include "paddle/phi/backends/gpu/cuda/cuda_helper.h"
@@ -38,9 +37,10 @@ limitations under the License. */
 #include "paddle/phi/core/enforce.h"
 #include "paddle/phi/core/scope_guard.h"
 #include "paddle/phi/kernels/funcs/blas/blaslt_impl.cu.h"
+#include "paddle/utils/flags.h"
 #include "paddle/utils/optional.h"
 
-COMMON_DECLARE_int64(cublaslt_exhaustive_search_times);
+PD_DECLARE_int64(cublaslt_exhaustive_search_times);
 
 namespace phi {
 namespace funcs {
@@ -646,6 +646,7 @@ void ComputeFusedGemmEpilogueBackwardImplDev(
   // NOTE(zengjinle): I do not know whether the 4MB workspace size is
   // "enough". I just followed the settings from the NVIDIA MLPerf BERT code.
   size_t workspace_size = static_cast<size_t>(4) * 1024 * 1024;
+  const cublasLtMatmulAlgo_t* algo = nullptr;
   cudaStream_t stream = dev_ctx.stream();
 
   MT alpha = static_cast<MT>(1.0);

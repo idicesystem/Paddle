@@ -17,6 +17,8 @@
 #include <memory>
 #include <vector>
 
+#include "paddle/cinn/hlir/framework/graph.h"
+#include "paddle/cinn/hlir/framework/node.h"
 #include "paddle/cinn/ir/lowered_func.h"
 
 namespace cinn {
@@ -24,6 +26,8 @@ namespace auto_schedule {
 
 // alias a LoweredFunc array as FunctionGroup
 using FunctionGroup = std::vector<ir::LoweredFunc>;
+// alias a Graph::Group array as SubGraph
+using SubGraphPtr = std::shared_ptr<hlir::framework::Graph::Group>;
 
 // Options for tuning process
 struct TuningOptions {
@@ -32,7 +36,7 @@ struct TuningOptions {
   int num_tuning_rounds = 1;
 
   // The number of measurement trials in a task, if it is 0,
-  // that means the tuner will return the best
+  // that means the tunner will return the best
   // candidate of schedule config without measurement.
   int num_measure_trials = 10;
 
@@ -77,6 +81,8 @@ struct TuningOptions {
 
 // Result of the tuning process
 struct TuningResult {
+  // Result of graph tuning
+  std::vector<SubGraphPtr> subgraphs;
   // Result of schedule tuning
   std::vector<FunctionGroup> function_groups;
 };

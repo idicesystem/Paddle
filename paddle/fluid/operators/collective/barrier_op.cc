@@ -16,7 +16,8 @@ limitations under the License. */
 
 #include <memory>
 
-namespace paddle::operators {
+namespace paddle {
+namespace operators {
 
 class BarrierOp : public framework::OperatorWithKernel {
  public:
@@ -36,9 +37,11 @@ Barrier Operator - Barrier among all participators.)DOC");
   }
 };
 
-}  // namespace paddle::operators
+}  // namespace operators
+}  // namespace paddle
 
 namespace ops = paddle::operators;
+namespace plat = paddle::platform;
 
 REGISTER_OP_WITHOUT_GRADIENT(barrier, ops::BarrierOp, ops::BarrierOpMaker);
 

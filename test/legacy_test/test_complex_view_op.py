@@ -50,7 +50,6 @@ class TestViewAsComplexOp(OpTest):
         self.check_grad(
             ['X'],
             'Out',
-            check_pir=True,
         )
 
 
@@ -72,7 +71,6 @@ class TestViewAsRealOp(OpTest):
         self.check_grad(
             ['X'],
             'Out',
-            check_pir=True,
         )
 
 

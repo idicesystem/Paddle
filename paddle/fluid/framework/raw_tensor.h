@@ -53,14 +53,14 @@ class RawTensor : public phi::ExtendedTensor,
   T& Get() const {
     PADDLE_ENFORCE_EQ(data_.empty(),
                       false,
-                      common::errors::PreconditionNotMet(
+                      phi::errors::PreconditionNotMet(
                           "The data in RawTensor is empty. Please set data "
                           "before using it."));
 
     try {
       return *(paddle::any_cast<T*>(data_));
     } catch (paddle::bad_any_cast&) {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(phi::errors::InvalidArgument(
           "Invalid data type error, expected %s, actual %s.",
           typeid(T).name(),
           data_type_.name()));
@@ -73,7 +73,7 @@ class RawTensor : public phi::ExtendedTensor,
       try {
         return paddle::any_cast<T*>(data_);
       } catch (paddle::bad_any_cast&) {
-        PADDLE_THROW(common::errors::InvalidArgument(
+        PADDLE_THROW(phi::errors::InvalidArgument(
             "Invalid data type error, expected %s, actual %s.",
             typeid(T).name(),
             data_type_.name()));

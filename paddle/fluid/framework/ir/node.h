@@ -20,11 +20,10 @@ limitations under the License. */
 #include <typeinfo>
 #include <vector>
 
-#include "paddle/common/macros.h"
 #include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/framework/var_desc.h"
+#include "paddle/fluid/platform/macros.h"
 #include "paddle/utils/any.h"
-#include "paddle/utils/test_macros.h"
 namespace paddle {
 namespace framework {
 class OpDesc;
@@ -81,7 +80,7 @@ class Node {
   VarDesc* Var() const {
     PADDLE_ENFORCE_EQ(IsVar(),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Node(%s) must be kVariable type, but not %d.",
                           name_,
                           static_cast<int>(type_)));
@@ -91,7 +90,7 @@ class Node {
   OpDesc* Op() const {
     PADDLE_ENFORCE_EQ(IsOp(),
                       true,
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Node(%s) must be kOperation type, but not %d.",
                           name_,
                           static_cast<int>(type_)));
@@ -115,7 +114,7 @@ class Node {
     try {
       return *paddle::any_cast<T*>(wrapper_);
     } catch (paddle::bad_any_cast&) {
-      PADDLE_THROW(common::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "Invalid wrapper type error, expected %s, actual %s.",
           typeid(T).name(),
           wrapper_type_.name()));
@@ -147,7 +146,7 @@ class Node {
     PADDLE_ENFORCE_EQ(
         type_ == Type::kVariable && var_desc_,
         true,
-        common::errors::InvalidArgument("Node must be type of variable."));
+        platform::errors::InvalidArgument("Node must be type of variable."));
     name_ = new_name;
     var_desc_->SetName(new_name);
   }
@@ -156,7 +155,7 @@ class Node {
     PADDLE_ENFORCE_EQ(
         type_ == Type::kOperation && op_desc_,
         true,
-        common::errors::InvalidArgument("Node must be type of variable."));
+        platform::errors::InvalidArgument("Node must be type of variable."));
     name_ = new_name;
     op_desc_->SetType(new_name);
   }
@@ -167,7 +166,7 @@ class Node {
     PADDLE_ENFORCE_EQ(
         type_ == Type::kVariable && var_desc_,
         true,
-        common::errors::InvalidArgument("Node must be type of variable."));
+        platform::errors::InvalidArgument("Node must be type of variable."));
     return block_id_;
   }
 
@@ -254,14 +253,6 @@ class Node {
   // so expose it is a good idea
   static constexpr int NO_DESC_ORDER = INT_MAX;
 
-  // Set whether the node is an edge of the subgraph.
-  void SetSubgraphOutput() { subgraph_output_ = true; }
-  void SetSubgraphInput() { subgraph_input_ = true; }
-
-  // Get whether the node is an edge of the subgraph.
-  bool IsSubgraphOutput() { return subgraph_output_; }
-  bool IsSubgraphInput() { return subgraph_input_; }
-
  protected:
   std::string name_;
   std::unique_ptr<VarDesc> var_desc_;
@@ -277,10 +268,6 @@ class Node {
   uint64_t original_desc_id_{0};
   int graph_id_{-1};
 
-  // Is it the edge of the subgraph.
-  bool subgraph_output_ = false;
-  bool subgraph_input_ = false;
-
  private:
   // ID can only set by a Graph.
   void SetId(int id) { id_ = id; }
@@ -291,6 +278,10 @@ class Node {
   void SetDescOrder(int desc_order) { desc_order_ = desc_order; }
 
   friend class Graph;
+  friend std::unique_ptr<Node> CreateNodeForTest(const std::string& name,
+                                                 Node::Type type);
+  friend std::unique_ptr<Node> CreateNodeForTest(VarDesc* var_desc);
+  friend std::unique_ptr<Node> CreateNodeForTest(OpDesc* op_desc);
 
   explicit Node(const std::string& name, Type type, int block_id = 0)
       : name_(name),
@@ -324,15 +315,12 @@ class Node {
   std::type_index wrapper_type_ = std::type_index(typeid(void));
 
   DISABLE_COPY_AND_ASSIGN(Node);
-
-  TEST_API friend std::unique_ptr<Node> CreateNodeForTest(
-      const std::string& name, Node::Type type);
-  TEST_API friend std::unique_ptr<Node> CreateNodeForTest(VarDesc* var_desc);
-  TEST_API friend std::unique_ptr<Node> CreateNodeForTest(OpDesc* op_desc);
 };
+
 std::unique_ptr<Node> CreateNodeForTest(const std::string& name,
                                         Node::Type type);
 std::unique_ptr<Node> CreateNodeForTest(VarDesc* var_desc);
+
 std::unique_ptr<Node> CreateNodeForTest(OpDesc* op_desc);
 }  // namespace ir
 }  // namespace framework

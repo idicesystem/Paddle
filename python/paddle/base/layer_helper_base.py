@@ -11,38 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
 
 import numpy as np
 
 import paddle
 
 from . import core, unique_name
-from .data_feeder import convert_dtype
 from .framework import (
     Variable,
     _current_expected_place,
     default_main_program,
     default_startup_program,
     in_dygraph_mode,
-    in_dynamic_or_pir_mode,
     in_pir_mode,
 )
 from .initializer import _global_bias_initializer, _global_weight_initializer
 from .param_attr import ParamAttr, WeightNormParamAttr
-
-if TYPE_CHECKING:
-    from paddle._typing.dtype_like import _DTypeLiteral
 
 __all__ = []
 
 
 class LayerHelperBase:
     # global dtype
-    __dtype: _DTypeLiteral = "float32"
+    __dtype = "float32"
 
     def __init__(self, name, layer_type):
         self._layer_type = layer_type
@@ -104,11 +97,14 @@ class LayerHelperBase:
                 name if name else None,
                 True,
             )
-        elif isinstance(value, (Variable, core.eager.Tensor, paddle.pir.Value)):
+        elif isinstance(
+            value, (Variable, core.eager.Tensor, paddle.pir.OpResult)
+        ):
             return value
         else:
             raise TypeError(
-                f"The type of input value is invalid, expected type is 'ndarray' or 'Variable', but received {type(value)}"
+                "The type of input value is invalid, expected type is 'ndarray' or 'Variable', but received %s"
+                % type(value)
             )
 
     def _create_weight_normalize(self, attr, shape, dtype):
@@ -124,14 +120,14 @@ class LayerHelperBase:
         ):
             if out is None:
                 out = block.create_var(
-                    name=self.main_program._name_generator.generate_with_ignorable_key(
+                    name=unique_name.generate_with_ignorable_key(
                         ".".join([self.name, 'weight_norm_norm'])
                     ),
                     dtype=dtype,
                     persistable=False,
                 )
             abs_out = block.create_var(
-                name=self.main_program._name_generator.generate_with_ignorable_key(
+                name=unique_name.generate_with_ignorable_key(
                     ".".join([self.name, 'weight_norm_abs'])
                 ),
                 dtype=dtype,
@@ -141,7 +137,7 @@ class LayerHelperBase:
                 type='abs', inputs={'X': x}, outputs={'Out': abs_out}
             )
             pow_out = block.create_var(
-                name=self.main_program._name_generator.generate_with_ignorable_key(
+                name=unique_name.generate_with_ignorable_key(
                     ".".join([self.name, 'weight_norm_pow'])
                 ),
                 dtype=dtype,
@@ -154,7 +150,7 @@ class LayerHelperBase:
                 attrs={'factor': float(p)},
             )
             sum_out = block.create_var(
-                name=self.main_program._name_generator.generate_with_ignorable_key(
+                name=unique_name.generate_with_ignorable_key(
                     ".".join([self.name, 'weight_norm_sum'])
                 ),
                 dtype=dtype,
@@ -183,7 +179,7 @@ class LayerHelperBase:
         ):
             if out is None:
                 out = block.create_var(
-                    name=self.main_program._name_generator.generate_with_ignorable_key(
+                    name=unique_name.generate_with_ignorable_key(
                         ".".join([self.name, 'weight_norm_reshape'])
                     ),
                     dtype=dtype,
@@ -203,7 +199,7 @@ class LayerHelperBase:
         ):
             if out is None:
                 out = block.create_var(
-                    name=self.main_program._name_generator.generate_with_ignorable_key(
+                    name=unique_name.generate_with_ignorable_key(
                         ".".join([self.name, 'weight_norm_transpose'])
                     ),
                     dtype=dtype,
@@ -223,7 +219,7 @@ class LayerHelperBase:
             """Computes the norm over all dimensions except dim"""
             if out is None:
                 out = block.create_var(
-                    name=self.main_program._name_generator.generate_with_ignorable_key(
+                    name=unique_name.generate_with_ignorable_key(
                         ".".join([self.name, 'weight_norm_norm'])
                     ),
                     dtype=dtype,
@@ -269,11 +265,9 @@ class LayerHelperBase:
             # to achieve the subset.
             w = paddle.tensor.math._multiply_with_axis(
                 x=v,
-                y=(
-                    scale
-                    if dim is None
-                    else paddle.reshape(x=scale, shape=[v.shape[dim]])
-                ),
+                y=scale
+                if dim is None
+                else paddle.reshape(x=scale, shape=[v.shape[dim]]),
                 axis=-1 if dim is None else dim,
             )
             # To serialize the original parameter for inference, maybe a
@@ -367,8 +361,6 @@ class LayerHelperBase:
         # set global dtype
         if not dtype:
             dtype = self.__dtype
-        if isinstance(dtype, core.DataType):
-            dtype = convert_dtype(dtype)
         if is_bias:
             suffix = 'b'
             default_initializer = (
@@ -384,12 +376,7 @@ class LayerHelperBase:
                 else default_initializer
             )
         if attr.name is None:
-            if in_dynamic_or_pir_mode():
-                attr.name = unique_name.generate(".".join([self.name, suffix]))
-            else:
-                attr.name = self.main_program._name_generator.generate(
-                    ".".join([self.name, suffix])
-                )
+            attr.name = unique_name.generate(".".join([self.name, suffix]))
 
         if default_initializer is None and attr.initializer is None:
             if isinstance(dtype, core.VarDesc.VarType):
@@ -466,7 +453,7 @@ class LayerHelperBase:
 
     def create_variable_for_type_inference(
         self, dtype, stop_gradient=False, shape=None
-    ) -> paddle.Tensor:
+    ):
         """Create a temporary variable that should be type inferred layer.
 
         Note:
@@ -479,7 +466,7 @@ class LayerHelperBase:
         if not dtype:
             dtype = self.__dtype
         return self.main_program.current_block().create_var(
-            name=self.main_program._name_generator.generate_with_ignorable_key(
+            name=unique_name.generate_with_ignorable_key(
                 ".".join([self.name, 'tmp'])
             ),
             dtype=dtype,
@@ -504,7 +491,7 @@ class LayerHelperBase:
         if not dtype:
             dtype = self.__dtype
         output = self.main_program.global_block().create_var(
-            name=self.main_program._name_generator.generate_with_ignorable_key(
+            name=unique_name.generate_with_ignorable_key(
                 ".".join([self.name, 'tmp'])
             ),
             dtype=dtype,
@@ -537,7 +524,7 @@ class LayerHelperBase:
         if not dtype:
             dtype = self.__dtype
         return self.main_program.current_block().create_var(
-            name=self.main_program._name_generator.generate_with_ignorable_key(
+            name=unique_name.generate_with_ignorable_key(
                 ".".join([self.name, 'tmp'])
             ),
             dtype=dtype,

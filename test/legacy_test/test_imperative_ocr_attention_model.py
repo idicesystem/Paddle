@@ -19,33 +19,9 @@ from test_imperative_base import new_program_scope
 
 import paddle
 from paddle import base
-from paddle.autograd.backward_utils import ValueDict
 from paddle.base import core
+from paddle.base.dygraph.base import to_variable
 from paddle.nn import BatchNorm, Linear
-
-
-def create_parameter_mapping(startup_program, main_program):
-    startup_params = {}
-    main_params = {}
-    parameter_mapping = ValueDict()
-    for op in startup_program.global_block().ops:
-        if op.name() == "builtin.set_parameter":
-            name = op.attrs()["parameter_name"]
-            param = op.operand(0).source()
-            startup_params[name] = param
-
-    for op in main_program.global_block().ops:
-        if op.name() == "builtin.parameter":
-            name = op.attrs()["parameter_name"]
-            param = op.result(0)
-            main_params[name] = param
-
-    assert len(startup_params) == len(main_params)
-    for name, startup_param in startup_params.items():
-        assert name in main_params
-        main_param = main_params[name]
-        parameter_mapping[main_param] = startup_param
-    return parameter_mapping
 
 
 class Config:
@@ -234,7 +210,7 @@ class EncoderNet(paddle.nn.Layer):
             h_0 = np.zeros(
                 (Config.batch_size, rnn_hidden_size), dtype="float32"
             )
-            h_0 = paddle.to_tensor(h_0)
+            h_0 = to_variable(h_0)
         else:
             h_0 = paddle.tensor.fill_constant(
                 shape=[Config.batch_size, rnn_hidden_size],
@@ -471,13 +447,7 @@ class TestDygraphOCRAttention(unittest.TestCase):
         def run_dygraph():
             base.set_flags({'FLAGS_sort_sum_gradient': True})
             paddle.seed(seed)
-            if paddle.framework.use_pir_api():
-                with paddle.pir_utils.OldIrGuard():
-                    # Note: dygraph use self.main_program.global_block().create_parameter(), it's need manual seed to old Program
-                    paddle.framework.random._manual_program_seed(seed)
-                paddle.framework.random._manual_program_seed(seed)
-            else:
-                paddle.framework.random._manual_program_seed(seed)
+            paddle.framework.random._manual_program_seed(seed)
             ocr_attention = OCRAttention()
 
             if Config.learning_rate_decay == "piecewise_decay":
@@ -494,10 +464,10 @@ class TestDygraphOCRAttention(unittest.TestCase):
                 dy_param_init_value[param.name] = param.numpy()
             for epoch in range(epoch_num):
                 for batch_id in range(batch_num):
-                    label_in = paddle.to_tensor(label_in_np)
-                    label_out = paddle.to_tensor(label_out_np)
+                    label_in = to_variable(label_in_np)
+                    label_out = to_variable(label_out_np)
                     label_out.stop_gradient = True
-                    img = paddle.to_tensor(image_np)
+                    img = to_variable(image_np)
                     dy_prediction = ocr_attention(img, label_in)
                     label_out = paddle.reshape(label_out, [-1, 1])
                     dy_prediction = paddle.reshape(
@@ -548,13 +518,7 @@ class TestDygraphOCRAttention(unittest.TestCase):
 
         with new_program_scope():
             paddle.seed(seed)
-            if paddle.framework.use_pir_api():
-                with paddle.pir_utils.OldIrGuard():
-                    # Note: dygraph use self.main_program.global_block().create_parameter(), it's need manual seed to old Program
-                    paddle.framework.random._manual_program_seed(seed)
-                paddle.framework.random._manual_program_seed(seed)
-            else:
-                paddle.framework.random._manual_program_seed(seed)
+            paddle.framework.random._manual_program_seed(seed)
             exe = base.Executor(
                 base.CPUPlace()
                 if not core.is_compiled_with_cuda()
@@ -574,18 +538,15 @@ class TestDygraphOCRAttention(unittest.TestCase):
             images = paddle.static.data(
                 name='pixel', shape=[-1] + Config.DATA_SHAPE, dtype='float32'
             )
-            if not paddle.framework.use_pir_api():
-                images.desc.set_need_check_feed(False)
+            images.desc.set_need_check_feed(False)
             static_label_in = paddle.static.data(
                 name='label_in', shape=[-1, 1], dtype='int64', lod_level=0
             )
-            if not paddle.framework.use_pir_api():
-                static_label_in.desc.set_need_check_feed(False)
+            static_label_in.desc.set_need_check_feed(False)
             static_label_out = paddle.static.data(
                 name='label_out', shape=[-1, 1], dtype='int64', lod_level=0
             )
-            if not paddle.framework.use_pir_api():
-                static_label_out.desc.set_need_check_feed(False)
+            static_label_out.desc.set_need_check_feed(False)
 
             static_label_out.stop_gradient = True
             static_label_out.trainable = False
@@ -595,9 +556,6 @@ class TestDygraphOCRAttention(unittest.TestCase):
             static_prediction = paddle.reshape(
                 static_prediction, shape=[-1, Config.num_classes + 2]
             )
-            static_label_out = paddle.reshape(
-                static_label_out, shape=[static_prediction.shape[0], 1]
-            )
 
             cost = paddle.nn.functional.cross_entropy(
                 input=static_prediction,
@@ -606,46 +564,35 @@ class TestDygraphOCRAttention(unittest.TestCase):
                 use_softmax=False,
             )
             static_avg_loss = paddle.sum(cost)
+            # param_grad_list = base.backward.append_backward(static_avg_loss)
             optimizer.minimize(static_avg_loss)
 
             static_param_init_value = {}
             static_param_name_list = []
             static_grad_name_list = []
-            static_params = []
             for param in ocr_attention.parameters():
                 static_param_name_list.append(param.name)
-                static_params.append(param)
                 if param.trainable:
                     static_grad_name_list.append(
                         param.name + core.grad_var_suffix()
                     )
-            if paddle.framework.use_pir_api():
-                parameter_mapping = create_parameter_mapping(
-                    paddle.static.default_startup_program(),
-                    paddle.static.default_main_program(),
-                )
-                startup_params = [
-                    parameter_mapping[param] for param in static_params
-                ]
-            else:
-                startup_params = static_params
 
             out = exe.run(
-                paddle.static.default_startup_program(),
-                fetch_list=startup_params,
+                base.default_startup_program(),
+                fetch_list=static_param_name_list,
             )
 
-            for i in range(len(static_params)):
-                param_name = static_param_name_list[i]
-                static_param_init_value[param_name] = out[i]
+            for i in range(len(static_param_name_list)):
+                static_param_init_value[static_param_name_list[i]] = out[i]
 
+            fetch_list = [static_avg_loss.name]
+            fetch_list.extend(static_param_name_list)
+            fetch_list.extend(static_grad_name_list)
             for epoch in range(epoch_num):
                 for batch_id in range(batch_num):
                     static_label_in = label_in_np
                     static_label_out = label_out_np
                     static_label_out = static_label_out.reshape((-1, 1))
-                    fetch_list = [static_avg_loss]
-                    fetch_list.extend(static_params)
                     out = exe.run(
                         base.default_main_program(),
                         feed={
@@ -658,10 +605,18 @@ class TestDygraphOCRAttention(unittest.TestCase):
                     static_param_value = {}
                     static_grad_value = {}
                     static_out = out[0]
-                    for i in range(1, len(out)):
+                    for i in range(1, len(static_param_name_list) + 1):
                         static_param_value[static_param_name_list[i - 1]] = out[
                             i
                         ]
+                    grad_start_pos = len(static_param_name_list) + 1
+                    for i in range(
+                        grad_start_pos,
+                        len(static_grad_name_list) + grad_start_pos,
+                    ):
+                        static_grad_value[
+                            static_grad_name_list[i - grad_start_pos]
+                        ] = out[i]
 
         np.testing.assert_allclose(static_out, dy_out, rtol=1e-05, atol=1e-8)
 

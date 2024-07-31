@@ -19,7 +19,9 @@
 #include "paddle/fluid/framework/op_version_registry.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework::ir {
+namespace paddle {
+namespace framework {
+namespace ir {
 
 FCFusePass::FCFusePass() {
   AddOpCompat(OpCompat("mul"))
@@ -89,7 +91,7 @@ FCFusePass::FCFusePass() {
 
 void FCFusePass::ApplyImpl(ir::Graph* graph) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::InvalidArgument("Graph cannot be nullptr."));
+      graph, platform::errors::InvalidArgument("Graph cannot be nullptr."));
   FusePassBase::Init("fc_fuse", graph);
 
   int found_fc_count = 0;
@@ -210,7 +212,8 @@ int FCFusePass::ApplyFCPattern(Graph* graph, bool with_relu) const {
                  w_w * sizeof(float));
         }
         w_tensor->Resize(DDim{weight_dims[0] + 4, weight_dims[1] + 4});
-        auto* weight_data_new = w_tensor->mutable_data<float>(phi::CPUPlace());
+        auto* weight_data_new =
+            w_tensor->mutable_data<float>(platform::CPUPlace());
         for (int i = 0; i < w_h; i++) {
           memcpy(weight_data_new + i * (w_w + 4),
                  weight_data_tmp + i * w_w,
@@ -298,7 +301,9 @@ int FCFusePass::ApplyFCPattern(Graph* graph, bool with_relu) const {
   return found_fc_count;
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(fc_fuse_pass, paddle::framework::ir::FCFusePass)
     .RequirePassAttr("use_gpu");

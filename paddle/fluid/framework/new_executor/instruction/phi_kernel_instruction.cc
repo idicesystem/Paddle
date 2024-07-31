@@ -24,13 +24,13 @@
 #include "paddle/fluid/pir/dialect/operator/utils/op_yaml_info_parser.h"
 #include "paddle/fluid/platform/collective_helper.h"
 #include "paddle/fluid/platform/device_context.h"
-#include "paddle/fluid/platform/profiler/event_tracing.h"
 #include "paddle/phi/core/infermeta_utils.h"
 #include "paddle/phi/core/meta_tensor.h"
 #include "paddle/phi/core/type_defs.h"
-#include "paddle/pir/include/core/builtin_attribute.h"
-#include "paddle/pir/include/core/operation.h"
-#include "paddle/pir/include/core/value.h"
+
+#include "paddle/pir/core/builtin_attribute.h"
+#include "paddle/pir/core/operation.h"
+#include "paddle/pir/core/value.h"
 
 #include "paddle/fluid/framework/new_executor/instruction/instruction_util.h"
 namespace paddle {
@@ -38,7 +38,7 @@ namespace framework {
 
 PhiKernelInstruction::PhiKernelInstruction(
     size_t id,
-    const phi::Place& place,
+    const platform::Place& place,
     pir::Operation* op,
     const ValueExecutionInfo* value_exec_info)
     : InstructionBase(id, place), value_exec_info_(value_exec_info) {
@@ -51,53 +51,34 @@ PhiKernelInstruction::PhiKernelInstruction(
   phi_op_name_ = op_name;
   VLOG(6) << "construct phi kernel instruction for: " << phi_op_name_;
 
-  if (op_attributes.count("execution_stream") != 0) {
-    SetExecutionStream(op_attributes.at("execution_stream")
-                           .dyn_cast<pir::StrAttribute>()
-                           .AsString());
-  }
-  if (op_attributes.count("stream_priority") != 0) {
-    SetStreamPriority(op_attributes.at("stream_priority")
-                          .dyn_cast<pir::Int32Attribute>()
-                          .data());
-  }
-  if (op_attributes.count("scheduling_priority") != 0) {
-    SetSchedulingPriority(op_attributes.at("scheduling_priority")
-                              .dyn_cast<pir::Int64Attribute>()
-                              .data());
-  } else {
-    if (interpreter::IsCommunicationOp(op_)) {
-      // NOTE(Ruibiao): Dispatching computation before communication improves
-      // multi-stream overlap when the time cost of communication less than
-      // that of the calculation (e.g., ResNet50_bs128_pure_fp16 N4C32
-      // training).
-      SetSchedulingPriority(1);
-    }
-  }
-  if (op_attributes.count("force_record_event") != 0) {
-    SetForceRecordEvent(op_attributes.at("force_record_event")
-                            .dyn_cast<pir::BoolAttribute>()
-                            .data());
-  }
-  if (op_attributes.count("event_to_record") != 0) {
-    SetEventToRecordInfo(op_attributes.at("event_to_record")
-                             .dyn_cast<pir::StrAttribute>()
-                             .AsString());
-  }
-  if (op_attributes.count("events_to_wait") != 0) {
-    std::vector<std::string> events_to_wait;
-    auto array_attr = op_attributes.at("events_to_wait")
-                          .dyn_cast<pir::ArrayAttribute>()
-                          .AsVector();
-    for (auto& attr : array_attr) {
-      events_to_wait.push_back(attr.dyn_cast<pir::StrAttribute>().AsString());
-    }
-    SetEventsToWaitInfo(events_to_wait);
-  }
-  VLOG(6) << "finish process dist attributes for " << op_name
-          << " : [execution_stream, stream_priority, scheduling_priority] = ["
-          << GetExecutionStream() << ", " << GetStreamPriority() << ", "
-          << GetSchedulingPriority() << "]";
+  // Todo: support paddle::dialect::DistAttribute
+  //   if (op_attributes.count("dist_attr") != 0) {
+  //     if (op_attributes.count("execution_stream") != 0) {
+  //         SetExecutionStream(op_attributes.at("execution_stream")
+  //                             .dyn_cast<pir::StrAttribute>()
+  //                             .data());
+  //     }
+  //     if (op_attributes.count("stream_priority") != 0) {
+  //         SetStreamPriority(op_attributes.at("stream_priority")
+  //                             .dyn_cast<pir::Int32Attribute>()
+  //                             .data());
+  //     }
+  //     if (op_attributes.count("scheduling_priority") != 0) {
+  //         SetSchedulingPriority(op_attributes.at("scheduling_priority")
+  //                                 .dyn_cast<pir::Int64Attribute>()
+  //                                 .data());
+  //     }
+  //   } else {
+  //     if (interpreter::IsCommunicationOp(op)) {
+  //       // NOTE(Ruibiao): Dispatching computation before communication
+  //       improves
+  //       // multi-stream overlap when the time cost of communication less than
+  //       // that of the calculation (e.g., ResNet50_bs128_pure_fp16 N4C32
+  //       // training).
+  //       op_func_node.scheduling_priority_ = 1;
+  //     }
+  //   }
+  VLOG(6) << "finish process dist attributes";
 
   SetKernelType(AnalyseOpFuncType(op, place));
   VLOG(6) << "finish process analyse kernel type";
@@ -110,11 +91,10 @@ PhiKernelInstruction::PhiKernelInstruction(
       op_info.GetInterfaceImpl<paddle::dialect::OpYamlInfoInterface>();
   PADDLE_ENFORCE_NOT_NULL(
       yaml_interface,
-      common::errors::PreconditionNotMet(
+      phi::errors::PreconditionNotMet(
           "can not find OpYamlInfoInterface from [%s]", phi_op_name_));
   paddle::dialect::OpYamlInfoParser yaml_info_parser(
-      yaml_interface->get_op_info_(op_name),
-      paddle::dialect::IsLegacyOp(op_name));
+      yaml_interface->get_op_info_(), paddle::dialect::IsLegacyOp(op_name));
   VLOG(6) << "finish process yaml_info_parser";
 
   if (infer_meta_interface_) {
@@ -140,16 +120,6 @@ PhiKernelInstruction::PhiKernelInstruction(
       phi_kernel_->IsValid(), true, "not found kernel for [%s]", kernel_name);
   VLOG(6) << "finish process select kernel";
 
-  phi::DeviceContext* dev_ctx =
-      ParseDeviceContext(op,
-                         phi::DeviceContextPool::Instance().Get(
-                             phi::TransToPhiPlace(kernel_key.backend())),
-                         place,
-                         GetExecutionStream(),
-                         GetStreamPriority());
-  SetDeviceContext(dev_ctx);
-  VLOG(6) << "finish process device context";
-
   BuildPhiContext<phi::KernelContext,
                   const phi::TensorBase*,
                   phi::TensorBase*,
@@ -158,12 +128,19 @@ PhiKernelInstruction::PhiKernelInstruction(
                   true>(
       op, *value_exec_info_, yaml_info_parser, &kernel_context_);
 
-  kernel_context_.SetDeviceContext(dev_ctx);
+  kernel_context_.SetDeviceContext(phi::DeviceContextPool::Instance().Get(
+      phi::TransToPhiPlace(kernel_key.backend())));
   VLOG(6) << "finish process kernel context";
-  if (op->attributes().count("is_inplace") != 0 &&
-      op->attributes().at("is_inplace").dyn_cast<pir::BoolAttribute>().data()) {
-    HandleForInplaceOp(op, value_exec_info_, this);
-  }
+
+  SetDeviceContext(
+      ParseDeviceContext(op,
+                         phi::DeviceContextPool::Instance().Get(
+                             phi::TransToPhiPlace(kernel_key.backend())),
+                         place,
+                         GetExecutionStream(),
+                         GetStreamPriority()));
+  VLOG(6) << "finish process device context";
+
   InitInputsOutputsIds(op, *value_exec_info);
   VLOG(6) << "finish process inputs outputs index";
 
@@ -176,29 +153,19 @@ PhiKernelInstruction::PhiKernelInstruction(
   VLOG(6) << "finish process no need buffer";
 }
 
-PhiKernelInstruction::~PhiKernelInstruction() { delete phi_kernel_; }
+PhiKernelInstruction::~PhiKernelInstruction() {
+  if (phi_kernel_ != nullptr) {
+    delete phi_kernel_;
+  }
+}
 
 void PhiKernelInstruction::Run() {
-  VLOG(6) << "Begin run op " << phi_op_name_ << " infer meta.";
   if (infer_meta_interface_) {
-    platform::RecordEvent record_event("PhiKernelInstruction::infermeta",
-                                       platform::TracerEventType::UserDefined,
-                                       1);
     infer_meta_interface_->infer_meta_(&(infer_meta_context_));
   }
-  VLOG(6) << "End run op " << phi_op_name_ << " infer meta.";
-  for (auto& pair : this->InplaceInfo()) {
-    ShareVarBuffer(pair.first, pair.second);
-  }
-  VLOG(6) << "Begin run op " << phi_op_name_ << " kernel.";
-  {
-    platform::RecordEvent record_event("PhiKernelInstruction::kernel launch",
-                                       platform::TracerEventType::UserDefined,
-                                       1);
-    (*(phi_kernel_))(&(kernel_context_));
-  }
-
-  VLOG(6) << "End run op " << phi_op_name_ << " kernel.";
+  VLOG(6) << "Run op " << phi_op_name_ << " infer meta.";
+  (*(phi_kernel_))(&(kernel_context_));
+  VLOG(6) << "Run op " << phi_op_name_ << " kernel.";
 }
 
 }  // namespace framework

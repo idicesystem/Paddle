@@ -14,16 +14,20 @@ limitations under the License. */
 
 #include "gtest/gtest.h"
 #include "paddle/fluid/framework/op_registry.h"
-#include "paddle/phi/common/float16.h"
+#include "paddle/fluid/platform/float16.h"
 #include "paddle/phi/core/kernel_registry.h"
 
+USE_OP_ITSELF(save);
+PD_DECLARE_KERNEL(save, CPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(save_sr, CPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(cast, CPU, ALL_LAYOUT);
+USE_OP_ITSELF(load);
+PD_DECLARE_KERNEL(load, CPU, ALL_LAYOUT);
 PD_DECLARE_KERNEL(load_sr, CPU, ALL_LAYOUT);
 
 TEST(SaveLoadOp, CPU) {
   paddle::framework::Scope scope;
-  phi::CPUPlace place;
+  paddle::platform::CPUPlace place;
 
   auto var = scope.Var("test_var");
   auto tensor = var->GetMutable<phi::DenseTensor>();
@@ -58,7 +62,7 @@ TEST(SaveLoadOp, CPU) {
   }
   auto& actual_lod = target->lod();
   EXPECT_EQ(expect_lod.size(), actual_lod.size());
-  for (size_t i = 0; i < expect_lod.size(); ++i) {  // NOLINT
+  for (size_t i = 0; i < expect_lod.size(); ++i) {
     for (size_t j = 0; j < expect_lod[i].size(); ++j) {
       EXPECT_EQ(expect_lod[i][j], actual_lod[i][j]);
     }
@@ -67,7 +71,7 @@ TEST(SaveLoadOp, CPU) {
 
 TEST(SaveLoadOpSelectedRows, CPU) {
   paddle::framework::Scope scope;
-  phi::CPUPlace place;
+  paddle::platform::CPUPlace place;
 
   auto var = scope.Var("test_var_sr");
   auto selected_rows = var->GetMutable<phi::SelectedRows>();
@@ -104,7 +108,7 @@ TEST(SaveLoadOpSelectedRows, CPU) {
 
 TEST(SaveFP16Op, CPU) {
   paddle::framework::Scope scope;
-  phi::CPUPlace place;
+  paddle::platform::CPUPlace place;
 
   auto var = scope.Var("test_var");
   auto tensor = var->GetMutable<phi::DenseTensor>();
@@ -119,7 +123,7 @@ TEST(SaveFP16Op, CPU) {
   tensor->set_lod(expect_lod);
   float* expect = tensor->mutable_data<float>(place);
   for (int64_t i = 0; i < tensor->numel(); ++i) {
-    expect[i] = static_cast<float>(phi::dtype::float16(i));
+    expect[i] = static_cast<float>(paddle::platform::float16(i));
   }
 
   paddle::framework::AttributeMap attrs;
@@ -135,13 +139,13 @@ TEST(SaveFP16Op, CPU) {
   auto load_op = paddle::framework::OpRegistry::CreateOp(
       "load", {}, {{"Out", {"out_var"}}}, attrs);
   load_op->Run(scope, place);
-  phi::dtype::float16* actual = target->data<phi::dtype::float16>();
+  paddle::platform::float16* actual = target->data<paddle::platform::float16>();
   for (int64_t i = 0; i < tensor->numel(); ++i) {
     EXPECT_EQ(expect[i], static_cast<float>(actual[i]));
   }
   auto& actual_lod = target->lod();
   EXPECT_EQ(expect_lod.size(), actual_lod.size());
-  for (size_t i = 0; i < expect_lod.size(); ++i) {  // NOLINT
+  for (size_t i = 0; i < expect_lod.size(); ++i) {
     for (size_t j = 0; j < expect_lod[i].size(); ++j) {
       EXPECT_EQ(expect_lod[i][j], actual_lod[i][j]);
     }
@@ -150,7 +154,7 @@ TEST(SaveFP16Op, CPU) {
 
 TEST(LoadFP16Op, CPU) {
   paddle::framework::Scope scope;
-  phi::CPUPlace place;
+  paddle::platform::CPUPlace place;
 
   auto var = scope.Var("test_var");
   auto tensor = var->GetMutable<phi::DenseTensor>();
@@ -166,7 +170,7 @@ TEST(LoadFP16Op, CPU) {
   tensor->set_lod(expect_lod);
   float* expect = tensor->mutable_data<float>(place);
   for (int64_t i = 0; i < tensor->numel(); ++i) {
-    expect[i] = static_cast<float>(phi::dtype::float16(i));
+    expect[i] = static_cast<float>(paddle::platform::float16(i));
   }
 
   paddle::framework::AttributeMap attrs;
@@ -184,14 +188,14 @@ TEST(LoadFP16Op, CPU) {
   load_op->Run(scope, place);
 
   auto target = load_var->Get<phi::DenseTensor>();
-  phi::dtype::float16* actual = target.data<phi::dtype::float16>();
+  paddle::platform::float16* actual = target.data<paddle::platform::float16>();
   for (int64_t i = 0; i < tensor->numel(); ++i) {
     EXPECT_EQ(expect[i], static_cast<float>(actual[i]));
   }
 
   auto& actual_lod = target.lod();
   EXPECT_EQ(expect_lod.size(), actual_lod.size());
-  for (size_t i = 0; i < expect_lod.size(); ++i) {  // NOLINT
+  for (size_t i = 0; i < expect_lod.size(); ++i) {
     for (size_t j = 0; j < expect_lod[i].size(); ++j) {
       EXPECT_EQ(expect_lod[i][j], actual_lod[i][j]);
     }

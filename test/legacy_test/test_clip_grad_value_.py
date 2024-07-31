@@ -65,7 +65,18 @@ class TestClipGradValue(unittest.TestCase):
 
         self.assertRaises(ValueError, TestValueError)
 
-        # NOTE: delete TestRuntimeErrorStaticMode because pir.Value has no .grad attribute
+        def TestRuntimeErrorStaticMode():
+            paddle.enable_static()
+            input_pd = paddle.to_tensor(
+                np.random.random([1, 2]).astype(np.float32)
+            )
+            input_pd.grad = paddle.to_tensor(
+                np.random.random([1, 2]).astype(np.float32)
+            )
+            clip_grad_value_(input_pd, clip_value=1)
+            paddle.disable_static()
+
+        self.assertRaises(RuntimeError, TestRuntimeErrorStaticMode)
 
 
 def run_test_equal_np(

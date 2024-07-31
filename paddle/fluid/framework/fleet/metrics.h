@@ -32,7 +32,7 @@ limitations under the License. */
 #include "paddle/fluid/framework/tensor.h"
 #include "paddle/fluid/framework/variable_helper.h"
 #include "paddle/fluid/platform/timer.h"
-#include "paddle/utils/string/string_helper.h"
+#include "paddle/fluid/string/string_helper.h"
 
 #if defined(PADDLE_WITH_GLOO)
 #include <gloo/allreduce.h>
@@ -70,23 +70,23 @@ class BasicAucCalculator {
   void add_data(const float* d_pred,
                 const int64_t* d_label,
                 int batch_size,
-                const phi::Place& place);
+                const paddle::platform::Place& place);
   // add mask data
   void add_mask_data(const float* d_pred,
                      const int64_t* d_label,
                      const int64_t* d_mask,
                      int batch_size,
-                     const phi::Place& place);
+                     const paddle::platform::Place& place);
   // add uid data
   void add_uid_data(const float* d_pred,
                     const int64_t* d_label,
                     const int64_t* d_uid,
                     int batch_size,
-                    const phi::Place& place);
+                    const paddle::platform::Place& place);
 
   void compute();
   void computeWuAuc();
-  WuaucRocData computeSingleUserAuc(const std::vector<WuaucRecord>& records);
+  WuaucRocData computeSingelUserAuc(const std::vector<WuaucRecord>& records);
   int table_size() const { return _table_size; }
   double bucket_error() const { return _bucket_error; }
   double auc() const { return _auc; }
@@ -156,7 +156,8 @@ class Metric {
     BasicAucCalculator* GetCalculator() { return calculator; }
 
     // add_data
-    virtual void add_data(const Scope* exe_scope, const phi::Place& place) {
+    virtual void add_data(const Scope* exe_scope,
+                          const paddle::platform::Place& place) {
       int label_len = 0;
       const int64_t* label_data = NULL;
       int pred_len = 0;
@@ -165,7 +166,7 @@ class Metric {
       get_data<float>(exe_scope, pred_varname_, &pred_data, &pred_len);
       PADDLE_ENFORCE_EQ(label_len,
                         pred_len,
-                        common::errors::PreconditionNotMet(
+                        platform::errors::PreconditionNotMet(
                             "the predict data length should be consistent with "
                             "the label data length"));
       calculator->add_data(pred_data, label_data, label_len, place);
@@ -180,8 +181,8 @@ class Metric {
       auto* var = exe_scope->FindVar(varname.c_str());
       PADDLE_ENFORCE_NOT_NULL(
           var,
-          common::errors::NotFound("Error: var %s is not found in scope.",
-                                   varname.c_str()));
+          platform::errors::NotFound("Error: var %s is not found in scope.",
+                                     varname.c_str()));
       auto& cpu_tensor = var->Get<phi::DenseTensor>();
       *data = cpu_tensor.data<T>();
       *len = cpu_tensor.numel();
@@ -194,8 +195,8 @@ class Metric {
       auto* var = exe_scope->FindVar(varname.c_str());
       PADDLE_ENFORCE_NOT_NULL(
           var,
-          common::errors::NotFound("Error: var %s is not found in scope.",
-                                   varname.c_str()));
+          platform::errors::NotFound("Error: var %s is not found in scope.",
+                                     varname.c_str()));
       auto& cpu_tensor = var->Get<phi::DenseTensor>();
       auto* cpu_data = cpu_tensor.data<T>();
       auto len = cpu_tensor.numel();
@@ -233,7 +234,8 @@ class Metric {
       calculator = new BasicAucCalculator();
     }
     virtual ~WuAucMetricMsg() {}
-    void add_data(const Scope* exe_scope, const phi::Place& place) override {
+    void add_data(const Scope* exe_scope,
+                  const paddle::platform::Place& place) override {
       int label_len = 0;
       const int64_t* label_data = NULL;
       get_data<int64_t>(exe_scope, label_varname_, &label_data, &label_len);
@@ -247,7 +249,7 @@ class Metric {
       get_data<int64_t>(exe_scope, uid_varname_, &uid_data, &uid_len);
       PADDLE_ENFORCE_EQ(label_len,
                         uid_len,
-                        common::errors::PreconditionNotMet(
+                        platform::errors::PreconditionNotMet(
                             "the predict data length should be consistent with "
                             "the label data length"));
       auto cal = GetCalculator();
@@ -277,8 +279,8 @@ class Metric {
         PADDLE_ENFORCE_EQ(
             cur_cmatch_rank.size(),
             2,
-            common::errors::PreconditionNotMet("illegal multitask auc spec: %s",
-                                               cmatch_rank.c_str()));
+            platform::errors::PreconditionNotMet(
+                "illegal multitask auc spec: %s", cmatch_rank.c_str()));
         cmatch_rank_v.emplace_back(atoi(cur_cmatch_rank[0].c_str()),
                                    atoi(cur_cmatch_rank[1].c_str()));
       }
@@ -287,7 +289,7 @@ class Metric {
       }
       PADDLE_ENFORCE_EQ(cmatch_rank_v.size(),
                         pred_v.size(),
-                        common::errors::PreconditionNotMet(
+                        platform::errors::PreconditionNotMet(
                             "cmatch_rank's size [%lu] should be equal to pred "
                             "list's size [%lu], but ther are not equal",
                             cmatch_rank_v.size(),
@@ -295,7 +297,7 @@ class Metric {
     }
     virtual ~MultiTaskMetricMsg() {}
     void add_data(const Scope* exe_scope,
-                  const phi::Place& place UNUSED) override {
+                  const paddle::platform::Place& place UNUSED) override {
       std::vector<int64_t> cmatch_rank_data;
       get_data<int64_t>(exe_scope, cmatch_rank_varname_, &cmatch_rank_data);
       std::vector<int64_t> label_data;
@@ -304,7 +306,7 @@ class Metric {
       PADDLE_ENFORCE_EQ(
           batch_size,
           label_data.size(),
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "illegal batch size: batch_size[%lu] and label_data[%lu]",
               batch_size,
               label_data.size()));
@@ -317,7 +319,7 @@ class Metric {
         PADDLE_ENFORCE_EQ(
             batch_size,
             pred_data_list[i].size(),
-            common::errors::PreconditionNotMet(
+            platform::errors::PreconditionNotMet(
                 "illegal batch size: batch_size[%lu] and pred_data[%lu]",
                 batch_size,
                 pred_data_list[i].size()));
@@ -368,7 +370,7 @@ class Metric {
         PADDLE_ENFORCE_EQ(
             cur_cmatch_rank.size(),
             2,
-            common::errors::PreconditionNotMet(
+            platform::errors::PreconditionNotMet(
                 "illegal cmatch_rank auc spec: %s", cmatch_rank.c_str()));
         cmatch_rank_v.emplace_back(atoi(cur_cmatch_rank[0].c_str()),
                                    atoi(cur_cmatch_rank[1].c_str()));
@@ -376,7 +378,7 @@ class Metric {
     }
     virtual ~CmatchRankMetricMsg() {}
     void add_data(const Scope* exe_scope,
-                  const phi::Place& place UNUSED) override {
+                  const paddle::platform::Place& place UNUSED) override {
       std::vector<int64_t> cmatch_rank_data;
       get_data<int64_t>(exe_scope, cmatch_rank_varname_, &cmatch_rank_data);
       std::vector<int64_t> label_data;
@@ -387,14 +389,14 @@ class Metric {
       PADDLE_ENFORCE_EQ(
           batch_size,
           label_data.size(),
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "illegal batch size: cmatch_rank[%lu] and label_data[%lu]",
               batch_size,
               label_data.size()));
       PADDLE_ENFORCE_EQ(
           batch_size,
           pred_data.size(),
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "illegal batch size: cmatch_rank[%lu] and pred_data[%lu]",
               batch_size,
               pred_data.size()));
@@ -438,7 +440,8 @@ class Metric {
       calculator->init(bucket_size);
     }
     virtual ~MaskMetricMsg() {}
-    void add_data(const Scope* exe_scope, const phi::Place& place) override {
+    void add_data(const Scope* exe_scope,
+                  const paddle::platform::Place& place) override {
       int label_len = 0;
       const int64_t* label_data = NULL;
       get_data<int64_t>(exe_scope, label_varname_, &label_data, &label_len);
@@ -452,7 +455,7 @@ class Metric {
       get_data<int64_t>(exe_scope, mask_varname_, &mask_data, &mask_len);
       PADDLE_ENFORCE_EQ(label_len,
                         mask_len,
-                        common::errors::PreconditionNotMet(
+                        platform::errors::PreconditionNotMet(
                             "the predict data length should be consistent with "
                             "the label data length"));
       auto cal = GetCalculator();
@@ -491,7 +494,7 @@ class Metric {
         PADDLE_ENFORCE_EQ(
             cur_cmatch_rank.size(),
             2,
-            common::errors::PreconditionNotMet(
+            platform::errors::PreconditionNotMet(
                 "illegal cmatch_rank auc spec: %s", cmatch_rank.c_str()));
         cmatch_rank_v.emplace_back(atoi(cur_cmatch_rank[0].c_str()),
                                    atoi(cur_cmatch_rank[1].c_str()));
@@ -499,7 +502,7 @@ class Metric {
     }
     virtual ~CmatchRankMaskMetricMsg() {}
     void add_data(const Scope* exe_scope,
-                  const phi::Place& place UNUSED) override {
+                  const paddle::platform::Place& place UNUSED) override {
       std::vector<int64_t> cmatch_rank_data;
       get_data<int64_t>(exe_scope, cmatch_rank_varname_, &cmatch_rank_data);
       std::vector<int64_t> label_data;
@@ -510,14 +513,14 @@ class Metric {
       PADDLE_ENFORCE_EQ(
           batch_size,
           label_data.size(),
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "illegal batch size: cmatch_rank[%lu] and label_data[%lu]",
               batch_size,
               label_data.size()));
       PADDLE_ENFORCE_EQ(
           batch_size,
           pred_data.size(),
-          common::errors::PreconditionNotMet(
+          platform::errors::PreconditionNotMet(
               "illegal batch size: cmatch_rank[%lu] and pred_data[%lu]",
               batch_size,
               pred_data.size()));
@@ -528,7 +531,7 @@ class Metric {
         PADDLE_ENFORCE_EQ(
             batch_size,
             mask_data.size(),
-            common::errors::PreconditionNotMet(
+            platform::errors::PreconditionNotMet(
                 "illegal batch size: cmatch_rank[%lu] and mask_data[%lu]",
                 batch_size,
                 mask_data.size()));
@@ -566,7 +569,7 @@ class Metric {
   static std::shared_ptr<Metric> GetInstance() {
     // PADDLE_ENFORCE_EQ(
     //     s_instance_ == nullptr, false,
-    //     common::errors::PreconditionNotMet(
+    //     platform::errors::PreconditionNotMet(
     //         "GetInstance failed in Metric, you should use SetInstance
     //         firstly"));
     return s_instance_;
@@ -596,7 +599,7 @@ class Metric {
         PADDLE_ENFORCE_NE(
             iter,
             metric_lists_.end(),
-            common::errors::InvalidArgument(
+            platform::errors::InvalidArgument(
                 "The metric name you provided is not registered."));
 
         if (iter->second->MetricPhase() == metric_phase) {
@@ -674,7 +677,7 @@ class Metric {
                                                metric_phase,
                                                bucket_size));
     } else {
-      PADDLE_THROW(common::errors::Unimplemented(
+      PADDLE_THROW(platform::errors::Unimplemented(
           "PSLIB Metrics only support AucCalculator, MultiTaskAucCalculator, "
           "CmatchRankAucCalculator, MaskAucCalculator, WuAucCalculator and "
           "CmatchRankMaskAucCalculator"));
@@ -686,7 +689,7 @@ class Metric {
     const auto iter = metric_lists_.find(name);
     PADDLE_ENFORCE_NE(iter,
                       metric_lists_.end(),
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The metric name you provided is not registered."));
     std::vector<float> metric_return_values_(8, 0.0);
     auto* auc_cal_ = iter->second->GetCalculator();
@@ -708,7 +711,7 @@ class Metric {
     const auto iter = metric_lists_.find(name);
     PADDLE_ENFORCE_NE(iter,
                       metric_lists_.end(),
-                      common::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "The metric name you provided is not registered."));
     VLOG(0) << "begin GetWuAucMetricMsg";
     std::vector<float> metric_return_values_(6, 0.0);

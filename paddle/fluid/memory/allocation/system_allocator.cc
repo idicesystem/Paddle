@@ -27,11 +27,11 @@ limitations under the License. */
 #include <sys/mman.h>  // for mlock and munlock
 #endif
 
-#include "paddle/common/flags.h"
 #include "paddle/fluid/memory/allocation/allocator.h"
 #include "paddle/fluid/platform/device/gpu/gpu_info.h"
 #include "paddle/fluid/platform/enforce.h"
 #include "paddle/phi/backends/cpu/cpu_info.h"
+#include "paddle/phi/core/flags.h"
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 #include "paddle/fluid/platform/cuda_device_guard.h"
@@ -40,13 +40,14 @@ limitations under the License. */
 #include "paddle/fluid/platform/device/device_wrapper.h"
 #include "paddle/fluid/platform/profiler/mem_tracing.h"
 
-COMMON_DECLARE_bool(use_pinned_memory);
-COMMON_DECLARE_bool(custom_device_mem_record);
-COMMON_DECLARE_double(fraction_of_gpu_memory_to_use);
-COMMON_DECLARE_uint64(initial_gpu_memory_in_mb);
-COMMON_DECLARE_uint64(reallocate_gpu_memory_in_mb);
+PHI_DECLARE_bool(use_pinned_memory);
+PHI_DECLARE_double(fraction_of_gpu_memory_to_use);
+PHI_DECLARE_uint64(initial_gpu_memory_in_mb);
+PHI_DECLARE_uint64(reallocate_gpu_memory_in_mb);
 
-namespace paddle::memory::detail {
+namespace paddle {
+namespace memory {
+namespace detail {
 
 void* AlignedMalloc(size_t size) {
   void* p = nullptr;
@@ -63,11 +64,11 @@ void* AlignedMalloc(size_t size) {
   PADDLE_ENFORCE_EQ(
       error,
       0,
-      common::errors::ResourceExhausted(
+      platform::errors::ResourceExhausted(
           "Fail to alloc memory of %ld size, error code is %d.", size, error));
 #endif
   PADDLE_ENFORCE_NOT_NULL(p,
-                          common::errors::ResourceExhausted(
+                          platform::errors::ResourceExhausted(
                               "Fail to alloc memory of %ld size.", size));
   return p;
 }
@@ -151,7 +152,7 @@ void* GPUAllocator::Alloc(size_t* index, size_t size) {
           limit_size);
     }
 
-    PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+    PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
         "\n\nOut of memory error on GPU %d. "
         "Cannot allocate %s memory on GPU %d, %s memory has been allocated and "
         "available memory is only %s.\n\n"
@@ -177,11 +178,11 @@ void* GPUAllocator::Alloc(size_t* index, size_t size) {
 void GPUAllocator::Free(void* p, size_t size, size_t index) {
   PADDLE_ENFORCE_EQ(index,
                     0,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The index should be 0, index is %d", index));
   PADDLE_ENFORCE_GE(gpu_alloc_size_,
                     size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The size of memory (%d) to free exceeds the size of "
                         "allocated gpu memory (%d)",
                         size,
@@ -207,8 +208,7 @@ void* CUDAPinnedAllocator::Alloc(size_t* index, size_t size) {
   if (size > usable) {
     LOG(WARNING) << "Cannot malloc " << size / 1024.0 / 1024.0
                  << " MB pinned memory."
-                 << ", available " << usable / 1024.0 / 1024.0
-                 << " MB";  // NOLINT
+                 << ", available " << usable / 1024.0 / 1024.0 << " MB";
     return nullptr;
   }
 
@@ -239,12 +239,12 @@ void CUDAPinnedAllocator::Free(void* p, size_t size, size_t index) {
   gpuError_t err;
   PADDLE_ENFORCE_EQ(index,
                     1,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The index should be 1, but got %d", index));
 
   PADDLE_ENFORCE_GE(cuda_pinnd_alloc_size_,
                     size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The size of memory (%d) to free exceeds the size of "
                         "allocated cuda pinned memory (%d)",
                         size,
@@ -256,7 +256,7 @@ void CUDAPinnedAllocator::Free(void* p, size_t size, size_t index) {
     PADDLE_ENFORCE_EQ(
         err,
         hipSuccess,
-        common::errors::Fatal(
+        platform::errors::Fatal(
             "hipFreeHost failed in GPUPinnedAllocator, error code is %d", err));
   }
 #else
@@ -271,7 +271,7 @@ void CUDAPinnedAllocator::Free(void* p, size_t size, size_t index) {
     PADDLE_ENFORCE_EQ(
         err,
         0,
-        common::errors::Fatal(
+        platform::errors::Fatal(
             "cudaFreeHost failed in GPUPinnedAllocator, error code is %d",
             err));
   }
@@ -290,23 +290,18 @@ void* CustomAllocator::Alloc(size_t* index, size_t size) {
   if (size <= 0) return nullptr;
 
   void* p;
-  auto place = phi::CustomPlace(dev_type_, dev_id_);
+  auto place = platform::CustomPlace(dev_type_, dev_id_);
   auto device = phi::DeviceManager::GetDeviceWithPlace(place);
   p = device->MemoryAllocate(size);
   if (LIKELY(p)) {
     VLOG(4) << "CustomAllocator::Alloc " << p << " size " << size;
     *index = 0;
     plug_alloc_size += size;
-    if (FLAGS_custom_device_mem_record) {
-      DEVICE_MEMORY_STAT_UPDATE(Reserved, dev_id_, size);
-      platform::RecordMemEvent(
-          p, place, size, platform::TracerMemEventType::ReservedAllocate);
-    }
   } else {
     size_t avail, total;
 
     phi::DeviceManager::MemoryStats(place, &total, &avail);
-    PADDLE_THROW_BAD_ALLOC(common::errors::ResourceExhausted(
+    PADDLE_THROW_BAD_ALLOC(platform::errors::ResourceExhausted(
         "\n\nOut of memory error on %s %d. "
         "total memory is %s, used memory is %s, "
         "available memory is only %s.\n\n",
@@ -323,27 +318,24 @@ void CustomAllocator::Free(void* p, size_t size, size_t index) {
   VLOG(4) << "CustomAllocator::Free " << p << " size " << size;
   PADDLE_ENFORCE_EQ(index,
                     0,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The index should be 0, index is %d", index));
   PADDLE_ENFORCE_GE(plug_alloc_size,
                     size,
-                    common::errors::InvalidArgument(
+                    platform::errors::InvalidArgument(
                         "The size of memory (%d) to free exceeds the size of "
                         "allocated gpu memory (%d)",
                         size,
                         plug_alloc_size));
   plug_alloc_size -= size;
-  auto place = phi::CustomPlace(dev_type_, dev_id_);
+  auto place = platform::CustomPlace(dev_type_, dev_id_);
   auto device = phi::DeviceManager::GetDeviceWithPlace(place);
   device->MemoryDeallocate(p, size);
-  if (FLAGS_custom_device_mem_record) {
-    DEVICE_MEMORY_STAT_UPDATE(Reserved, dev_id_, size);
-    platform::RecordMemEvent(
-        p, place, size, platform::TracerMemEventType::ReservedFree);
-  }
 }
 
 bool CustomAllocator::UseGpu() const { return true; }
 #endif
 
-}  // namespace paddle::memory::detail
+}  // namespace detail
+}  // namespace memory
+}  // namespace paddle

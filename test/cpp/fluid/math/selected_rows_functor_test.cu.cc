@@ -42,12 +42,12 @@ TEST(selected_rows_functor, gpu_add) {
 #ifdef PADDLE_WITH_HIP
   PADDLE_ENFORCE_EQ(hipDeviceSynchronize(),
                     0,
-                    common::errors::PreconditionNotMet(
+                    phi::errors::PreconditionNotMet(
                         "The all synchronization on the cuda is error!"));
 #else
   PADDLE_ENFORCE_EQ(cudaDeviceSynchronize(),
                     0,
-                    common::errors::PreconditionNotMet(
+                    phi::errors::PreconditionNotMet(
                         "The all synchronization on the cuda is error!"));
 #endif
 

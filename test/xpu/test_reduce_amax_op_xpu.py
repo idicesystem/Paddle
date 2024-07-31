@@ -45,10 +45,10 @@ class XPUTestReduceAmaxOp(XPUOpTestWrapper):
                 'X': np.random.randint(0, 100, self.shape).astype("float32")
             }
 
-            expect_input = self.inputs['X']
+            expect_intput = self.inputs['X']
             self.outputs = {
                 'Out': np.amax(
-                    expect_input,
+                    expect_intput,
                     axis=self.attrs['dim'],
                     keepdims=self.attrs['keep_dim'],
                 )

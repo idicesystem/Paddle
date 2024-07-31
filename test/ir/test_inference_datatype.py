@@ -49,7 +49,6 @@ class TestDoubleOnGPU(unittest.TestCase):
             input_spec=[
                 paddle.static.InputSpec(shape=[None, 4], dtype='float64')
             ],
-            full_graph=True,
         )
         paddle.jit.save(
             model,

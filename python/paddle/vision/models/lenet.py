@@ -12,17 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import (
-    TYPE_CHECKING,
-)
-
 import paddle
 from paddle import nn
-
-if TYPE_CHECKING:
-    from paddle import Tensor
 
 __all__ = []
 
@@ -53,9 +44,7 @@ class LeNet(nn.Layer):
             [1, 10]
     """
 
-    num_classes: int
-
-    def __init__(self, num_classes: int = 10) -> None:
+    def __init__(self, num_classes=10):
         super().__init__()
         self.num_classes = num_classes
         self.features = nn.Sequential(
@@ -74,7 +63,7 @@ class LeNet(nn.Layer):
                 nn.Linear(84, num_classes),
             )
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs):
         x = self.features(inputs)
 
         if self.num_classes > 0:

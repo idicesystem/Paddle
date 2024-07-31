@@ -84,13 +84,13 @@ class CompatMetaTensor : public phi::MetaTensor {
     PADDLE_ENFORCE_EQ(
         is_runtime_,
         true,
-        common::errors::Unavailable(
-            "Only can get phi::DenseTensor from MetaTensor in runtime."));
+        platform::errors::Unavailable(
+            "Only can get phi::DenseTensor from MetaTensor in rumtime."));
     auto* var = PADDLE_GET_CONST(Variable*, var_);
     PADDLE_ENFORCE_EQ(
         var->IsType<phi::SelectedRows>(),
         true,
-        common::errors::Unavailable(
+        platform::errors::Unavailable(
             "The phi::DenseTensor in MetaTensor is not SelectedRows."));
     return var->Get<phi::SelectedRows>();
   }

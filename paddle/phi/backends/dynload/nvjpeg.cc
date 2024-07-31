@@ -11,7 +11,8 @@ limitations under the License. */
 
 #include "paddle/phi/backends/dynload/nvjpeg.h"
 
-namespace phi::dynload {
+namespace phi {
+namespace dynload {
 
 std::once_flag nvjpeg_dso_flag;
 void *nvjpeg_dso_handle;
@@ -20,4 +21,5 @@ void *nvjpeg_dso_handle;
 
 NVJPEG_RAND_ROUTINE_EACH(DEFINE_WRAP);
 
-}  // namespace phi::dynload
+}  // namespace dynload
+}  // namespace phi

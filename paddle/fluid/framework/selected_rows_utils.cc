@@ -14,11 +14,12 @@ limitations under the License. */
 
 #include "paddle/fluid/framework/selected_rows_utils.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 
 void SerializeToStream(std::ostream& os,
                        const phi::SelectedRows& selected_rows,
-                       const phi::DeviceContext& dev_ctx) {
+                       const platform::DeviceContext& dev_ctx) {
   {  // the 1st field, uint32_t version
     constexpr uint32_t version = 0;
     os.write(reinterpret_cast<const char*>(&version), sizeof(version));
@@ -43,30 +44,30 @@ void SerializeToStream(std::ostream& os,
 
 void SerializeToStream(std::ostream& os,
                        const phi::SelectedRows& selected_rows) {
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
-  const phi::DeviceContext* dev_ctx = nullptr;
+  platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
+  const platform::DeviceContext* dev_ctx = nullptr;
   auto place = selected_rows.place();
   dev_ctx = pool.Get(place);
   SerializeToStream(os, selected_rows, *dev_ctx);
 }
 
 void DeserializeFromStream(std::istream& is, phi::SelectedRows* selected_rows) {
-  phi::DeviceContextPool& pool = phi::DeviceContextPool::Instance();
-  const phi::DeviceContext* dev_ctx = nullptr;
-  dev_ctx = pool.Get(phi::CPUPlace());
+  platform::DeviceContextPool& pool = platform::DeviceContextPool::Instance();
+  const platform::DeviceContext* dev_ctx = nullptr;
+  dev_ctx = pool.Get(platform::CPUPlace());
   DeserializeFromStream(is, selected_rows, *dev_ctx);
 }
 
 void DeserializeFromStream(std::istream& is,
                            phi::SelectedRows* selected_rows,
-                           const phi::DeviceContext& dev_ctx) {
+                           const platform::DeviceContext& dev_ctx) {
   {
     // the 1st field, unit32_t version for SelectedRows
     uint32_t version = 0;
     is.read(reinterpret_cast<char*>(&version), sizeof(version));
     PADDLE_ENFORCE_EQ(version,
                       0U,
-                      common::errors::InvalidArgument(
+                      phi::errors::InvalidArgument(
                           "Only version 0 SelectedRows is supported."));
   }
   {
@@ -76,7 +77,7 @@ void DeserializeFromStream(std::istream& is,
     PADDLE_ENFORCE_EQ(
         is.good(),
         true,
-        common::errors::Unavailable("Cannot read the number of rows."));
+        phi::errors::Unavailable("Cannot read the number of rows."));
     auto& rows = *selected_rows->mutable_rows();
     rows.resize(size);
     for (uint64_t i = 0; i < size; ++i) {
@@ -94,4 +95,5 @@ void DeserializeFromStream(std::istream& is,
       is, selected_rows->mutable_value(), dev_ctx);
 }
 
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle

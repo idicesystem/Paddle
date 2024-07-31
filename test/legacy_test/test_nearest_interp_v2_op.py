@@ -383,9 +383,7 @@ class TestNearestInterpOp(OpTest):
         self.outputs = {'Out': output_np}
 
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)
@@ -447,9 +445,7 @@ class TestNearestNeighborInterpActualShape(TestNearestInterpOp):
 
 class TestNearestInterpOpFP16(TestNearestInterpOp):
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)
@@ -745,10 +741,7 @@ class TestNearestInterpOpUint8(OpTest):
 
     def test_check_output(self):
         self.check_output_with_place(
-            place=core.CPUPlace(),
-            atol=1,
-            check_pir=True,
-            check_symbol_infer=(self.out_size is None),
+            place=core.CPUPlace(), atol=1, check_pir=True
         )
 
     def init_test_case(self):
@@ -904,9 +897,7 @@ class TestNearestInterpOp_attr_tensor(OpTest):
         self.outputs = {'Out': output_np}
 
     def test_check_output(self):
-        self.check_output(
-            check_pir=True, check_symbol_infer=(self.out_size is None)
-        )
+        self.check_output(check_pir=True)
 
     def test_check_grad(self):
         self.check_grad(['X'], 'Out', in_place=True, check_pir=True)

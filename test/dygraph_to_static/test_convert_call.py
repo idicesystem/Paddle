@@ -25,6 +25,7 @@ from dygraph_to_static_utils import (
 
 import paddle
 import paddle.jit.dy2static as _jst
+from paddle import base
 from paddle.jit.dy2static.convert_call_func import CONVERSION_OPTIONS
 from paddle.jit.dy2static.utils import func_to_source_code
 
@@ -46,7 +47,7 @@ def dyfunc_with_if(x_v):
 
 @paddle.jit.to_static(full_graph=True)
 def nested_func(x_v):
-    x_v = paddle.assign(x_v)
+    x_v = base.dygraph.to_variable(x_v)
 
     def fn1():
         return x_v
@@ -174,7 +175,7 @@ class TestRecursiveCall2(Dy2StTestBase):
         self.dygraph_func = MyLayer()
 
     def _run(self):
-        data = paddle.to_tensor(self.input)
+        data = base.dygraph.to_variable(self.input)
         res = self.dygraph_func(data)
 
         return res.numpy()
@@ -187,7 +188,6 @@ class TestRecursiveCall2(Dy2StTestBase):
         with enable_to_static_guard(True):
             return self._run()
 
-    @test_legacy_and_pir
     def test_transformed_static_result(self):
         self.set_func()
         dygraph_res = self.get_dygraph_output()

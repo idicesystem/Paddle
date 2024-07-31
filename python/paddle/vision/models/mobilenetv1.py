@@ -12,32 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import (
-    TYPE_CHECKING,
-    TypedDict,
-)
-
-from typing_extensions import NotRequired, Unpack
-
 import paddle
 from paddle import nn
 from paddle.utils.download import get_weights_path_from_url
 
 from ..ops import ConvNormActivation
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle._typing import Size2
-
-    class _MobileNetV1Options(TypedDict):
-        num_classes: NotRequired[int]
-        with_pool: NotRequired[bool]
-
-
 __all__ = []
-
 
 model_urls = {
     'mobilenetv1_1.0': (
@@ -50,13 +31,13 @@ model_urls = {
 class DepthwiseSeparable(nn.Layer):
     def __init__(
         self,
-        in_channels: int,
-        out_channels1: int,
-        out_channels2: int,
-        num_groups: int,
-        stride: Size2,
-        scale: float,
-    ) -> None:
+        in_channels,
+        out_channels1,
+        out_channels2,
+        num_groups,
+        stride,
+        scale,
+    ):
         super().__init__()
 
         self._depthwise_conv = ConvNormActivation(
@@ -76,7 +57,7 @@ class DepthwiseSeparable(nn.Layer):
             padding=0,
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = self._depthwise_conv(x)
         x = self._pointwise_conv(x)
         return x
@@ -110,16 +91,7 @@ class MobileNetV1(nn.Layer):
             [1, 1000]
     """
 
-    scale: float
-    num_classes: int
-    with_pool: bool
-
-    def __init__(
-        self,
-        scale: float = 1.0,
-        num_classes: int = 1000,
-        with_pool: bool = True,
-    ) -> None:
+    def __init__(self, scale=1.0, num_classes=1000, with_pool=True):
         super().__init__()
         self.scale = scale
         self.dwsl = []
@@ -258,7 +230,7 @@ class MobileNetV1(nn.Layer):
         if num_classes > 0:
             self.fc = nn.Linear(int(1024 * scale), num_classes)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         x = self.conv1(x)
         for dws in self.dwsl:
             x = dws(x)
@@ -272,9 +244,7 @@ class MobileNetV1(nn.Layer):
         return x
 
 
-def _mobilenet(
-    arch: str, pretrained: bool = False, **kwargs: Unpack[_MobileNetV1Options]
-) -> MobileNetV1:
+def _mobilenet(arch, pretrained=False, **kwargs):
     model = MobileNetV1(**kwargs)
     if pretrained:
         assert (
@@ -290,11 +260,7 @@ def _mobilenet(
     return model
 
 
-def mobilenet_v1(
-    pretrained: bool = False,
-    scale: float = 1.0,
-    **kwargs: Unpack[_MobileNetV1Options],
-) -> MobileNetV1:
+def mobilenet_v1(pretrained=False, scale=1.0, **kwargs):
     """MobileNetV1 from
     `"MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications" <https://arxiv.org/abs/1704.04861>`_.
 

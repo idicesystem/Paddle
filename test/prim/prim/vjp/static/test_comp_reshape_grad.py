@@ -24,9 +24,7 @@ from paddle.base import core, framework
 def apply_to_static(net, use_cinn):
     build_strategy = paddle.static.BuildStrategy()
     build_strategy.build_cinn_pass = use_cinn
-    return paddle.jit.to_static(
-        net, build_strategy=build_strategy, full_graph=True
-    )
+    return paddle.jit.to_static(net, build_strategy=build_strategy)
 
 
 class PrimeNet(paddle.nn.Layer):
@@ -105,9 +103,28 @@ class TestReshapeGradComp(unittest.TestCase):
 
         return res
 
-    def test_reshape_grad_comp(self):
+    def test_cinn(self):
+        paddle.disable_static()
+        use_cinn = True
+        if isinstance(
+            framework._current_expected_place(), framework.core.CPUPlace
+        ):
+            # TODO(jiabin): CINN will crashed in this case open it when fixed
+            use_cinn = False
+
+        dy_res = self.train(use_prim=False, use_cinn=False)
+        comp_st_cinn_res = self.train(use_prim=True, use_cinn=use_cinn)
+
+        for i in range(len(dy_res)):
+            np.testing.assert_allclose(
+                comp_st_cinn_res[i].numpy(),
+                dy_res[i].numpy(),
+                rtol=1e-7,
+                atol=1e-7,
+            )
         paddle.enable_static()
 
+    def test_reshape_grad_comp(self):
         def actual(primal, shape, cotangent):
             core._set_prim_backward_enabled(True)
             mp, sp = paddle.static.Program(), paddle.static.Program()
@@ -124,7 +141,7 @@ class TestReshapeGradComp(unittest.TestCase):
             return exe.run(
                 program=mp,
                 feed={'primal': primal, 'cotangent': cotangent},
-                fetch_list=[x_cotangent[0]],
+                fetch_list=[x_cotangent[0].name],
             )[0]
 
         def desired(primal, shape, cotangent):
@@ -143,7 +160,7 @@ class TestReshapeGradComp(unittest.TestCase):
             return exe.run(
                 program=mp,
                 feed={'primal': primal, 'cotangent': cotangent},
-                fetch_list=[x_cotangent[0]],
+                fetch_list=[x_cotangent[0].name],
             )[0]
 
         if (self.dtype == np.float16) and isinstance(
@@ -159,7 +176,6 @@ class TestReshapeGradComp(unittest.TestCase):
                 atol=self.rtol,
             )
         core._set_prim_backward_enabled(False)
-        paddle.disable_static()
 
 
 if __name__ == '__main__':

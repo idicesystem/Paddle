@@ -49,7 +49,7 @@ class SimpleRNNCell(LayerMixin):
         self.bias = bias
         if nonlinearity == 'RNN_TANH':
             self.nonlinearity = np.tanh
-        elif nonlinearity == 'RNN_RELU':
+        else:
             self.nonlinearity = lambda x: np.maximum(x, 0.0)
 
         self.parameters = {}
@@ -162,13 +162,7 @@ class GRUCell(LayerMixin):
 
 class LSTMCell(LayerMixin):
     def __init__(
-        self,
-        input_size,
-        hidden_size,
-        weight=True,
-        bias=True,
-        dtype="float64",
-        proj_size=None,
+        self, input_size, hidden_size, weight=True, bias=True, dtype="float64"
     ):
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -181,26 +175,17 @@ class LSTMCell(LayerMixin):
                 -std, std, (4 * hidden_size, input_size)
             ).astype(dtype)
             self.weight_hh = np.random.uniform(
-                -std, std, (4 * hidden_size, proj_size or hidden_size)
+                -std, std, (4 * hidden_size, hidden_size)
             ).astype(dtype)
         else:
             self.weight_ih = np.ones((4 * hidden_size, input_size)).astype(
                 dtype
             )
-            self.weight_hh = np.ones(
-                (4 * hidden_size, proj_size or hidden_size)
-            ).astype(dtype)
-
+            self.weight_hh = np.ones((4 * hidden_size, hidden_size)).astype(
+                dtype
+            )
         self.parameters['weight_ih'] = self.weight_ih
         self.parameters['weight_hh'] = self.weight_hh
-
-        self.proj_size = proj_size
-        if proj_size:
-            self.weight_ho = np.random.uniform(
-                -std, std, (hidden_size, proj_size)
-            ).astype(dtype)
-            self.parameters['weight_ho'] = self.weight_ho
-
         if bias:
             self.bias_ih = np.random.uniform(
                 -std, std, (4 * hidden_size)
@@ -238,9 +223,6 @@ class LSTMCell(LayerMixin):
         o = 1.0 / (1.0 + np.exp(-chunked_gates[3]))
         c = f * pre_cell + i * np.tanh(chunked_gates[2])
         h = o * np.tanh(c)
-
-        if self.proj_size:
-            h = np.matmul(h, self.weight_ho)
 
         return h, (h, c)
 
@@ -384,10 +366,10 @@ def concat_states(states, bidirectional=False, state_components=1):
         return np.stack(flatten(states))
     else:
         states = flatten(states)
-        components = []
+        componnets = []
         for i in range(state_components):
-            components.append(states[i::state_components])
-        return [np.stack(item) for item in components]
+            componnets.append(states[i::state_components])
+        return [np.stack(item) for item in componnets]
 
 
 class RNN(LayerMixin):
@@ -446,18 +428,21 @@ class RNNMixin(LayerListMixin):
         batch_size = inputs.shape[batch_index]
         dtype = inputs.dtype
         if initial_states is None:
-            state_shape = (self.num_layers * self.num_directions, batch_size)
-            proj_size = self.proj_size if hasattr(self, 'proj_size') else None
-            dims = ((proj_size or self.hidden_size,), (self.hidden_size,))
+            state_shape = (
+                self.num_layers * self.num_directions,
+                batch_size,
+                self.hidden_size,
+            )
             if self.state_components == 1:
-                initial_states = np.zeros(state_shape + dims[0], dtype)
+                initial_states = np.zeros(state_shape, dtype)
             else:
                 initial_states = tuple(
                     [
-                        np.zeros(state_shape + dims[i], dtype)
-                        for i in range(self.state_components)
+                        np.zeros(state_shape, dtype)
+                        for _ in range(self.state_components)
                     ]
                 )
+
         states = split_states(
             initial_states, self.num_directions == 2, self.state_components
         )
@@ -516,16 +501,10 @@ class SimpleRNN(RNNMixin):
             self.append(BiRNN(cell_fw, cell_bw, time_major))
             for i in range(1, num_layers):
                 cell_fw = SimpleRNNCell(
-                    2 * hidden_size,
-                    hidden_size,
-                    nonlinearity=nonlinearity,
-                    dtype=dtype,
+                    2 * hidden_size, hidden_size, nonlinearity, dtype=dtype
                 )
                 cell_bw = SimpleRNNCell(
-                    2 * hidden_size,
-                    hidden_size,
-                    nonlinearity=nonlinearity,
-                    dtype=dtype,
+                    2 * hidden_size, hidden_size, nonlinearity, dtype=dtype
                 )
                 self.append(BiRNN(cell_fw, cell_bw, time_major))
         else:
@@ -553,38 +532,24 @@ class LSTM(RNNMixin):
         dropout=0.0,
         time_major=False,
         dtype="float64",
-        proj_size=None,
     ):
         super().__init__()
 
         bidirectional_list = ["bidirectional", "bidirect"]
-        in_size = proj_size or hidden_size
         if direction in ["forward"]:
             is_reverse = False
-            cell = LSTMCell(
-                input_size, hidden_size, dtype=dtype, proj_size=proj_size
-            )
+            cell = LSTMCell(input_size, hidden_size, dtype=dtype)
             self.append(RNN(cell, is_reverse, time_major))
             for i in range(1, num_layers):
-                cell = LSTMCell(
-                    in_size, hidden_size, dtype=dtype, proj_size=proj_size
-                )
+                cell = LSTMCell(hidden_size, hidden_size, dtype=dtype)
                 self.append(RNN(cell, is_reverse, time_major))
         elif direction in bidirectional_list:
-            cell_fw = LSTMCell(
-                input_size, hidden_size, dtype=dtype, proj_size=proj_size
-            )
-            cell_bw = LSTMCell(
-                input_size, hidden_size, dtype=dtype, proj_size=proj_size
-            )
+            cell_fw = LSTMCell(input_size, hidden_size, dtype=dtype)
+            cell_bw = LSTMCell(input_size, hidden_size, dtype=dtype)
             self.append(BiRNN(cell_fw, cell_bw, time_major))
             for i in range(1, num_layers):
-                cell_fw = LSTMCell(
-                    2 * in_size, hidden_size, dtype=dtype, proj_size=proj_size
-                )
-                cell_bw = LSTMCell(
-                    2 * in_size, hidden_size, dtype=dtype, proj_size=proj_size
-                )
+                cell_fw = LSTMCell(2 * hidden_size, hidden_size, dtype=dtype)
+                cell_bw = LSTMCell(2 * hidden_size, hidden_size, dtype=dtype)
                 self.append(BiRNN(cell_fw, cell_bw, time_major))
         else:
             raise ValueError(
@@ -599,7 +564,6 @@ class LSTM(RNNMixin):
         self.time_major = time_major
         self.num_layers = num_layers
         self.state_components = 2
-        self.proj_size = proj_size
 
 
 class GRU(RNNMixin):

@@ -1,7 +1,7 @@
 cc_library(
   global_utils
   SRCS global_utils.cc
-  DEPS phi common tracer)
+  DEPS place tracer)
 
 if(NOT (NOT WITH_PYTHON AND ON_INFER))
   cc_library(

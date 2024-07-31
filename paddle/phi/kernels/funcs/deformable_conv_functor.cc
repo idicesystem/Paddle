@@ -16,7 +16,8 @@
 
 #include "paddle/phi/backends/cpu/cpu_context.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename T>
 inline void ModulatedDeformableIm2colCPUKernel(
@@ -167,4 +168,5 @@ template void ModulatedDeformableIm2col(
     const int deformable_groups,
     double* data_col);
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

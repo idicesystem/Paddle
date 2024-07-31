@@ -77,8 +77,7 @@ class CommContextManager {
                                     int rank,
                                     int size,
                                     const std::string& hash_key = "",
-                                    const P2POption* opt = nullptr,
-                                    int nccl_comm_init_option = 0);
+                                    const P2POption* opt = nullptr);
 #endif
 
 #if defined(PADDLE_WITH_GLOO)

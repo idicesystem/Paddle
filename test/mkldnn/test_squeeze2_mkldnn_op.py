@@ -55,19 +55,10 @@ class TestSqueeze2OneDNNOp(OpTest):
         self.set_outputs()
 
     def test_check_output(self):
-        self.check_output_with_place(
-            core.CPUPlace(),
-            no_check_set=['XShape'],
-            check_pir_onednn=(self.op_type == "squeeze2"),
-        )
+        self.check_output_with_place(core.CPUPlace(), no_check_set=['XShape'])
 
     def test_check_grad(self):
-        self.check_grad_with_place(
-            core.CPUPlace(),
-            ["X"],
-            "Out",
-            check_pir_onednn=(self.op_type == "squeeze2"),
-        )
+        self.check_grad_with_place(core.CPUPlace(), ["X"], "Out")
 
 
 class TestSqueezeOneDNNOp(TestSqueeze2OneDNNOp):
@@ -167,7 +158,6 @@ def create_squeeze_bf16_test_classes(parent):
                 "Out",
                 user_defined_grads=[self.dx],
                 user_defined_grad_outputs=[self.dout],
-                check_pir_onednn=(self.op_type == "squeeze2"),
             )
 
     cls_name = "{}_{}".format(parent.__name__, "Squeeze2_BF16")
@@ -183,9 +173,7 @@ def create_squeeze_bf16_test_classes(parent):
             self.outputs = {"Out": self.x.reshape(self.new_shape)}
 
         def test_check_output(self):
-            self.check_output_with_place(
-                core.CPUPlace(), check_pir_onednn=(self.op_type == "squeeze2")
-            )
+            self.check_output_with_place(core.CPUPlace())
 
     cls_name = "{}_{}".format(parent.__name__, "Squeeze_BF16")
     TestSqueezeBF16OneDNNOp.__name__ = cls_name

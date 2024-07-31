@@ -171,10 +171,10 @@ class IpuStrategy {
     PADDLE_ENFORCE_NE(
         it == options.end(),
         true,
-        common::errors::InvalidArgument("Cannot find option: %s, type: %s "
-                                        "when setting IpuStrategy options",
-                                        key,
-                                        type_str));
+        platform::errors::InvalidArgument("Cannot find option: %s, type: %s "
+                                          "when setting IpuStrategy options",
+                                          key,
+                                          type_str));
     it->second(value);
   }
 
@@ -186,7 +186,7 @@ class IpuStrategy {
     PADDLE_ENFORCE_NE(
         it == options.end(),
         true,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Cannot find option name: %s when trying to get IpuStrategy option",
             key));
     return it->second();

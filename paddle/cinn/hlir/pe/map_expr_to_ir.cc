@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "paddle/cinn/adt/dim_expr.h"
+#include "paddle/cinn/adt/dim_expr_simplifier.h"
 #include "paddle/cinn/adt/equation_value_match_trait.h"
 #include "paddle/cinn/adt/inline_translator.h"
 #include "paddle/cinn/adt/map_expr.h"
@@ -30,8 +31,8 @@
 #include "paddle/cinn/ir/ir_base.h"
 #include "paddle/cinn/ir/ir_printer.h"
 #include "paddle/cinn/runtime/flags.h"
-#include "paddle/common/enforce.h"
-#include "paddle/pir/include/dialect/shape/ir/shape_op.h"
+#include "paddle/pir/dialect/shape/ir/shape_op.h"
+
 PD_DECLARE_bool(cinn_enable_map_expr_inline);
 
 namespace cinn::adt {
@@ -51,17 +52,18 @@ using LoopDescriptor4LoopIteratorT =
 
 class MapExprToIrTranslator {
  public:
-  explicit MapExprToIrTranslator(const MapExpr& map_expr,
-                                 const Node2LoweredFuncs& node2lowered_funcs,
-                                 const cinn::common::Target& target)
+  explicit MapExprToIrTranslator(
+      const MapExpr& map_expr,
+      const Node2LoweredFuncs& node2lowered_funcs,
+      const std::unordered_map<SymbolicDim, ::pir::shape::SymbolicDimOp>&
+          map_expr_symbolic2dialect_symbolic,
+      const cinn::common::Target& target)
       : map_expr_(map_expr),
         node2lowered_funcs_(&node2lowered_funcs),
+        map_expr_symbolic2dialect_symbolic_(map_expr_symbolic2dialect_symbolic),
         target_(target) {
     const auto& [anchored_map_stmts, _0, _1] = map_expr.tuple();
-    PADDLE_ENFORCE_EQ(anchored_map_stmts->size(),
-                      1,
-                      ::common::errors::InvalidArgument(
-                          "Only support one AnchoredMapStmt now!"));
+    CHECK_EQ(anchored_map_stmts->size(), 1);
     TensorIteratorExpr4Tensor = std::get<4>(anchored_map_stmts->at(0).tuple());
     LoopDescriptor4LoopIterator =
         std::get<5>(anchored_map_stmts->at(0).tuple());
@@ -77,32 +79,15 @@ class MapExprToIrTranslator {
   ir::Expr GetStoreExprForOp(const ::pir::Operation* op) const {
     const auto& iter =
         node2lowered_funcs_->find(const_cast<::pir::Operation*>(op));
-    PADDLE_ENFORCE_NE(iter,
-                      node2lowered_funcs_->end(),
-                      phi::errors::InvalidArgument(
-                          "Iterator reached the end, which indicates the node "
-                          "was not found in node2lowered_funcs_."));
-
+    CHECK(iter != node2lowered_funcs_->end());
     const auto& lowered_funcs = iter->second;
-    PADDLE_ENFORCE_EQ(
-        lowered_funcs.size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one LoweredFunc now!"));
+    CHECK_EQ(lowered_funcs.size(), 1);
     std::optional<ir::Expr> ret{std::nullopt};
     VisitEachStoreExpr(lowered_funcs.at(0), [&](const ir::Expr& expr) {
-      PADDLE_ENFORCE_EQ(
-          ret.has_value(),
-          false,
-          phi::errors::InvalidArgument(
-              "ret already has a value. Expected it to be uninitialized."));
+      CHECK(!ret.has_value());
       ret = expr;
     });
-    PADDLE_ENFORCE_EQ(
-        ret.has_value(),
-        true,
-        phi::errors::InvalidArgument(
-            "ret does not have a value after VisitEachStoreExpr execution."));
-
+    CHECK(ret.has_value());
     return ret.value();
   }
 
@@ -110,24 +95,14 @@ class MapExprToIrTranslator {
       const tReduceInit<const ::pir::Operation*>& op) const {
     const auto& iter =
         node2lowered_funcs_->find(const_cast<::pir::Operation*>(op.value()));
-    PADDLE_ENFORCE_NE(iter,
-                      node2lowered_funcs_->end(),
-                      phi::errors::NotFound(
-                          "The node was not found in node2lowered_funcs_."));
-
+    CHECK(iter != node2lowered_funcs_->end());
     const auto& lowered_funcs = iter->second;
-    PADDLE_ENFORCE_EQ(
-        lowered_funcs.size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one LoweredFunc now!"));
+    CHECK_EQ(lowered_funcs.size(), 1);
     std::vector<ir::Expr> stores{};
     VisitEachStoreExpr(lowered_funcs.at(0), [&](const ir::Expr& expr) {
       stores.emplace_back(expr);
     });
-    PADDLE_ENFORCE_EQ(stores.size(),
-                      2,
-                      ::common::errors::InvalidArgument(
-                          "Only support two stores for tReduceInit now!"));
+    CHECK_EQ(stores.size(), 2);
     return stores.at(0);
   }
 
@@ -135,24 +110,14 @@ class MapExprToIrTranslator {
       const tReduceAcc<const ::pir::Operation*>& op) const {
     const auto& iter =
         node2lowered_funcs_->find(const_cast<::pir::Operation*>(op.value()));
-    PADDLE_ENFORCE_NE(iter,
-                      node2lowered_funcs_->end(),
-                      phi::errors::NotFound(
-                          "The node was not found in node2lowered_funcs_."));
-
+    CHECK(iter != node2lowered_funcs_->end());
     const auto& lowered_funcs = iter->second;
-    PADDLE_ENFORCE_EQ(
-        lowered_funcs.size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one LoweredFunc now!"));
+    CHECK_EQ(lowered_funcs.size(), 1);
     std::vector<ir::Expr> stores{};
     VisitEachStoreExpr(lowered_funcs.at(0), [&](const ir::Expr& expr) {
       stores.emplace_back(expr);
     });
-    PADDLE_ENFORCE_EQ(stores.size(),
-                      2,
-                      ::common::errors::InvalidArgument(
-                          "Only support two stores for tReduceAcc now!"));
+    CHECK_EQ(stores.size(), 2);
     return stores.at(1);
   }
 
@@ -198,9 +163,8 @@ class MapExprToIrTranslator {
         DoEach(expr);
         break;
       default:
-        std::stringstream ss;
-        ss << "Visit node_type = " << expr.node_type() << ", not supported!";
-        PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+        LOG(FATAL) << "Visit node_type = " << expr.node_type()
+                   << ", not supported!";
         break;
     }
   }
@@ -214,10 +178,7 @@ class MapExprToIrTranslator {
 
   ir::Expr Translate(const MapExpr& map_expr) const {
     const auto& [anchored_map_stmts, _0, _1] = map_expr.tuple();
-    PADDLE_ENFORCE_EQ(anchored_map_stmts->size(),
-                      1,
-                      ::common::errors::InvalidArgument(
-                          "Only support one AnchoredMapStmt now!"));
+    CHECK_EQ(anchored_map_stmts->size(), 1);
     return Translate(anchored_map_stmts->at(0));
   }
 
@@ -234,10 +195,7 @@ class MapExprToIrTranslator {
 
   InternalStmt ConvertToInternalStmtImpl(const OpStmt& op_stmt) const {
     const auto& [op, inputs, outputs] = op_stmt.tuple();
-    PADDLE_ENFORCE_EQ(
-        outputs.value()->size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one output now!"));
+    CHECK_EQ(outputs.value()->size(), 1);
     List<Load<Tensor>> loads{};
     for (const auto& in : *inputs.value()) {
       loads->emplace_back(Load<Tensor>{in});
@@ -267,7 +225,7 @@ class MapExprToIrTranslator {
     } else {
       return NoInlineTranslator<MapStmt, OpCall, Tensor>::Call(internal_stmt);
     }
-    PADDLE_THROW(::common::errors::Fatal("Dead code"));
+    LOG(FATAL) << "Dead code";
   }
 
   std::optional<ir::Expr> TranslateOpExprImpl(
@@ -280,8 +238,7 @@ class MapExprToIrTranslator {
   std::vector<ir::Expr> TranslateTensorIndexImpl(
       const OpCall<OpExpr>& op_call,
       const IterExprs4TensorT& IterExprs4Tensor) const {
-    PADDLE_THROW(::common::errors::InvalidArgument(
-        "Dead code, no TensorIndexExpr for OpCall"));
+    LOG(FATAL) << "Dead code, no TensorIndexExpr for OpCall";
   }
 
   std::vector<ir::Expr> TranslateTensorIndexImpl(
@@ -306,14 +263,8 @@ class MapExprToIrTranslator {
       const List<OpExpr>& op_expr_children,
       const IterExprs4TensorT& IterExprs4Tensor) const {
     ir::Expr store_rvalue = ir::ir_utils::IRCopy(input_expr);
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        0,
-        ::common::errors::InvalidArgument("Only support one operand!"));
-    PADDLE_ENFORCE_EQ(
-        op_expr_children->size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one child!"));
+    CHECK_EQ(store_rvalue->operands.size(), 0);
+    CHECK_EQ(op_expr_children->size(), 1);
     store_rvalue.As<ir::Load>()->indices =
         TranslateTensorIndex(op_expr_children->at(0), IterExprs4Tensor);
     return store_rvalue;
@@ -324,20 +275,10 @@ class MapExprToIrTranslator {
       const List<OpExpr>& op_expr_children,
       const IterExprs4TensorT& IterExprs4Tensor) const {
     ir::Expr store_rvalue = ir::ir_utils::IRCopy(input_expr);
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        0,
-        ::common::errors::InvalidArgument("Only support one operand!"));
-    PADDLE_ENFORCE_EQ(
-        op_expr_children->empty(),
-        false,
-        phi::errors::InvalidArgument("The op_expr_children list is empty. "
-                                     "Expected it to contain elements."));
-
-    PADDLE_ENFORCE_EQ(
-        (store_rvalue.As<ir::Call>()->read_args.size()),
-        (op_expr_children->size()),
-        ::common::errors::InvalidArgument("Mismatched read_args size"));
+    CHECK_EQ(store_rvalue->operands.size(), 0);
+    CHECK(!op_expr_children->empty());
+    CHECK_EQ((store_rvalue.As<ir::Call>()->read_args.size()),
+             (op_expr_children->size()));
     for (int i = 0; i < op_expr_children->size(); ++i) {
       const auto& opt_operant = TranslateOpExpr(
           op_expr_children->at(i), std::nullopt, IterExprs4Tensor);
@@ -358,10 +299,7 @@ class MapExprToIrTranslator {
       const List<OpExpr>& op_expr_children,
       const IterExprs4TensorT& IterExprs4Tensor) const {
     ir::Expr store_rvalue = ir::ir_utils::IRCopy(input_expr);
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        op_expr_children->size(),
-        ::common::errors::InvalidArgument("Mismatched operands size"));
+    CHECK_EQ(store_rvalue->operands.size(), op_expr_children->size());
     for (int i = 0; i < op_expr_children->size(); ++i) {
       const auto& opt_operant = TranslateOpExpr(
           op_expr_children->at(i), std::nullopt, IterExprs4Tensor);
@@ -382,14 +320,8 @@ class MapExprToIrTranslator {
     // Scale Expr example: ((float32(0.00130208337f) * var_4[i0_4, i1_4, i2_2])
     // + float32(0.00000000f))
     ir::Expr store_rvalue = ir::ir_utils::IRCopy(input_expr);
-    PADDLE_ENFORCE_EQ(
-        op_expr_children->size(),
-        1,
-        ::common::errors::InvalidArgument("Only support one child!"));
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        2,
-        ::common::errors::InvalidArgument("Mismatched operands size"));
+    CHECK_EQ(op_expr_children->size(), 1);
+    CHECK_EQ(store_rvalue->operands.size(), 2);
     const auto& opt_operant = TranslateOpExpr(
         op_expr_children->at(0), std::nullopt, IterExprs4Tensor);
 
@@ -427,13 +359,9 @@ class MapExprToIrTranslator {
     static std::unordered_map<std::string, MakeStoreRvalueExprT>
         MakeStoreRvalueExpr4Op(MakeGetterMakeStoreRvalueExpr4Op());
     const auto& iter = MakeStoreRvalueExpr4Op.find(op_name);
-    PADDLE_ENFORCE_NE(iter,
-                      MakeStoreRvalueExpr4Op.end(),
-                      phi::errors::Unimplemented(
-                          "Operation %s is not supported yet! store_expr: %s",
-                          op_name,
-                          store_expr));
-
+    CHECK(iter != MakeStoreRvalueExpr4Op.end())
+        << "Operation " << op_name
+        << " not supported yet! store_expr: " << store_expr;
     return iter->second;
   }
 
@@ -447,13 +375,7 @@ class MapExprToIrTranslator {
       return GetStoreExpr(op_expr).value().As<ir::Store>()->value;
     }
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
-    PADDLE_ENFORCE_EQ(store_expr.has_value(),
-                      true,
-                      phi::errors::InvalidArgument(
-                          "Expected store_expr to have a value, but it is "
-                          "currently uninitialized or empty. Ensure that the "
-                          "store_expr is correctly set before this check."));
-
+    CHECK(store_expr.has_value());
     ir::Expr store_rvalue = store_expr.value().As<ir::Store>()->value;
     if (store_rvalue.As<ir::Load>()) {
       return MakeLoadExpr(store_rvalue, op_expr_children, IterExprs4Tensor);
@@ -464,7 +386,7 @@ class MapExprToIrTranslator {
       return (this->*make_store_rvalue_expr)(
           store_rvalue, op_expr_children, IterExprs4Tensor);
     }
-    PADDLE_THROW(::common::errors::Fatal("Dead code"));
+    LOG(FATAL) << "Dead code";
   }
 
   std::optional<ir::Expr> TranslateOpCallImpl(
@@ -474,24 +396,12 @@ class MapExprToIrTranslator {
       const IterExprs4TensorT& IterExprs4Tensor) const {
     const auto& [_, op_expr_children] = op_expr.tuple();
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
-    PADDLE_ENFORCE_EQ(store_expr.has_value(),
-                      true,
-                      phi::errors::InvalidArgument(
-                          "Expected store_expr to have a value, but it is "
-                          "currently uninitialized or empty. Ensure that the "
-                          "store_expr is correctly set before this check."));
-
+    CHECK(store_expr.has_value());
     ir::Expr store_rvalue = store_expr.value().As<ir::Store>()->value;
     VLOG(1) << "tReduceInit store_rvalue:\n" << store_rvalue;
 
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        0,
-        ::common::errors::InvalidArgument("Mismatched operands size"));
-    PADDLE_ENFORCE_EQ(
-        op_expr_children->size(),
-        0,
-        ::common::errors::InvalidArgument("Mismatched children size"));
+    CHECK_EQ(store_rvalue->operands.size(), 0);
+    CHECK_EQ(op_expr_children->size(), 0);
     return store_rvalue;
   }
 
@@ -502,32 +412,13 @@ class MapExprToIrTranslator {
       const IterExprs4TensorT& IterExprs4Tensor) const {
     const auto& [_, op_expr_children] = op_expr.tuple();
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
-    PADDLE_ENFORCE_EQ(store_expr.has_value(),
-                      true,
-                      phi::errors::InvalidArgument(
-                          "Expected store_expr to have a value, but it is "
-                          "currently uninitialized or empty. Ensure that the "
-                          "store_expr is correctly set before this check."));
-
+    CHECK(store_expr.has_value());
     ir::Expr store_rvalue = store_expr.value().As<ir::Store>()->value;
     VLOG(1) << "tReduceAcc store_rvalue:\n" << store_rvalue;
 
-    PADDLE_ENFORCE_EQ(
-        store_rvalue->operands.size(),
-        2,
-        ::common::errors::InvalidArgument("Mismatched operands size"));
-    PADDLE_ENFORCE_EQ(
-        op_expr_children->size(),
-        1,
-        ::common::errors::InvalidArgument("Mismatched children size"));
-    PADDLE_ENFORCE_EQ(
-        opt_output_tensor.has_value(),
-        true,
-        phi::errors::InvalidArgument(
-            "Expected opt_output_tensor to have a value, but it is currently "
-            "uninitialized or empty. Ensure that the opt_output_tensor is "
-            "correctly set before this check."));
-
+    CHECK_EQ(store_rvalue->operands.size(), 2);
+    CHECK_EQ(op_expr_children->size(), 1);
+    CHECK(opt_output_tensor.has_value());
     store_rvalue->operands.at(0).As<ir::Load>()->indices =
         IterExprs4Tensor(opt_output_tensor.value());
     {
@@ -624,14 +515,7 @@ class MapExprToIrTranslator {
         ir::Var var{std::string("m_expr_i_") +
                     std::to_string(UniqueId::New().unique_id())};
         ir::Expr expr = TranslateTensorIterator(value);
-        PADDLE_ENFORCE_EQ(
-            value2var_expr.emplace(value, std::make_pair(var, expr)).second,
-            true,
-            phi::errors::InvalidArgument(
-                "Failed to insert the value-var-expr pair into value2var_expr. "
-                "This indicates that the value already exists in the map. "
-                "Ensure that each value is unique before inserting."));
-
+        CHECK(value2var_expr.emplace(value, std::make_pair(var, expr)).second);
       } else {
         // Do nothing
       }
@@ -645,14 +529,7 @@ class MapExprToIrTranslator {
       ret.reserve(iterator_values->size());
       for (const auto& iterator_value : *iterator_values) {
         const auto& it = value2var_expr.find(iterator_value);
-        PADDLE_ENFORCE_NE(
-            it,
-            value2var_expr.end(),
-            phi::errors::NotFound(
-                "The iterator reached the end of value2var_expr, indicating "
-                "that the value was not found in the map. Ensure that the "
-                "value exists in the map before attempting to access it."));
-
+        CHECK(it != value2var_expr.end());
         ret.emplace_back(it->second.first);
       }
       return ret;
@@ -683,13 +560,7 @@ class MapExprToIrTranslator {
   ir::Expr Translate(const OpExprStmt& op_expr_stmt) const {
     const auto& [output_tensor, op_expr] = op_expr_stmt.tuple();
     std::optional<ir::Expr> store_expr = GetStoreExpr(op_expr);
-    PADDLE_ENFORCE_EQ(store_expr.has_value(),
-                      true,
-                      phi::errors::InvalidArgument(
-                          "Expected store_expr to have a value, but it is "
-                          "currently uninitialized or empty. Ensure that the "
-                          "store_expr is correctly set before this check."));
-
+    CHECK(store_expr.has_value());
     std::optional<Tensor> opt_output_tensor = output_tensor;
 
     std::vector<std::pair<ir::Var, ir::Expr>> binding_var2value{};
@@ -698,12 +569,7 @@ class MapExprToIrTranslator {
 
     const auto& opt_rvalue =
         TranslateOpExpr(op_expr, opt_output_tensor, IterExprs4Tensor);
-    PADDLE_ENFORCE_EQ(opt_rvalue.has_value(),
-                      true,
-                      phi::errors::InvalidArgument(
-                          "Expected opt_rvalue to have a value, but it is "
-                          "currently uninitialized or empty. Ensure that "
-                          "opt_rvalue is correctly set before this check."));
+    CHECK(opt_rvalue.has_value());
 
     const auto& output_expr =
         ir::Store::Make(store_expr.value().As<ir::Store>()->tensor,
@@ -732,10 +598,7 @@ class MapExprToIrTranslator {
   ir::Expr TranslateImpl(const MapStmt<InlineStmt>& map_stmt) const {
     const auto& [iterators, stmts] = map_stmt.tuple();
     ir::Expr ret = Translate(stmts);
-    PADDLE_ENFORCE_GT(iterators->size(),
-                      0,
-                      ::common::errors::InvalidArgument(
-                          "iterators->size() should be greater than 0"));
+    CHECK_GT(iterators->size(), 0);
     for (int i = iterators->size() - 1; i >= 0; --i) {
       const auto& iterator = iterators->at(i);
       const auto& ld = LoopDescriptor4LoopIterator(iterator);
@@ -827,14 +690,13 @@ class MapExprToIrTranslator {
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
   GetForTypeAndInfoImpl(const Vectorize& loop_type,
                         const LoopDescriptor& ld) const {
-    PADDLE_THROW(
-        ::common::errors::InvalidArgument("Vectorize not supported yet"));
+    LOG(FATAL) << "Vectorize not supported yet";
   }
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo>
   GetForTypeAndInfoImpl(const Unroll& loop_type,
                         const LoopDescriptor& ld) const {
-    PADDLE_THROW(::common::errors::InvalidArgument("Unroll not supported yet"));
+    LOG(FATAL) << "Unroll not supported yet";
   }
 
   std::tuple<ir::ForType, ir::VectorizeInfo, ir::BindInfo> GetForTypeAndInfo(
@@ -847,7 +709,7 @@ class MapExprToIrTranslator {
 
   ir::Expr Accumulate(const std::vector<ir::Expr>& ir_exprs) const {
     if (ir_exprs.size() == 0) {
-      PADDLE_THROW(::common::errors::Fatal("Dead code"));
+      LOG(FATAL) << "Dead code";
     } else if (ir_exprs.size() == 1) {
       return ir_exprs.at(0);
     } else {
@@ -857,12 +719,12 @@ class MapExprToIrTranslator {
       }
       return ret;
     }
-    PADDLE_THROW(::common::errors::Fatal("Dead code"));
+    LOG(FATAL) << "Dead code";
   }
 
   ir::Expr Multiply(const std::vector<ir::Expr>& ir_exprs) const {
     if (ir_exprs.size() == 0) {
-      PADDLE_THROW(::common::errors::Fatal("Dead code"));
+      LOG(FATAL) << "Dead code";
     } else if (ir_exprs.size() == 1) {
       return ir_exprs.at(0);
     } else {
@@ -872,18 +734,12 @@ class MapExprToIrTranslator {
       }
       return ret;
     }
-    PADDLE_THROW(::common::errors::Fatal("Dead code"));
+    LOG(FATAL) << "Dead code";
   }
 
   ir::Expr GetStride(const List<DimExpr>& dims, int start) const {
-    PADDLE_ENFORCE_GE(start,
-                      -1,
-                      ::common::errors::InvalidArgument(
-                          "start should be greater than or equal to -1"));
-    PADDLE_ENFORCE_LT(start + 1,
-                      dims->size(),
-                      ::common::errors::InvalidArgument(
-                          "start + 1 should be less than dims->size()"));
+    CHECK_GE(start, -1);
+    CHECK_LT(start + 1, dims->size());
     ir::Expr ret = TranslateDimExpr(dims->at(start + 1));
     for (int idx = start + 2; idx < dims->size(); ++idx) {
       ret = ir::Mul::Make(ret, TranslateDimExpr(dims->at(idx)));
@@ -896,11 +752,7 @@ class MapExprToIrTranslator {
     const auto& [list_value, dim_values] =
         value.Get<IndexDotValue<Value, List<DimExpr>>>().tuple();
     const auto& values = list_value.Get<List<Value>>();
-    PADDLE_ENFORCE_EQ(
-        values->size(),
-        dim_values->size(),
-        ::common::errors::InvalidArgument(
-            "values->size() should be equal to dim_values->size()"));
+    CHECK_EQ(values->size(), dim_values->size());
 
     std::vector<ir::Expr> strided_exprs{};
     for (std::size_t i = 0; i < values->size(); ++i) {
@@ -937,52 +789,43 @@ class MapExprToIrTranslator {
   }
 
   ir::Expr TranslateDimExprImpl(const SymbolicDim& dim_expr) const {
-    return ir::Var{dim_expr};
+    CHECK_GT(map_expr_symbolic2dialect_symbolic_.count(dim_expr), 0);
+    return ir::Var{
+        map_expr_symbolic2dialect_symbolic_.at(dim_expr).GetSymName()};
   }
 
-  ir::Expr TranslateDimExprImpl(
-      const ::symbol::Negative<DimExpr>& dim_expr) const {
-    const auto& [inner_dim_expr] = *dim_expr;
+  ir::Expr TranslateDimExprImpl(const Negative<DimExpr>& dim_expr) const {
+    const auto& [inner_dim_expr] = dim_expr.tuple();
     ir::Expr inner_expr = TranslateDimExpr(inner_dim_expr);
     return ir::Sub::Make(ir::Expr(0), inner_expr);
   }
 
-  ir::Expr TranslateDimExprImpl(
-      const ::symbol::Reciprocal<DimExpr>& dim_expr) const {
-    const auto& [inner_dim_expr] = *dim_expr;
+  ir::Expr TranslateDimExprImpl(const Reciprocal<DimExpr>& dim_expr) const {
+    const auto& [inner_dim_expr] = dim_expr.tuple();
     ir::Expr inner_expr = TranslateDimExpr(inner_dim_expr);
     return ir::Div::Make(ir::Expr(1), inner_expr);
   }
 
-  ir::Expr TranslateDimExprImpl(const ::symbol::Add<DimExpr>& dim_expr) const {
+  ir::Expr TranslateDimExprImpl(const Sum<DimExpr>& dim_expr) const {
     std::vector<ir::Expr> ir_exprs{};
-    const auto& [exprs] = dim_expr;
+    const auto& [exprs] = dim_expr.tuple();
     for (const auto& expr : *exprs) {
       ir_exprs.emplace_back(TranslateDimExpr(expr));
     }
     return Accumulate(ir_exprs);
   }
 
-  ir::Expr TranslateDimExprImpl(const ::symbol::Mul<DimExpr>& dim_expr) const {
+  ir::Expr TranslateDimExprImpl(const Product<DimExpr>& dim_expr) const {
     std::vector<ir::Expr> ir_exprs{};
-    const auto& [exprs] = dim_expr;
+    const auto& [exprs] = dim_expr.tuple();
     for (const auto& expr : *exprs) {
       ir_exprs.emplace_back(TranslateDimExpr(expr));
     }
     return Multiply(ir_exprs);
   }
 
-  ir::Expr TranslateDimExprImpl(const ::symbol::Max<DimExpr>& dim_expr) const {
-    PADDLE_THROW(::common::errors::Unimplemented("Not supported yet"));
-  }
-
-  ir::Expr TranslateDimExprImpl(const ::symbol::Min<DimExpr>& dim_expr) const {
-    PADDLE_THROW(::common::errors::Unimplemented("Not supported yet"));
-  }
-
-  ir::Expr TranslateDimExprImpl(
-      const ::symbol::Broadcast<DimExpr>& dim_expr) const {
-    PADDLE_THROW(::common::errors::Unimplemented("Not supported yet"));
+  ir::Expr TranslateDimExprImpl(const BroadcastedDim<DimExpr>& dim_expr) const {
+    LOG(FATAL) << "Not Supported yet";
   }
 
   ir::Expr TranslateDimExpr(const Value& value) const {
@@ -1012,9 +855,7 @@ class MapExprToIrTranslator {
     } else if (Match<BroadcastedSymbolicIterator>(value)) {
       return TranslateBI(value);
     } else {
-      std::stringstream ss;
-      ss << "Not supported yet! " << ToTxtString(value);
-      PADDLE_THROW(::common::errors::InvalidArgument(ss.str()));
+      LOG(FATAL) << "Not supported yet! " << ToTxtString(value);
     }
   }
 
@@ -1032,6 +873,8 @@ class MapExprToIrTranslator {
   const cinn::common::Target target_;
   TensorIteratorExpr4TensorT TensorIteratorExpr4Tensor;
   LoopDescriptor4LoopIteratorT LoopDescriptor4LoopIterator;
+  std::unordered_map<SymbolicDim, ::pir::shape::SymbolicDimOp>
+      map_expr_symbolic2dialect_symbolic_;
 };
 
 }  // namespace
@@ -1039,8 +882,10 @@ class MapExprToIrTranslator {
 ir::Expr MapExprToIr(const MapExprCtx& map_expr_ctx,
                      const cinn::common::Target& target) {
   const auto& expr =
-      MapExprToIrTranslator(
-          map_expr_ctx.map_expr(), map_expr_ctx.node2lowered_funcs(), target)
+      MapExprToIrTranslator(map_expr_ctx.map_expr(),
+                            map_expr_ctx.node2lowered_funcs(),
+                            map_expr_ctx.map_expr_symbolic2dialect_symbolic(),
+                            target)
           .Translate();
   VLOG(1) << "Finish MapExprToIr\n" << expr;
   return expr;

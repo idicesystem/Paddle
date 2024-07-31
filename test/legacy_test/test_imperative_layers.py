@@ -85,9 +85,7 @@ class TestLayerPrint(unittest.TestCase):
         self.assertEqual(str(module), 'Tanhshrink()')
 
         module = nn.ThresholdedReLU()
-        self.assertEqual(
-            str(module), 'ThresholdedReLU(threshold=1.0, value=0.0)'
-        )
+        self.assertEqual(str(module), 'ThresholdedReLU(threshold=1.0)')
 
         module = nn.LogSigmoid()
         self.assertEqual(str(module), 'LogSigmoid()')
@@ -110,7 +108,7 @@ class TestLayerPrint(unittest.TestCase):
         module = nn.Upsample(size=[12, 12])
         self.assertEqual(
             str(module),
-            'Upsample(size=[12, 12], mode=nearest, align_corners=False, align_mode=0, data_format=None)',
+            'Upsample(size=[12, 12], mode=nearest, align_corners=False, align_mode=0, data_format=NCHW)',
         )
 
         module = nn.UpsamplingNearest2D(size=[12, 12])

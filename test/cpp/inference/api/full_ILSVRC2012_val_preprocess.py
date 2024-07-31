@@ -165,7 +165,9 @@ def run_convert():
     ):
         if os.path.exists(output_file):
             sys.stderr.write(
-                f"\n\nThe existing binary file[{output_file}] is broken. Start to generate new one...\n\n"
+                "\n\nThe existing binary file[{}] is broken. Start to generate new one...\n\n".format(
+                    output_file
+                )
             )
             os.remove(output_file)
         if retry < try_limit:
@@ -227,7 +229,9 @@ def convert_Imagenet_local2bin(args):
         )
         if os.path.getsize(bin_file_path) == target_size:
             print(
-                f"Success! The user data output binary file can be found at: {bin_file_path}"
+                "Success! The user data output binary file can be found at: {}".format(
+                    bin_file_path
+                )
             )
         else:
             print("Conversion failed!")

@@ -19,7 +19,9 @@
 #include "paddle/phi/backends/cpu/cpu_info.h"
 #include "paddle/phi/kernels/funcs/jit/registry.h"
 
-namespace phi::jit::gen {
+namespace phi {
+namespace jit {
+namespace gen {
 
 void MatMulJitCode::genCode() {
   preCode();
@@ -32,7 +34,7 @@ void MatMulJitCode::genCode() {
                                    "be larger than 0. But it is %d.",
                                    groups.front()));
 
-  const int block_len = sizeof(float) * block;  // NOLINT
+  const int block_len = sizeof(float) * block;
   const int x_reg_idx = (block == ZMM_FLOAT_BLOCK ? 32 : 16) - 1;
   const int w_reg_idx = x_reg_idx - 1;
   // from packed mov(reg_ptr_wgt, ptr[param_attr + offsetof(matmul_attr_t,
@@ -145,7 +147,9 @@ class MatMulCreator : public JitCodeCreator<matmul_attr_t> {
   }
 };
 
-}  // namespace phi::jit::gen
+}  // namespace gen
+}  // namespace jit
+}  // namespace phi
 
 namespace gen = phi::jit::gen;
 

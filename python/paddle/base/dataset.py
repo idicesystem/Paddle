@@ -15,7 +15,6 @@
 
 from google.protobuf import text_format
 
-import paddle
 from paddle.base.proto import data_feed_pb2
 
 from ..utils import deprecated
@@ -60,7 +59,9 @@ class DatasetFactory:
             dataset = globals()[datafeed_class]()
             return dataset
         except:
-            raise ValueError(f"datafeed class {datafeed_class} does not exist")
+            raise ValueError(
+                "datafeed class %s does not exist" % datafeed_class
+            )
 
 
 class DatasetBase:
@@ -270,11 +271,11 @@ class DatasetBase:
             if var.lod_level == 0:
                 slot_var.is_dense = True
                 slot_var.shape.extend(var.shape)
-            if var.dtype == paddle.float32:
+            if var.dtype == core.VarDesc.VarType.FP32:
                 slot_var.type = "float"
-            elif var.dtype == paddle.int64:
+            elif var.dtype == core.VarDesc.VarType.INT64:
                 slot_var.type = "uint64"
-            elif var.dtype == paddle.int32:
+            elif var.dtype == core.VarDesc.VarType.INT32:
                 slot_var.type = "uint32"
             else:
                 raise ValueError(
@@ -481,7 +482,7 @@ class InMemoryDataset(DatasetBase):
     )
     def set_parse_ins_id(self, parse_ins_id):
         """
-        Set id Dataset need to parse ins_id
+        Set id Dataset need to parse insid
 
         Args:
             parse_ins_id(bool): if parse ins_id or not
@@ -610,7 +611,7 @@ class InMemoryDataset(DatasetBase):
 
     def set_current_phase(self, current_phase):
         """
-        Set current phase in train. It is useful for unittest.
+        Set current phase in train. It is useful for untest.
         current_phase : 1 for join, 0 for update.
 
         Examples:

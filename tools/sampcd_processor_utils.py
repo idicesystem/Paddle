@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import argparse
 import inspect
 import logging
@@ -48,13 +46,7 @@ ENV_KEY_TEST_CAPACITY = 'SAMPLE_CODE_TEST_CAPACITY'
 API_DEV_SPEC_FN = 'paddle/fluid/API_DEV.spec'
 API_PR_SPEC_FN = 'paddle/fluid/API_PR.spec'
 API_DIFF_SPEC_FN = 'dev_pr_diff_api.spec'
-TEST_TIMEOUT = 15
-
-PAT_API_SPEC_MEMBER = re.compile(r'\((paddle[^,]+)\W*document\W*([0-9a-z]{32})')
-# insert ArgSpec for changing the API's type annotation can trigger the CI
-PAT_API_SPEC_SIGNATURE = re.compile(
-    r'^(paddle[^,]+)\s+\((ArgSpec.*),.*document\W*([0-9a-z]{32})'
-)
+TEST_TIMEOUT = 10
 
 
 class Result:
@@ -74,7 +66,7 @@ class Result:
     order: int = 0
 
     @classmethod
-    def msg(cls, count: int, env: set) -> str:
+    def msg(cls, count: int, env: typing.Set) -> str:
         """Message for logging with api `count` and running `env`."""
         raise NotImplementedError
 
@@ -93,8 +85,8 @@ class MetaResult(type):
     def __new__(
         mcs,
         name: str,
-        bases: tuple[type, ...],
-        namespace: dict[str, typing.Any],
+        bases: typing.Tuple[type, ...],
+        namespace: typing.Dict[str, typing.Any],
     ) -> type:
         cls = super().__new__(mcs, name, bases, namespace)
         if issubclass(cls, Result):
@@ -112,7 +104,7 @@ class MetaResult(type):
         return mcs.__cls_map.get(name)
 
     @classmethod
-    def cls_map(mcs) -> dict[str, Result]:
+    def cls_map(mcs) -> typing.Dict[str, Result]:
         return mcs.__cls_map
 
 
@@ -298,7 +290,7 @@ class DocTester:
         """
         pass
 
-    def run(self, api_name: str, docstring: str) -> list[TestResult]:
+    def run(self, api_name: str, docstring: str) -> typing.List[TestResult]:
         """Extract codeblocks from docstring, and run the test.
         Run only one docstring at a time.
 
@@ -312,7 +304,7 @@ class DocTester:
         raise NotImplementedError
 
     def print_summary(
-        self, test_results: list[TestResult], whl_error: list[str]
+        self, test_results: typing.List[TestResult], whl_error: typing.List[str]
     ) -> None:
         """Post process test results and print test summary.
 
@@ -341,39 +333,28 @@ def get_api_md5(path):
     API_spec = os.path.abspath(os.path.join(os.getcwd(), "..", path))
     if not os.path.isfile(API_spec):
         return api_md5
-
+    pat = re.compile(r'\((paddle[^,]+)\W*document\W*([0-9a-z]{32})')
+    patArgSpec = re.compile(
+        r'^(paddle[^,]+)\s+\(ArgSpec.*document\W*([0-9a-z]{32})'
+    )
     with open(API_spec) as f:
         for line in f.readlines():
-            mo = PAT_API_SPEC_MEMBER.search(line)
-
+            mo = pat.search(line)
+            if not mo:
+                mo = patArgSpec.search(line)
             if mo:
                 api_md5[mo.group(1)] = mo.group(2)
-            else:
-                mo = PAT_API_SPEC_SIGNATURE.search(line)
-                api_md5[mo.group(1)] = f'{mo.group(2)}, {mo.group(3)}'
-
     return api_md5
 
 
-def get_incrementapi(
-    api_dev_spec_fn: str | None = None,
-    api_pr_spec_fn: str | None = None,
-    api_diff_spec_fn: str | None = None,
-) -> None:
+def get_incrementapi():
     '''
     this function will get the apis that difference between API_DEV.spec and API_PR.spec.
     '''
     global API_DEV_SPEC_FN, API_PR_SPEC_FN, API_DIFF_SPEC_FN  # readonly
-
-    dev_api = get_api_md5(
-        API_DEV_SPEC_FN if api_dev_spec_fn is None else api_dev_spec_fn
-    )
-    pr_api = get_api_md5(
-        API_PR_SPEC_FN if api_pr_spec_fn is None else api_pr_spec_fn
-    )
-    with open(
-        API_DIFF_SPEC_FN if api_diff_spec_fn is None else api_diff_spec_fn, 'w'
-    ) as f:
+    dev_api = get_api_md5(API_DEV_SPEC_FN)
+    pr_api = get_api_md5(API_PR_SPEC_FN)
+    with open(API_DIFF_SPEC_FN, 'w') as f:
         for key in pr_api:
             if key in dev_api:
                 if dev_api[key] != pr_api[key]:
@@ -414,6 +395,18 @@ def get_full_api_from_pr_spec():
             f.write("\n".join(pr_api.keys()))
     else:
         get_full_api_by_walk()
+
+
+def get_full_api():
+    """
+    get all the apis
+    """
+    global API_DIFF_SPEC_FN  # readonly
+    from print_signatures import get_all_api_from_modulelist
+
+    member_dict = get_all_api_from_modulelist()
+    with open(API_DIFF_SPEC_FN, 'w') as f:
+        f.write("\n".join(member_dict.keys()))
 
 
 def extract_code_blocks_from_docstr(docstr, google_style=True):
@@ -606,51 +599,34 @@ def get_test_capacity(run_on_device="cpu"):
     return sample_code_test_capacity
 
 
-def get_docstring(
-    full_test: bool = False,
-    filter_api: typing.Callable[[str], bool] | None = None,
-    apis: list[tuple[str, str]] | None = None,
-):
+def get_docstring(full_test=False):
     '''
     this function will get the docstring for test.
-
-    Args:
-        full_test, get all api
-        filter_api, a function that filter api, if `True` then skip add to `docstrings_to_test`.
-        apis, checking apis with ((line, api), (line, api), ...) like (("paddle.abs", "paddle.abs"), ("paddle.sin", "paddle.sin"), ...).
-            Do NOT use `full_test` and `apis` at the same time.
     '''
-    import paddle
+    import paddle  # noqa: F401
     import paddle.static.quantization  # noqa: F401
+
+    if full_test:
+        get_full_api_from_pr_spec()
+    else:
+        get_incrementapi()
 
     docstrings_to_test = {}
     whl_error = []
-
-    if apis is None or not apis:
-        # get api from spec
-        if full_test:
-            get_full_api_from_pr_spec()
-        else:
-            get_incrementapi()
-
-        with open(API_DIFF_SPEC_FN) as f:
-            apis = ((line, line.replace('\n', '')) for line in f.readlines())
-
-    for line, api in apis:
-        if filter_api is not None and filter_api(api.strip()):
-            continue
-
-        try:
-            api_obj = eval(api)
-        except AttributeError:
-            whl_error.append(api)
-            continue
-        except SyntaxError:
-            logger.warning('line:%s, api:%s', line, api)
-            # paddle.Tensor.<lambda>
-            continue
-        if hasattr(api_obj, '__doc__') and api_obj.__doc__:
-            docstrings_to_test[api] = api_obj.__doc__
+    with open(API_DIFF_SPEC_FN) as f:
+        for line in f.readlines():
+            api = line.replace('\n', '')
+            try:
+                api_obj = eval(api)
+            except AttributeError:
+                whl_error.append(api)
+                continue
+            except SyntaxError:
+                logger.warning('line:%s, api:%s', line, api)
+                # paddle.Tensor.<lambda>
+                continue
+            if hasattr(api_obj, '__doc__') and api_obj.__doc__:
+                docstrings_to_test[api] = api_obj.__doc__
 
     if len(docstrings_to_test) == 0 and len(whl_error) == 0:
         logger.warning("-----API_PR.spec is the same as API_DEV.spec-----")
@@ -661,7 +637,7 @@ def get_docstring(
     return docstrings_to_test, whl_error
 
 
-def check_old_style(docstrings_to_test: dict[str, str]):
+def check_old_style(docstrings_to_test: typing.Dict[str, str]):
     old_style_apis = []
     for api_name, raw_docstring in docstrings_to_test.items():
         for codeblock in extract_code_blocks_from_docstr(
@@ -739,8 +715,8 @@ def exec_gen_doc():
 
 
 def get_test_results(
-    doctester: DocTester, docstrings_to_test: dict[str, str]
-) -> list[TestResult]:
+    doctester: DocTester, docstrings_to_test: typing.Dict[str, str]
+) -> typing.List[TestResult]:
     """Get test results from doctester with docstrings to test."""
     _test_style = (
         doctester.style

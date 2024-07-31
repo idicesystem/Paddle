@@ -14,14 +14,15 @@
 
 #include "paddle/fluid/platform/device/gpu/cuda/cuda_profiler.h"
 
-namespace paddle::platform {
+namespace paddle {
+namespace platform {
 
 void CudaProfilerInit(const std::string& output_file,
                       const std::string& output_mode,
                       const std::string& config_file) {
 #if CUDA_VERSION < 11000
   PADDLE_ENFORCE(output_mode == "kvp" || output_mode == "csv",
-                 common::errors::InvalidArgument(
+                 platform::errors::InvalidArgument(
                      "Unsupported cuda profiler output mode, expect `kvp` or "
                      "`csv`, but received `%s`.",
                      output_mode));
@@ -45,10 +46,11 @@ void CudaNvtxRangePush(const std::string& name, const NvtxRangeColor color) {
   eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
   eventAttrib.message.ascii = name.c_str();
 
-  phi::dynload::nvtxRangePushEx(&eventAttrib);
+  dynload::nvtxRangePushEx(&eventAttrib);
 }
 
-void CudaNvtxRangePop() { phi::dynload::nvtxRangePop(); }
+void CudaNvtxRangePop() { dynload::nvtxRangePop(); }
 #endif
 
-}  // namespace paddle::platform
+}  // namespace platform
+}  // namespace paddle

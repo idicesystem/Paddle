@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -21,8 +20,8 @@ from utils import static_guard
 
 import paddle
 from paddle import base
-from paddle.base import core
-from paddle.base.framework import in_pir_mode
+from paddle.base import Program, core, program_guard
+from paddle.base.framework import convert_np_dtype_to_dtype_, in_pir_mode
 from paddle.pir_utils import test_with_pir_api
 
 
@@ -570,9 +569,7 @@ class TestProdOp(OpTest):
         self.check_output(check_pir=True)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_prim=True, check_pir=True, check_prim_pir=True
-        )
+        self.check_grad(['X'], 'Out', check_prim=True, check_pir=True)
 
 
 @unittest.skipIf(
@@ -587,12 +584,7 @@ class TestProdFP16OP(TestProdOp):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            paddle.CUDAPlace(0),
-            ['X'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            paddle.CUDAPlace(0), ['X'], 'Out', check_prim=True, check_pir=True
         )
 
 
@@ -620,12 +612,7 @@ class TestProdBFP16OP(TestProdOp):
 
     def test_check_grad(self):
         self.check_grad_with_place(
-            paddle.CUDAPlace(0),
-            ['X'],
-            'Out',
-            check_prim=True,
-            check_pir=True,
-            check_prim_pir=True,
+            paddle.CUDAPlace(0), ['X'], 'Out', check_prim=True, check_pir=True
         )
 
 
@@ -653,9 +640,7 @@ class TestProdOp_ZeroDim(OpTest):
         self.check_output(check_pir=True)
 
     def test_check_grad(self):
-        self.check_grad(
-            ['X'], 'Out', check_prim=True, check_pir=True, check_prim_pir=True
-        )
+        self.check_grad(['X'], 'Out', check_prim=True, check_pir=True)
 
 
 class TestProdOp_ZeroDim1(TestProdOp):
@@ -964,11 +949,8 @@ class TestAll8DOpWithKeepDim(OpTest):
 
 
 class TestAllOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_errors(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with program_guard(Program(), Program()):
             # The input type of reduce_all_op must be Variable.
             input1 = 12
             self.assertRaises(TypeError, paddle.all, input1)
@@ -981,65 +963,55 @@ def reduce_any_wrapper(x, axis=None, keepdim=False, reduce_all=True, name=None):
 class TestAnyOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = reduce_any_wrapper
-        self.public_python_api = reduce_any_wrapper
         self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
         self.outputs = {'Out': self.inputs['X'].any()}
         self.attrs = {'reduce_all': True}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyFloatOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = reduce_any_wrapper
-        self.public_python_api = reduce_any_wrapper
         self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("float")}
         self.outputs = {'Out': self.inputs['X'].any()}
         self.attrs = {'reduce_all': True}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyIntOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = reduce_any_wrapper
-        self.public_python_api = reduce_any_wrapper
         self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("int")}
         self.outputs = {'Out': self.inputs['X'].any()}
         self.attrs = {'reduce_all': True}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyOp_ZeroDim(OpTest):
     def setUp(self):
-        self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
+        self.op_type = "reduce_any"
         self.inputs = {'X': np.random.randint(0, 2, []).astype("bool")}
         self.outputs = {'Out': self.inputs['X'].any()}
         self.attrs = {'dim': []}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAny8DOp(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
         self.inputs = {
             'X': np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype(
                 "bool"
@@ -1049,29 +1021,25 @@ class TestAny8DOp(OpTest):
         self.outputs = {'Out': self.inputs['X'].any(axis=self.attrs['dim'])}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyOpWithDim(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
         self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
         self.attrs = {'dim': [1]}
         self.outputs = {'Out': self.inputs['X'].any(axis=1)}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAny8DOpWithDim(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
         self.inputs = {
             'X': np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype(
                 "bool"
@@ -1081,15 +1049,13 @@ class TestAny8DOpWithDim(OpTest):
         self.outputs = {'Out': self.inputs['X'].any(axis=self.attrs['dim'])}
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyOpWithKeepDim(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
         self.inputs = {'X': np.random.randint(0, 2, (5, 6, 10)).astype("bool")}
         self.attrs = {'dim': (1,), 'keep_dim': True}
         self.outputs = {
@@ -1099,15 +1065,13 @@ class TestAnyOpWithKeepDim(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAny8DOpWithKeepDim(OpTest):
     def setUp(self):
         self.op_type = "reduce_any"
-        self.prim_op_type = "comp"
         self.python_api = paddle.any
-        self.public_python_api = paddle.any
         self.inputs = {
             'X': np.random.randint(0, 2, (2, 5, 3, 2, 2, 3, 4, 2)).astype(
                 "bool"
@@ -1121,15 +1085,12 @@ class TestAny8DOpWithKeepDim(OpTest):
         }
 
     def test_check_output(self):
-        self.check_output(check_pir=True, check_prim_pir=True)
+        self.check_output(check_pir=True)
 
 
 class TestAnyOpError(unittest.TestCase):
-    @test_with_pir_api
     def test_errors(self):
-        with paddle.static.program_guard(
-            paddle.static.Program(), paddle.static.Program()
-        ):
+        with program_guard(Program(), Program()):
             # The input type of reduce_any_op must be Variable.
             input1 = 12
             self.assertRaises(TypeError, paddle.any, input1)
@@ -1580,8 +1541,8 @@ class TestReduceWithDtype(OpTest):
         self.attrs = {'reduce_all': True}
         self.attrs.update(
             {
-                'in_dtype': paddle.float32,
-                'out_dtype': paddle.float64,
+                'in_dtype': int(convert_np_dtype_to_dtype_(np.float32)),
+                'out_dtype': int(convert_np_dtype_to_dtype_(np.float64)),
             }
         )
         self.if_enable_cinn()
@@ -1607,8 +1568,8 @@ class TestReduceWithDtype1(TestReduceWithDtype):
         self.attrs = {'dim': [1]}
         self.attrs.update(
             {
-                'in_dtype': paddle.float32,
-                'out_dtype': paddle.float64,
+                'in_dtype': int(convert_np_dtype_to_dtype_(np.float32)),
+                'out_dtype': int(convert_np_dtype_to_dtype_(np.float64)),
             }
         )
         # cinn op_mapper not support in_dtype/out_dtype attr
@@ -1632,8 +1593,8 @@ class TestReduceWithDtype2(TestReduceWithDtype):
         self.attrs = {'dim': [1], 'keep_dim': True}
         self.attrs.update(
             {
-                'in_dtype': paddle.float32,
-                'out_dtype': paddle.float64,
+                'in_dtype': int(convert_np_dtype_to_dtype_(np.float32)),
+                'out_dtype': int(convert_np_dtype_to_dtype_(np.float64)),
             }
         )
         # cinn op_mapper not support in_dtype/out_dtype attr
@@ -1647,17 +1608,26 @@ class TestReduceWithDtype2(TestReduceWithDtype):
 
 
 class TestReduceSumOpError(unittest.TestCase):
-    def test_errors1(self):
+    def test_errors(self):
         with static_guard():
-            with paddle.static.program_guard(
-                paddle.static.Program(), paddle.static.Program()
-            ):
+            with program_guard(Program(), Program()):
                 # The input type of reduce_sum_op must be Variable.
                 x1 = base.create_lod_tensor(
                     np.array([[-1]]), [[1]], base.CPUPlace()
                 )
                 self.assertRaises(TypeError, paddle.sum, x1)
                 # The input dtype of reduce_sum_op  must be float32 or float64 or int32 or int64.
+                x2 = paddle.static.data(name='x2', shape=[-1, 4], dtype="uint8")
+                self.assertRaises(TypeError, paddle.sum, x2)
+
+            with paddle.pir_utils.IrGuard(), program_guard(
+                Program(), Program()
+            ):
+                # The input type of reduce_sum_op must be Variable.
+                x1 = base.create_lod_tensor(
+                    np.array([[-1]]), [[1]], base.CPUPlace()
+                )
+                self.assertRaises(ValueError, paddle.sum, x1)
 
 
 class API_TestSumOp(unittest.TestCase):
@@ -1667,13 +1637,7 @@ class API_TestSumOp(unittest.TestCase):
         if np_axis is None:
             np_axis = attr_axis
 
-        places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            places.append(base.CPUPlace())
+        places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             places.append(base.CUDAPlace(0))
         for place in places:
@@ -1732,7 +1696,7 @@ class API_TestSumOp(unittest.TestCase):
     def test_dygraph(self):
         np_x = np.random.random([2, 3, 4]).astype('int32')
         with base.dygraph.guard():
-            x = paddle.to_tensor(np_x)
+            x = base.dygraph.to_variable(np_x)
             out0 = paddle.sum(x).numpy()
             out1 = paddle.sum(x, axis=0).numpy()
             out2 = paddle.sum(x, axis=(0, 1)).numpy()
@@ -1748,13 +1712,7 @@ class TestAllAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
         paddle.enable_static()
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 
@@ -1862,13 +1820,7 @@ class TestAnyAPI(unittest.TestCase):
     def setUp(self):
         np.random.seed(123)
         paddle.enable_static()
-        self.places = []
-        if (
-            os.environ.get('FLAGS_CI_both_cpu_and_gpu', 'False').lower()
-            in ['1', 'true', 'on']
-            or not core.is_compiled_with_cuda()
-        ):
-            self.places.append(base.CPUPlace())
+        self.places = [base.CPUPlace()]
         if core.is_compiled_with_cuda():
             self.places.append(base.CUDAPlace(0))
 

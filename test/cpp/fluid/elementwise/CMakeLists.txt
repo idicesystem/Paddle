@@ -1,4 +1,4 @@
-nv_test(
+cc_test(
   test_elementwise_add_op_inplace
   SRCS test_elementwise_add_op_inplace.cc
   DEPS executor
@@ -6,7 +6,7 @@ nv_test(
        elementwise_add_op
        scope
        device_context
-       phi
+       enforce
        common)
 cc_test(
   test_elementwise_div_grad_grad
@@ -16,7 +16,7 @@ cc_test(
        elementwise_div_op
        scope
        device_context
-       phi
+       enforce
        common)
 cc_test(
   test_elementwise_add_grad_grad
@@ -26,5 +26,5 @@ cc_test(
        elementwise_add_op
        scope
        device_context
-       phi
+       enforce
        common)

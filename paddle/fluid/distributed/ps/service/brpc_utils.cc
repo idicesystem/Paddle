@@ -20,15 +20,18 @@ limitations under the License. */
 #include "paddle/fluid/framework/convert_utils.h"
 #include "paddle/fluid/platform/enforce.h"
 
-namespace paddle::framework {
+namespace paddle {
+namespace framework {
 class Variable;
-}  // namespace paddle::framework
+}  // namespace framework
+}  // namespace paddle
 
 namespace phi {
 class DenseTensor;
 }  // namespace phi
 
-namespace paddle::distributed {
+namespace paddle {
+namespace distributed {
 
 framework::proto::VarType::Type VarMessageToVarType(
     VariableMessage::Type type) {
@@ -44,7 +47,7 @@ framework::proto::VarType::Type VarMessageToVarType(
     case VariableMessage::BOOL:
       return framework::proto::VarType::BOOL;  // NOLINT
     default:
-      PADDLE_THROW(phi::errors::InvalidArgument(
+      PADDLE_THROW(platform::errors::InvalidArgument(
           "VarMessageToVarType:Unsupported type %d", type));
   }
 }
@@ -53,7 +56,7 @@ void SerializeToMultiVarMsgAndIOBuf(
     const std::string& message_name,
     const std::vector<std::string>& send_var_name_val,
     const std::vector<std::string>& recv_var_name_val,
-    const phi::DeviceContext& ctx,
+    const platform::DeviceContext& ctx,
     const framework::Scope* scope,
     MultiVarMsg* request,
     butil::IOBuf* iobuf) {
@@ -86,7 +89,7 @@ void SerializeToMultiVarMsgAndIOBuf(
 }
 
 void SerializeLodTensor(framework::Variable* var,
-                        const phi::DeviceContext& ctx,
+                        const platform::DeviceContext& ctx,
                         VarMsg* var_msg,
                         butil::IOBuf* iobuf) {
   auto* tensor = var->GetMutable<phi::DenseTensor>();
@@ -107,7 +110,7 @@ void SerializeLodTensor(framework::Variable* var,
     var_msg->add_dims(dim);
   }
   // IO Buffer
-  if (phi::is_cpu_place(tensor->place())) {
+  if (platform::is_cpu_place(tensor->place())) {
     auto data_len = tensor->numel() * phi::SizeOf(tensor->dtype());
     iobuf->append(reinterpret_cast<const char*>(&data_len), 8);
     iobuf->append(reinterpret_cast<const char*>(tensor->data()), data_len);
@@ -117,7 +120,7 @@ void SerializeLodTensor(framework::Variable* var,
         new char[tensor->numel() * phi::SizeOf(tensor->dtype())];  // NOLINT
     auto stream = reinterpret_cast<const phi::GPUContext&>(ctx).stream();
     memory::Copy(
-        phi::CPUPlace(),
+        platform::CPUPlace(),
         temp_ptr,
         tensor->place(),
         tensor->data(),
@@ -133,7 +136,7 @@ void SerializeLodTensor(framework::Variable* var,
 }
 
 void SerializeSelectedRows(framework::Variable* var,
-                           const phi::DeviceContext& ctx,
+                           const platform::DeviceContext& ctx,
                            VarMsg* var_msg,
                            butil::IOBuf* iobuf) {
   phi::SelectedRows* slr = var->GetMutable<phi::SelectedRows>();
@@ -154,7 +157,7 @@ void SerializeSelectedRows(framework::Variable* var,
     var_msg->add_dims(dim);
   }
   // IO Buffer
-  if (phi::is_cpu_place(tensor->place())) {
+  if (platform::is_cpu_place(tensor->place())) {
     auto data_len = tensor->numel() * phi::SizeOf(tensor->dtype());
     iobuf->append(reinterpret_cast<const char*>(&data_len), 8);
     iobuf->append(reinterpret_cast<const char*>(tensor->data()), data_len);
@@ -164,7 +167,7 @@ void SerializeSelectedRows(framework::Variable* var,
         new char[tensor->numel() * phi::SizeOf(tensor->dtype())];  // NOLINT
     auto stream = reinterpret_cast<const phi::GPUContext&>(ctx).stream();
     memory::Copy(
-        phi::CPUPlace(),
+        platform::CPUPlace(),
         temp_ptr,
         tensor->place(),
         tensor->data(),
@@ -181,7 +184,7 @@ void SerializeSelectedRows(framework::Variable* var,
 
 void DeserializeFromMultiVarMsgAndIOBuf(const MultiVarMsg& multi_msg,
                                         const butil::IOBuf* iobuf,
-                                        const phi::DeviceContext& ctx,
+                                        const platform::DeviceContext& ctx,
                                         framework::Scope* scope) {
   butil::IOBufBytesIterator io_buffer_itr(*iobuf);
   // size_t shard_buffer_remain = res_io_buffer.size();
@@ -199,7 +202,7 @@ void DeserializeFromMultiVarMsgAndIOBuf(const MultiVarMsg& multi_msg,
 
 void DeserializeFromMultiVarMsgAndIOBuf(const MultiVarMsg& multi_msg,
                                         const butil::IOBuf* iobuf,
-                                        const phi::DeviceContext& ctx,
+                                        const platform::DeviceContext& ctx,
                                         const framework::Scope* scope) {
   butil::IOBufBytesIterator io_buffer_itr(*iobuf);
   // size_t shard_buffer_remain = res_io_buffer.size();
@@ -209,7 +212,7 @@ void DeserializeFromMultiVarMsgAndIOBuf(const MultiVarMsg& multi_msg,
     auto* var = scope->FindVar(msg.varname());
     PADDLE_ENFORCE_NE(var,
                       nullptr,
-                      phi::errors::InvalidArgument(
+                      platform::errors::InvalidArgument(
                           "Not find variable %s in scope.", msg.varname()));
     if (msg.type() == ::paddle::distributed::LOD_TENSOR) {
       DeserializeLodTensor(var, msg, io_buffer_itr, ctx);
@@ -222,7 +225,7 @@ void DeserializeFromMultiVarMsgAndIOBuf(const MultiVarMsg& multi_msg,
 void DeserializeLodTensor(framework::Variable* var,
                           const VarMsg& msg,
                           butil::IOBufBytesIterator& io_buffer_itr,  // NOLINT
-                          const phi::DeviceContext& ctx) {
+                          const platform::DeviceContext& ctx) {
   const auto place = ctx.GetPlace();
   phi::DenseTensor* tensor = var->GetMutable<phi::DenseTensor>();
   std::vector<int> vec_dim;
@@ -246,11 +249,11 @@ void DeserializeLodTensor(framework::Variable* var,
       framework::TransToPhiDataType(VarMessageToVarType(msg.data_type())));
 
   // IO Buffer
-  if (phi::is_cpu_place(place)) {
+  if (platform::is_cpu_place(place)) {
     unsigned long data_len;                                 // NOLINT
     io_buffer_itr.copy_and_forward((void*)(&data_len), 8);  // NOLINT
     io_buffer_itr.copy_and_forward(tensor_data, data_len);
-  } else if (phi::is_gpu_place(place)) {
+  } else if (platform::is_gpu_place(place)) {
 #ifdef PADDLE_WITH_CUDA
     unsigned long data_len;  // NOLINT
     char* temp_ptr =
@@ -260,7 +263,7 @@ void DeserializeLodTensor(framework::Variable* var,
     auto stream = reinterpret_cast<const phi::GPUContext&>(ctx).stream();
     memory::Copy(place,
                  tensor_data,
-                 phi::CPUPlace(),
+                 platform::CPUPlace(),
                  (void*)temp_ptr,  // NOLINT
                  tensor->numel() * phi::SizeOf(tensor->dtype()),
                  stream);
@@ -273,7 +276,7 @@ void DeserializeSelectedRows(
     framework::Variable* var,
     const VarMsg& msg,
     butil::IOBufBytesIterator& io_buffer_itr,  // NOLINT
-    const phi::DeviceContext& ctx) {
+    const platform::DeviceContext& ctx) {
   const auto place = ctx.GetPlace();
   auto* slr = var->GetMutable<phi::SelectedRows>();
   phi::DenseTensor* tensor = slr->mutable_value();
@@ -290,11 +293,11 @@ void DeserializeSelectedRows(
       place,
       framework::TransToPhiDataType(VarMessageToVarType(msg.data_type())));
   // IO Buffer
-  if (phi::is_cpu_place(place)) {
+  if (platform::is_cpu_place(place)) {
     unsigned long data_len;                                 // NOLINT
     io_buffer_itr.copy_and_forward((void*)(&data_len), 8);  // NOLINT
     io_buffer_itr.copy_and_forward(tensor_data, data_len);
-  } else if (phi::is_gpu_place(place)) {
+  } else if (platform::is_gpu_place(place)) {
 #ifdef PADDLE_WITH_CUDA
     char* temp_ptr =
         new char[tensor->numel() * phi::SizeOf(tensor->dtype())];  // NOLINT
@@ -304,7 +307,7 @@ void DeserializeSelectedRows(
     auto stream = reinterpret_cast<const phi::GPUContext&>(ctx).stream();
     memory::Copy(place,
                  tensor_data,
-                 phi::CPUPlace(),
+                 platform::CPUPlace(),
                  temp_ptr,
                  tensor->numel() * phi::SizeOf(tensor->dtype()),
                  stream);
@@ -318,18 +321,18 @@ std::string GetIntTypeEndpoint(const std::string& ip, const uint32_t& port) {
   // If there're some problem with DNS, or ip triggers the bug of Brpc
   // We will try to get the IP address of the domain name manually again
   std::string ip_port = ip + ":" + std::to_string(port);
-  struct hostent* hp = nullptr;
+  struct hostent* hp = NULL;
   hp = gethostbyname(ip.c_str());
 
-  if (nullptr == hp) {
+  if (NULL == hp) {
     LOG(ERROR) << "Brpc Start failed, ip_port= " << ip_port
                << " , Error infomation: " << hstrerror(h_errno);
   }
 
   int i = 0;
-  char* int_ip = nullptr;
+  char* int_ip = NULL;
 
-  while (hp->h_addr_list[i] != nullptr) {
+  while (hp->h_addr_list[i] != NULL) {
     int_ip = inet_ntoa(*(struct in_addr*)hp->h_addr_list[i]);
     VLOG(3) << "Brpc Get host by name, host:" << ip << " -> ip: " << int_ip;
     break;
@@ -340,4 +343,5 @@ std::string GetIntTypeEndpoint(const std::string& ip, const uint32_t& port) {
   return int_ip_port;
 }
 
-}  // namespace paddle::distributed
+}  // namespace distributed
+}  // namespace paddle

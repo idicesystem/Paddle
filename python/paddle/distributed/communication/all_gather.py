@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, TypeVar
-
 import numpy as np
 
 import paddle
@@ -27,20 +23,8 @@ from .serialization_utils import (
     convert_tensor_to_object,
 )
 
-if TYPE_CHECKING:
-    from paddle import Tensor
-    from paddle.base.core import task
-    from paddle.distributed.communication.group import Group
 
-    _T = TypeVar("_T")
-
-
-def all_gather(
-    tensor_list: list[Tensor],
-    tensor: Tensor,
-    group: Group | None = None,
-    sync_op: bool = True,
-) -> task | None:
+def all_gather(tensor_list, tensor, group=None, sync_op=True):
     """
 
     Gather tensors from all participators and all get the result. As shown
@@ -55,10 +39,10 @@ def all_gather(
 
     Args:
         tensor_list (list): A list of output Tensors. Every element in the list must be a Tensor whose data type
-            should be float16, float32, float64, int32, int64, int8, uint8, bool, bfloat16, complex64 or complex128.
+            should be float16, float32, float64, int32, int64, int8, uint8, bool or bfloat16.
         tensor (Tensor): The Tensor to send. Its data type
-            should be float16, float32, float64, int32, int64, int8, uint8, bool, bfloat16, complex64 or complex128.
-        group (Group|None, optional): The group instance return by new_group or None for global default group.
+            should be float16, float32, float64, int32, int64, int8, uint8, bool or bfloat16.
+        group (Group, optional): The group instance return by new_group or None for global default group.
         sync_op (bool, optional): Whether this op is a sync op. The default value is True.
 
     Returns:
@@ -72,7 +56,7 @@ def all_gather(
             >>> import paddle.distributed as dist
 
             >>> dist.init_parallel_env()
-            >>> tensor_list = [] # type: ignore
+            >>> tensor_list = []
             >>> if dist.get_rank() == 0:
             ...     data = paddle.to_tensor([[4, 5, 6], [4, 5, 6]])
             >>> else:
@@ -84,12 +68,10 @@ def all_gather(
     return stream.all_gather(tensor_list, tensor, group, sync_op)
 
 
-def all_gather_object(
-    object_list: list[_T], obj: _T, group: Group = None
-) -> None:
+def all_gather_object(object_list, obj, group=None):
     """
 
-    Gather picklable objects from all participators and all get the result. Similar to all_gather(), but python object can be passed in.
+    Gather picklable objects from all participators and all get the result. Similiar to all_gather(), but python object can be passed in.
 
     Args:
         object_list (list): A list of output object. The datatype of every element in the list is same as the input obj.
@@ -110,7 +92,7 @@ def all_gather_object(
             >>> import paddle.distributed as dist
 
             >>> dist.init_parallel_env()
-            >>> object_list = [] # type: ignore
+            >>> object_list = []
             >>> if dist.get_rank() == 0:
             ...     obj = {"foo": [1, 2, 3]}
             >>> else:

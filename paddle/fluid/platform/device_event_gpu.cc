@@ -13,35 +13,35 @@
 // limitations under the License.
 
 #include "paddle/fluid/platform/device_event_base.h"
-#include "paddle/phi/api/profiler/event.h"
+#include "paddle/fluid/platform/event.h"
 
 #if defined(PADDLE_WITH_CUDA) || defined(PADDLE_WITH_HIP)
 namespace paddle {
 namespace platform {
 struct CUDADeviceEventWrapper {
-  CUDADeviceEventWrapper(const phi::Place& place, unsigned int flag)
+  CUDADeviceEventWrapper(const platform::Place& place, unsigned int flag)
       : inner_event_(flag) {
     PADDLE_ENFORCE_EQ(
-        phi::is_gpu_place(place),
+        platform::is_gpu_place(place),
         true,
-        common::errors::PreconditionNotMet(
-            "Required device shall be GPUPlace, but received %d. ", place));
+        platform::errors::PreconditionNotMet(
+            "Required device shall be CUDAPlace, but received %d. ", place));
 
     device_id_ = place.device;  // NOLINT
     PADDLE_ENFORCE_GT(
         device_id_,
         -1,
-        common::errors::PreconditionNotMet(
+        platform::errors::PreconditionNotMet(
             "Required DeviceOption.device_id > -1, but received %d. ",
             device_id_));
   }
 
-  phi::CudaEvent inner_event_;
+  CudaEvent inner_event_;
   int device_id_;
 };
 
 void DeviceEventCreateCUDA(DeviceEvent* event,
-                           const phi::Place& place,
+                           const platform::Place& place,
                            unsigned int flag) {
   event->InitEvent(std::make_shared<CUDADeviceEventWrapper>(place, flag));
 }
@@ -52,7 +52,7 @@ void DeviceEventRecordCUDA(DeviceEvent* event, const DeviceContext* context) {
   auto* cuda_dev_ctx = dynamic_cast<const phi::GPUContext*>(context);
   PADDLE_ENFORCE_NOT_NULL(
       cuda_dev_ctx,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast context into phi::GPUContext."));
 
   wrapper->inner_event_.Record(cuda_dev_ctx->stream());
@@ -62,7 +62,7 @@ bool DeviceEventQueryCUDA(const DeviceEvent* event) {
   auto* wrapper = static_cast<CUDADeviceEventWrapper*>(event->GetEvent().get());
   PADDLE_ENFORCE_NOT_NULL(
       wrapper,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast event into CUDADeviceEventWrapper."));
 
   return wrapper->inner_event_.Query();
@@ -80,7 +80,7 @@ void DeviceEventCUDAWaitCUDA(const DeviceEvent* event,
   auto* cuda_dev_ctx = dynamic_cast<const phi::GPUContext*>(context);
   PADDLE_ENFORCE_NOT_NULL(
       cuda_dev_ctx,
-      common::errors::PreconditionNotMet(
+      platform::errors::PreconditionNotMet(
           "Failed to dynamic_cast context into phi::GPUContext."));
   // calling cudaStreamWaitEvent(stream, event, 0)
   cuda_dev_ctx->WaitEvent(wrapper->inner_event_.GetRawCudaEvent());

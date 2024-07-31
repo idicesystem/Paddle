@@ -34,7 +34,7 @@ def skip_unit_test():
 skip_msg = "only support with cuda and Ampere or later devices"
 
 
-@skip_check_grad_ci(reason="no grad op")
+@skip_check_grad_ci(reason="no grap op")
 @unittest.skipIf(skip_unit_test(), skip_msg)
 class TestFusedDconvDreluDbnOp(OpTest):
     def setUp(self):

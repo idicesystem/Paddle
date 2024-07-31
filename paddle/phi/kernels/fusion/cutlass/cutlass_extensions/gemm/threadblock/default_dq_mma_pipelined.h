@@ -78,7 +78,7 @@ template <
     /// Instruction-level tile size (concept: GemmShape)
     typename InstructionShape,
     /// Operation performed by GEMM
-    typename Operator_>
+    typename Operator>
 struct DqMma<
     ElementA,
     LayoutA,
@@ -97,12 +97,9 @@ struct DqMma<
     WarpShape,
     InstructionShape,
     2,
-    Operator_,
+    Operator,
     SharedMemoryClearOption::kNone,
     typename platform::enable_if<(ArchTag::kMinComputeCapability < 80)>::type> {
-  using OperatorInfo = arch::DetagOperator<Operator_>;
-  using Operator = typename OperatorInfo::Operator;
-
   static_assert(platform::is_same<ElementA, half_t>::value ||
                     platform::is_same<ElementA, bfloat16_t>::value,
                 "Element A must be fp16 or bf16");
@@ -230,7 +227,7 @@ template <
     /// Instruction-level tile size (concept: GemmShape)
     typename InstructionShape,
     /// Operation performed by GEMM
-    typename Operator_,
+    typename Operator,
     ///
     int RowsPerTile,
     ///
@@ -253,12 +250,9 @@ struct DqMma<
     WarpShape,
     InstructionShape,
     2,
-    Operator_,
+    Operator,
     SharedMemoryClearOption::kNone,
     typename platform::enable_if<(ArchTag::kMinComputeCapability < 80)>::type> {
-  using OperatorInfo = arch::DetagOperator<Operator_>;
-  using Operator = typename OperatorInfo::Operator;
-
   static_assert(platform::is_same<ElementA, half_t>::value ||
                     platform::is_same<ElementA, bfloat16_t>::value,
                 "Element A must be fp16 or bf16");

@@ -14,7 +14,9 @@ limitations under the License. */
 
 #include "paddle/fluid/inference/tensorrt/convert/op_converter.h"
 
-namespace paddle::inference::tensorrt {
+namespace paddle {
+namespace inference {
+namespace tensorrt {
 
 class Unsqueeze2OpConverter : public OpConverter {
  public:
@@ -35,7 +37,7 @@ class Unsqueeze2OpConverter : public OpConverter {
     PADDLE_ENFORCE_GT(
         axes.size(),
         0,
-        common::errors::InvalidArgument(
+        platform::errors::InvalidArgument(
             "Attr(axes).size should be > 0 in unsqueeze2 op in TensorRT,"
             "but received axes.size() = %d.",
             axes.size()));
@@ -88,10 +90,12 @@ class Unsqueeze2OpConverter : public OpConverter {
     } else {
       layer->setReshapeDimensions(trt_out_dims);
     }
-    ReplenishLayerAndOutput(layer, "unsqueeze2", {output_name}, test_mode);
+    RreplenishLayerAndOutput(layer, "unsqueeze2", {output_name}, test_mode);
   }
 };
 
-}  // namespace paddle::inference::tensorrt
+}  // namespace tensorrt
+}  // namespace inference
+}  // namespace paddle
 
 REGISTER_TRT_OP_CONVERTER(unsqueeze2, Unsqueeze2OpConverter);

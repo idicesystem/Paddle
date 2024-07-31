@@ -29,6 +29,8 @@ from paddle.base import core
 from paddle.base.framework import default_main_program
 from paddle.incubate.xpu.resnet_block import ResNetBasicBlock
 
+paddle.enable_static()
+
 
 class XPUTestResNetBasicBlockOp(XPUOpTestWrapper):
     def __init__(self):
@@ -37,6 +39,7 @@ class XPUTestResNetBasicBlockOp(XPUOpTestWrapper):
 
     class TestResNetBasicBlockOp(OpTest):
         def setUp(self):
+            paddle.disable_static()
             self.dtype = self.in_type
             self.place = paddle.XPUPlace(0)
             self.__class__.op_type = "resnet_basic_block"
@@ -64,6 +67,8 @@ class XPUTestResNetBasicBlockOp(XPUOpTestWrapper):
             self.has_shortcut = False
 
         def Base(self):
+            paddle.disable_static()
+
             conv1_weight = base.ParamAttr(
                 initializer=paddle.nn.initializer.XavierNormal(),
                 learning_rate=0.001,
@@ -162,6 +167,8 @@ class XPUTestResNetBasicBlockOp(XPUOpTestWrapper):
             return result, tensor_src.grad
 
         def FusedResNetBasicBlock(self):
+            paddle.disable_static()
+
             fused_conv1_weight = base.ParamAttr(
                 initializer=paddle.nn.initializer.XavierNormal(),
                 learning_rate=0.001,

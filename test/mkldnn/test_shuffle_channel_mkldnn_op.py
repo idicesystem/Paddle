@@ -44,7 +44,7 @@ class TestShuffleChannelOneDNNOp(OpTest):
         self.group = 4
 
     def test_check_output(self):
-        self.check_output_with_place(core.CPUPlace(), check_pir_onednn=True)
+        self.check_output_with_place(core.CPUPlace())
 
 
 class TestShuffleChannelSingleGroupOneDNNOp(TestShuffleChannelOneDNNOp):

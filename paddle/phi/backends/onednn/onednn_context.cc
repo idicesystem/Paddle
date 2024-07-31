@@ -40,7 +40,7 @@ OneDNNContextThreadLocals::Body::Body()
 // and other is to start inference
 // TODO(jczaja): Ideally it would be good to clear only part of cache
 // related to thread that is to be terminated
-OneDNNContextThreadLocals::Body::~Body() {  // NOLINT
+OneDNNContextThreadLocals::Body::~Body() {
   auto cpu_place = phi::CPUPlace();
   // TODO(YuanRisheng): we need remove the dependency on fluid device context
   // here
@@ -170,8 +170,7 @@ struct OneDNNContext::Impl {
   size_t GetShapeBlobSize() const {
     std::lock_guard<decltype(*p_mutex_)> lock(*p_mutex_);
     BlobMap* pMap = p_blobmap_.get();
-    auto map_it =
-        pMap->find(OneDNNContext::tls().cur_mkldnn_session_id);  // NOLINT
+    auto map_it = pMap->find(OneDNNContext::tls().cur_mkldnn_session_id);
     if (map_it == pMap->end()) {
       PADDLE_THROW(phi::errors::NotFound(
           "OneDNNContext don't find cur_mkldnn_session_id: %d.",
@@ -185,11 +184,11 @@ struct OneDNNContext::Impl {
     BlobPtr_t<ShapeBlob> sBlob = nullptr;
     BlobPtr_t<KeyBlob> pBlob = nullptr;
 
-    int sid = OneDNNContext::tls().get_cur_mkldnn_session_id();  // NOLINT
+    int sid = OneDNNContext::tls().get_cur_mkldnn_session_id();
 
     std::lock_guard<decltype(*p_mutex_)> lock(*p_mutex_);
 
-    // Find ShapeBlob for current onednn session id.
+    // Find ShapeBlob for current mkldnn session id.
     auto map_it = pMap->find(sid);
 
     if (map_it == pMap->end()) {
@@ -255,11 +254,11 @@ struct OneDNNContext::Impl {
     BlobPtr_t<ShapeBlob> sBlob = nullptr;
     BlobPtr_t<KeyBlob> pBlob = nullptr;
 
-    int sid = OneDNNContext::tls().get_cur_mkldnn_session_id();  // NOLINT
+    int sid = OneDNNContext::tls().get_cur_mkldnn_session_id();
 
     std::lock_guard<decltype(*p_mutex_)> lock(*p_mutex_);
 
-    // Find ShapeBlob for current onednn session id firstly
+    // Find ShapeBlob for current mkldnn session id firstly
     auto map_it = pMap->find(sid);
     // (jczaja): After first iteration of model's execution we
     // should have all elements cached (mostly) so failures are unlikely (less
@@ -366,7 +365,7 @@ struct OneDNNContext::Impl {
   unsigned int block_next_cache_clearing_ = 0;
 
   // Holds some attributes only used by the onednn kernel calculation
-  // Since original onednn op kernel directly adds the operations that require
+  // Since original mkldnn op kernel directly adds the operations that require
   // fusion to the native kernel operations, and uses the attribute `fuse_xxx`
   // to control, for onednn, there will be some attributes that seem to be
   // independent of the device are also saved here.

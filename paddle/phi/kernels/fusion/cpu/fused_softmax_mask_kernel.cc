@@ -16,7 +16,8 @@
 #include "paddle/phi/kernels/elementwise_add_kernel.h"
 #include "paddle/phi/kernels/softmax_kernel.h"
 
-namespace phi::fusion {
+namespace phi {
+namespace fusion {
 
 template <typename T, typename Context>
 void FusedSoftmaxMaskKernel(const Context& dev_ctx,
@@ -56,7 +57,8 @@ void FusedSoftmaxMaskKernel(const Context& dev_ctx,
   SoftmaxKernel<T, Context>(dev_ctx, t, 3, out);  // axis for softmax
 }
 
-}  // namespace phi::fusion
+}  // namespace fusion
+}  // namespace phi
 
 PD_REGISTER_KERNEL(fused_softmax_mask,
                    CPU,

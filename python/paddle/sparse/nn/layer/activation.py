@@ -12,16 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from paddle.nn import Layer
 
 from .. import functional as F
-
-if TYPE_CHECKING:
-    from paddle import Tensor
 
 __all__ = []
 
@@ -36,7 +29,7 @@ class ReLU(Layer):
         ReLU(x) = max(x, 0)
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -58,14 +51,14 @@ class ReLU(Layer):
                    values=[0., 1.])
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.relu(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -79,7 +72,7 @@ class Softmax(Layer):
         Only support axis=-1 for SparseCsrTensor, which is faster when read data
         by row (axis=-1).
 
-    Transform x to dense matrix, and :math:`i` is row index, :math:`j` is column index.
+    Transform x to dense matix, and :math:`i` is row index, :math:`j` is column index.
     If axis=-1, We have:
 
     .. math::
@@ -88,7 +81,7 @@ class Softmax(Layer):
 
     Parameters:
         axis (int, optional): The axis along which to perform softmax calculations. Only support -1 for SparseCsrTensor.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -102,7 +95,7 @@ class Softmax(Layer):
             >>> paddle.seed(2022)
 
             >>> mask = paddle.rand((3, 4)) < 0.7
-            >>> x = paddle.rand((3, 4)) * mask.astype('float32')
+            >>> x = paddle.rand((3, 4)) * mask
             >>> print(x)
             Tensor(shape=[3, 4], dtype=float32, place=Place(cpu), stop_gradient=True,
             [[0.88156885, 0.14463395, 0.17831714, 0.43818203],
@@ -143,15 +136,15 @@ class Softmax(Layer):
                            0.42031071, 0.36666498, 0.59738696, 0.40261301])
     """
 
-    def __init__(self, axis: int = -1, name: str | None = None) -> None:
+    def __init__(self, axis=-1, name=None):
         super().__init__()
         self._axis = axis
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.softmax(x, self._axis, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -166,7 +159,7 @@ class ReLU6(Layer):
         ReLU6(x) = min(max(0,x), 6)
 
     Parameters:
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -184,14 +177,14 @@ class ReLU6(Layer):
             >>> out = relu6(sparse_x)
     """
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, name=None):
         super().__init__()
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.relu6(x, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str
 
@@ -214,7 +207,7 @@ class LeakyReLU(Layer):
     Parameters:
         negative_slope (float, optional): Slope of the activation function at
             :math:`x < 0` . Default is 0.01.
-        name (str|None, optional): Name for the operation (optional, default is None).
+        name (str, optional): Name for the operation (optional, default is None).
             For more information, please refer to :ref:`api_guide_Name`.
 
     Shape:
@@ -233,16 +226,14 @@ class LeakyReLU(Layer):
 
     """
 
-    def __init__(
-        self, negative_slope: float = 0.01, name: str | None = None
-    ) -> None:
+    def __init__(self, negative_slope=0.01, name=None):
         super().__init__()
         self._negative_slope = negative_slope
         self._name = name
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         return F.leaky_relu(x, self._negative_slope, self._name)
 
-    def extra_repr(self) -> str:
+    def extra_repr(self):
         name_str = f'name={self._name}' if self._name else ''
         return name_str

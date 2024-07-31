@@ -81,14 +81,14 @@ class DistributedEmbedding(DistributedOperatorImplContainer):
 
         # step2: infer spmd
         rule = get_phi_spmd_rule("embedding")
-        # tensor order following order in PHI definition
+        # tensor order following order in PHI defition
         fw_results = rule.infer_forward(x_spec, w_spec, padding_idx, is_sparse)
         bw_results = rule.infer_backward(
             x_spec, w_spec, output_spec, padding_idx, is_sparse
         )
 
         # step3: update dist_attr
-        # tensor order following order in PHI definition
+        # tensor order following order in PHI defition
         changed = update_op_dims_mapping(
             dist_op, [x_name, w_name], [out_name], fw_results, bw_results
         )
@@ -130,7 +130,9 @@ register_distributed_operator_impl_container(
 def adopt_lookup_table_v1(ctx, main_block, src_op, Ids_var):
     assert (
         len(Ids_var.shape) == 3
-    ), f"input Ids to lookup_table should have 3 dimensions but got [{Ids_var.name}] with shape [{Ids_var.shape}]"
+    ), "input Ids to lookup_table should have 3 dimensions but got [{}] with shape [{}]".format(
+        Ids_var.name, Ids_var.shape
+    )
     if not Ids_var.stop_gradient:
         raise NotImplementedError(
             'Requiring the gradient of Ids of lookup_table(v1) dist op is not currently supported. Please open an issue with details on your use case so that we can prioritize adding this (for instance, adversarial training for language model).'
@@ -422,7 +424,7 @@ class DistributedEmbeddingImpl(DistributedOperatorImpl):
         op_dist_attr = ctx.get_op_dist_attr_for_program(src_op)
         assert (
             op_dist_attr is not None
-        ), f"forward op [{src_op}] don't have dist attribute !"
+        ), f"forward op [{str(src_op)}] don't have dist attribute !"
 
         # check validation of inputs / outputs
         assert 'Ids' in kwargs, "input [{}] is not given".format('Ids')
@@ -459,7 +461,9 @@ class DistributedEmbeddingImpl(DistributedOperatorImpl):
         )[0]
         assert (
             embedding_row_dim_mapping >= 0
-        ), f"row_parallel_embedding's row should be divided by a specific mesh axis, but got [{embedding_row_dim_mapping}]"
+        ), "row_parallel_embedding's row should be divided by a specific mesh axis, but got [{}]".format(
+            embedding_row_dim_mapping
+        )
         process_mesh_shape = op_dist_attr.process_mesh.shape
         process_mesh_group = op_dist_attr.process_mesh.process_ids
 
@@ -469,7 +473,7 @@ class DistributedEmbeddingImpl(DistributedOperatorImpl):
                 ctx, op_dist_attr.process_mesh, rank_id
             )
 
-        # A generalized method to calculate embedding offset using cartesian product
+        # A generalized method to calculate embedding offset using cartisian product
         relative_idx = _get_idx_in_axis(
             process_mesh_group,
             process_mesh_shape,
@@ -578,7 +582,7 @@ class DistributedEmbeddingImpl(DistributedOperatorImpl):
         dist_attr = ctx.get_op_dist_attr_for_program(backward_op)
         assert (
             dist_attr is not None
-        ), f"backward op [{backward_op}] don't have dist attribute !"
+        ), f"backward op [{str(backward_op)}] don't have dist attribute !"
 
         # FIXME (JZ-LIANG) Remove this hack to support any op mesh group for Pipeline Parallelism
         if rank_id not in dist_attr.process_mesh.process_ids:
@@ -622,11 +626,13 @@ class DistributedEmbeddingImpl(DistributedOperatorImpl):
         )[0]
         assert (
             embedding_row_dim_mapping >= 0
-        ), f"row_parallel_embedding's row should be divided by a specific mesh axis, but got [{embedding_row_dim_mapping}]"
+        ), "row_parallel_embedding's row should be divided by a specific mesh axis, but got [{}]".format(
+            embedding_row_dim_mapping
+        )
         process_mesh_shape = dist_attr.process_mesh.shape
         process_mesh_group = dist_attr.process_mesh.process_ids
 
-        # A generalized method to calculate embedding offset using cartesian product
+        # A generalized method to calculate embedding offset using cartisian product
         relative_idx = _get_idx_in_axis(
             process_mesh_group,
             process_mesh_shape,

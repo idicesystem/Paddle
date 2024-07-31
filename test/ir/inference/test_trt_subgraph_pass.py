@@ -31,10 +31,7 @@ class TensorRTSubgraphPassFcTest(InferencePassTest):
             data = paddle.static.data(
                 name="data", shape=[-1, 6, 64, 64], dtype="float32"
             )
-            flatten_data = paddle.nn.Flatten()(data)
-            fc_out = paddle.nn.Linear(flatten_data.shape[-1], 1000)(
-                flatten_data
-            )
+            fc_out = paddle.static.nn.fc(x=[data], activation=None, size=1000)
             reshape_out = paddle.reshape(x=fc_out, shape=[1, 1000])
         self.feeds = {
             "data": np.random.random([1, 6, 64, 64]).astype("float32"),
@@ -191,9 +188,9 @@ class TensorRTSubgraphPassInstanceNormTest(InferencePassTest):
                 name='instance_norm_b',
                 initializer=paddle.nn.initializer.Constant(value=0.0),
             )
-            out = paddle.nn.InstanceNorm2D(
-                num_features=3, weight_attr=param_attr, bias_attr=bias_attr
-            )(data)
+            out = paddle.static.nn.instance_norm(
+                input=data, param_attr=param_attr, bias_attr=bias_attr
+            )
         self.feeds = {
             "data": np.random.random([1, 3, 64, 64]).astype("float32"),
         }
@@ -250,7 +247,9 @@ class TensorRTSubgraphPassLayerNormTest(InferencePassTest):
             data = paddle.static.data(
                 name="data", shape=[-1, 3, 64, 64], dtype="float32"
             )
-            out = paddle.nn.LayerNorm(data.shape[self.begin_norm_axis :])(data)
+            out = paddle.static.nn.layer_norm(
+                data, begin_norm_axis=self.begin_norm_axis
+            )
         self.feeds = {
             "data": np.random.random([1, 3, 64, 64]).astype("float32"),
         }
@@ -279,7 +278,9 @@ class TensorRTSubgraphPassLayerNormDynamicTest(InferencePassTest):
             data = paddle.static.data(
                 name="data", shape=[-1, 3, 64, 64], dtype="float32"
             )
-            out = paddle.nn.LayerNorm(data.shape[self.begin_norm_axis :])(data)
+            out = paddle.static.nn.layer_norm(
+                data, begin_norm_axis=self.begin_norm_axis
+            )
         self.feeds = {
             "data": np.random.random([1, 3, 64, 64]).astype("float32"),
         }

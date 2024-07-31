@@ -18,7 +18,10 @@
 #include "paddle/fluid/framework/ir/graph_pattern_detector.h"
 #include "paddle/fluid/framework/op_version_registry.h"
 
-namespace paddle::framework::ir::patterns {
+namespace paddle {
+namespace framework {
+namespace ir {
+namespace patterns {
 PDNode *patterns::DenseMultiheadMatmul::operator()() {
   auto *multihead_matmul = pattern->NewNode(multihead_matmul_repr())
                                ->assert_is_op("multihead_matmul");
@@ -58,8 +61,7 @@ PDNode *patterns::DenseMultiheadMatmul::operator()() {
 
   return multihead_matmul_out;
 }
-}  // namespace paddle::framework::ir::patterns
-namespace paddle::framework::ir {
+}  // namespace patterns
 DenseMultiheadMatmulToSparsePass::DenseMultiheadMatmulToSparsePass() {
   AddOpCompat(OpCompat("multihead_matmul"))
       .AddInput("Input")
@@ -81,7 +83,7 @@ DenseMultiheadMatmulToSparsePass::DenseMultiheadMatmulToSparsePass() {
 
 void DenseMultiheadMatmulToSparsePass::ApplyImpl(Graph *graph) const {
   PADDLE_ENFORCE_NOT_NULL(
-      graph, common::errors::InvalidArgument("Graph cannot be nullptr."));
+      graph, platform::errors::InvalidArgument("Graph cannot be nullptr."));
 
   std::string name_scope = "dense_multihead_matmul_to_sparse_pass";
   FusePassBase::Init(name_scope, graph);
@@ -168,7 +170,9 @@ void DenseMultiheadMatmulToSparsePass::ApplyImpl(Graph *graph) const {
   AddStatis(found_multihead_matmul_count);
 }
 
-}  // namespace paddle::framework::ir
+}  // namespace ir
+}  // namespace framework
+}  // namespace paddle
 
 REGISTER_PASS(dense_multihead_matmul_to_sparse_pass,
               paddle::framework::ir::DenseMultiheadMatmulToSparsePass);

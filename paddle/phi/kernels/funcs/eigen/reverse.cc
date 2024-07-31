@@ -13,7 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License. */
 #include "paddle/phi/kernels/funcs/eigen/eigen_function.h"
 
-namespace phi::funcs {
+namespace phi {
+namespace funcs {
 
 template <typename T, int Rank>
 struct EigenReverse<Eigen::DefaultDevice, T, Rank> {
@@ -45,4 +46,5 @@ INSTANTIATION(EigenReverse, float);
 INSTANTIATION(EigenReverse, double);
 #undef INSTANTIATION
 
-}  // namespace phi::funcs
+}  // namespace funcs
+}  // namespace phi

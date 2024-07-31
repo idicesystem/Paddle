@@ -54,7 +54,9 @@ class Converter:
             )
         if not isinstance(tensors_dict, dict):
             raise TypeError(
-                f"The type of 'tensors_dict' should be 'dict', but got '{type(tensors_dict)}'."
+                "The type of 'tensors_dict' should be 'dict', but got '{}'.".format(
+                    str(type(tensors_dict))
+                )
             )
         return tensors_dict
 
@@ -67,7 +69,7 @@ class Converter:
         if not isinstance(pre_strategy, dict):
             raise TypeError(
                 "The type of 'pre_strategy' should be 'dict', "
-                f"but got '{type(pre_strategy)}'."
+                f"but got '{str(type(pre_strategy))}'."
             )
         return pre_strategy
 
@@ -80,7 +82,7 @@ class Converter:
         if not isinstance(cur_strategy, dict):
             raise TypeError(
                 "The type of 'cur_strategy' should be 'dict', "
-                f"but got '{type(cur_strategy)}'."
+                f"but got '{str(type(cur_strategy))}'."
             )
         return cur_strategy
 
@@ -103,9 +105,9 @@ class Converter:
                 >>> import numpy as np
                 >>> from paddle.distributed.auto_parallel.static.converter import Converter
                 >>> complete_tensors = np.arange(4).reshape([2, 2])
-                >>> partial_tensors = np.split(complete_tensors, 2, axis=0)
+                >>> partitial_tensors = np.split(complete_tensors, 2, axis=0)
                 >>> name = "tmp_0"
-                >>> tensors_dict = {name: partial_tensors}
+                >>> tensors_dict = {name: partitial_tensors}
                 >>> strategy_1 = {
                 ...     name: {
                 ...         "process_shape": [2],
@@ -150,7 +152,7 @@ class Converter:
                 )
             except ValueError as err:
                 raise ValueError(
-                    f"Fail to convert tensor '{tensor_name}'. {err}"
+                    f"Fail to convert tensor '{str(tensor_name)}'. " + str(err)
                 )
 
         for tensor_name in self._pre_strategy:
@@ -176,16 +178,22 @@ class Converter:
         tensor_not_in_cur = set(tensor_not_in_cur) - set(tensor_match_with_cur)
         if tensor_not_in_pre:
             warnings.warn(
-                f"tensors [{tensor_not_in_pre}] are not found in last training strategy."
+                "tensors [{}] are not found in last training strategy.".format(
+                    str(tensor_not_in_pre)
+                )
             )
         if tensor_not_in_cur:
             warnings.warn(
-                f"tensors [{tensor_not_in_cur}] are not found in current training strategy."
+                "tensors [{}] are not found in current training strategy.".format(
+                    str(tensor_not_in_cur)
+                )
             )
         if tensor_not_in_ckpt:
             warnings.warn(
-                f"tensors [{tensor_not_in_ckpt}] are found in pre_strategy, but are not found"
-                "in checkpoint files, please check your checkpoint files."
+                "tensors [{}] are found in pre_strategy, but are not found"
+                "in checkpoint files, please check your checkpoint files.".format(
+                    str(tensor_not_in_ckpt)
+                )
             )
 
         return tensors_dict
@@ -215,7 +223,10 @@ class Converter:
                             )
                         except ValueError as err:
                             raise ValueError(
-                                f"Fail to convert tensor '{cur_name}' by '{pre_name}'. {err}"
+                                "Fail to convert tensor '{}' by '{}'. ".format(
+                                    str(cur_name), str(pre_name)
+                                )
+                                + str(err)
                             )
                         self._logger.info(
                             f"tensor [{cur_name}] is matched with tensor [{pre_name}]"
@@ -280,7 +291,7 @@ class Converter:
         )
         # merge the tensor with dist_attr
         partition_tensor_list = []
-        merged_partition = []
+        merged_partiton = []
         for process in process_group:
             partition_index = Resharder.compute_partition_index(
                 process,
@@ -290,8 +301,8 @@ class Converter:
                 process_group,
             )
             index = process_group.index(process)
-            if partition_index not in merged_partition:
-                merged_partition.append(partition_index)
+            if partition_index not in merged_partiton:
+                merged_partiton.append(partition_index)
                 Converter.merge(
                     partition_tensor_list,
                     tensor_list[index],
@@ -301,7 +312,7 @@ class Converter:
 
         if len(partition_tensor_list) != 1:
             raise ValueError(
-                f"Fail to merge tensor with dist_attr '{dist_attr}'."
+                f"Fail to merge tensor with dist_attr '{str(dist_attr)}'."
             )
         complete_tensor = partition_tensor_list[0][0]
         return complete_tensor
@@ -326,7 +337,7 @@ class Converter:
         )
         if sliced_tensor_index not in range(len(sliced_tensor_list)):
             raise ValueError(
-                f"Fail to slice tensor with dist_attr '{dist_attr}'."
+                f"Fail to slice tensor with dist_attr '{str(dist_attr)}'."
             )
         sliced_tensor = sliced_tensor_list[sliced_tensor_index]
         return sliced_tensor
@@ -334,7 +345,7 @@ class Converter:
     @staticmethod
     def merge(partition_tensor_list, tensor, partition_index, complete_shape):
         """
-        Merge partial tensors to a complete.
+        Merge partitial tensors to a complete.
 
         Returns:
             None
